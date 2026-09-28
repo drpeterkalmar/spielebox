@@ -1,0 +1,10 @@
+node_modules/
+# Test-Artefakte (Auswahl in tests/shots/final bleibt)
+tests/shots/*
+!tests/shots/final/
+tests/out/*
+!tests/out/.keep
+__pycache__/
+*.pyc
+.DS_Store
+assets_src/

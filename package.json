@@ -1,0 +1,15 @@
+{
+  "name": "spielebox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Spielebox – Brettspiele zu zweit übers Netz, Zutritt mit 3 Wörtern (PWA, ohne Server)",
+  "scripts": {
+    "test": "node tests/node/run_all.mjs",
+    "build:lib": "node tools/build_lib.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "trystero": "0.25.4"
+  }
+}

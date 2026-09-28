@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f4a3a">
+<meta name="description" content="Spielebox – Mühle und Dame zu zweit übers Netz. Kein Konto, kein Server: Tisch aufmachen, drei Wörter ansagen, losspielen.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Spielebox">
+<title>Spielebox</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-screen="load">
+<div id="app"></div>
+<noscript><p style="padding:30px;font:20px sans-serif;color:#fff">Bitte JavaScript aktivieren, um die Spielebox zu nutzen.</p></noscript>
+<script>
+  window.__errors = [];
+  addEventListener('error', function (e) { __errors.push(String(e.message || e)); });
+  addEventListener('unhandledrejection', function (e) { __errors.push('Promise: ' + String(e.reason && e.reason.message || e.reason)); });
+  if ('serviceWorker' in navigator && !/[?&]nosw/.test(location.search) && location.protocol === 'https:') {
+    var hadCtl = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+    // neue Version: nur in der Lobby neu laden (nie mitten in einer Partie oder Eingabe)
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (hadCtl && document.body.dataset.screen === 'lobby' && !document.querySelector('input:focus')) location.reload();
+    });
+  }
+</script>
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
