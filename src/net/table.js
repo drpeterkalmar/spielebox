@@ -65,6 +65,7 @@ export class TableSession {
     this.listeners = {};
     this.present = new Map();     // pid → { name, via, lastSeen, want }
     this.pendingMove = null;      // eigener, noch unbestätigter Zug (Client)
+    this.stats = { movesSent: 0, moveRetries: 0, rejected: 0 };
     this.hostSeen = 0;            // zuletzt Nachricht vom Host
     this.startedAt = now();
     this.closed = false;
@@ -140,6 +141,7 @@ export class TableSession {
     if (this.role === 'host') return this._applyMove(seat, move);
     if (this.pendingMove) return { ok: false, reason: 'Zug wird noch übertragen' };
     this.pendingMove = { id: this._id(), move, seq: t.seq, sent: this.now() };
+    this.stats.movesSent++;
     this._sendHost({ t: 'move', id: this.pendingMove.id, move, seq: t.seq });
     // Vorschau: Zug lokal schon zeigen, bis der Host bestätigt (bei Ablehnung kommt der alte Stand zurück)
     this._optimistic(seat, move);
@@ -394,6 +396,7 @@ export class TableSession {
 
   _clientOnNack(from, msg) {
     if (this.pendingMove && msg.id === this.pendingMove.id) {
+      this.stats.rejected++;
       this.pendingMove = null;
       if (this._isOptimistic && this._confirmed) {
         this.table = this._confirmed;
@@ -509,6 +512,7 @@ export class TableSession {
     // Client: unbestätigten Zug wiederholen
     if (this.pendingMove && now - this.pendingMove.sent > TIMING.moveRetry) {
       this.pendingMove.sent = now;
+      this.stats.moveRetries++;
       this._sendHost({ t: 'move', id: this.pendingMove.id, move: this.pendingMove.move, seq: this.pendingMove.seq });
     }
     // Host lange weg? Sitzender Spieler mit Stand übernimmt die Schiedsrichter-Rolle

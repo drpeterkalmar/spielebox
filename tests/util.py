@@ -10,7 +10,9 @@ UA = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like G
 PIXEL7_HOCH = dict(viewport={"width": 412, "height": 915}, device_scale_factor=2.625, is_mobile=True, has_touch=True, user_agent=UA)
 PIXEL7_QUER = dict(viewport={"width": 915, "height": 412}, device_scale_factor=2.625, is_mobile=True, has_touch=True, user_agent=UA)
 DESKTOP = dict(viewport={"width": 1280, "height": 800}, device_scale_factor=1)
-DEVICES = {'hoch': PIXEL7_HOCH, 'quer': PIXEL7_QUER, 'desktop': DESKTOP}
+# Pixel 7 quer im Chrome-Tab (Adress- und Statusleiste sichtbar): nur ~350 px Höhe
+PIXEL7_QUER_TAB = dict(viewport={"width": 915, "height": 350}, device_scale_factor=2.625, is_mobile=True, has_touch=True, user_agent=UA)
+DEVICES = {'hoch': PIXEL7_HOCH, 'quer': PIXEL7_QUER, 'desktop': DESKTOP, 'quer_tab': PIXEL7_QUER_TAB}
 # GPU statt SwiftShader (Skill-Vorgabe). WebRTC-Test auf EINEM Mac mit ProtonVPN: Chrome nimmt ohne Kamera/Mikro-
 # Berechtigung nur die Standardroute (VPN-Schnittstelle utun) – darüber erreichen sich zwei Kontexte nicht einmal
 # innerhalb derselben Seite. Mit erteilter (Schein-)Berechtigung nutzt Chrome alle Schnittstellen inkl. LAN/Loopback.
@@ -107,9 +109,15 @@ class Page:
     # Trystero meldet das Schließen des Datenkanals als console.error, wenn die GEGENSEITE neu lädt
     # oder den Tisch verlässt – erwartet und kein App-Fehler
     BENIGN = ('Trystero peer error: OperationError: User-Initiated Abort',)
+    # Chrome loggt gescheiterte WebSocket-Verbindungen zu öffentlichen Relays selbst als console.error
+    # (VPN-/Relay-Aussetzer); die App verbindet neu → als Netz-Ereignis zählen, nicht als App-Fehler
+    NETWORK = ("WebSocket connection to 'wss://",)
+
+    def net_events(self):
+        return [e for e in self.errors if any(b in e for b in self.NETWORK)]
 
     def app_errors(self):
-        errs = [e for e in self.errors if not any(b in e for b in self.BENIGN)]
+        errs = [e for e in self.errors if not any(b in e for b in self.BENIGN + self.NETWORK)]
         return errs + ['JSERR ' + e for e in self.ev("__box.errors()")]
 
     def small_buttons(self):

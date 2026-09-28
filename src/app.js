@@ -210,6 +210,7 @@ window.__box = {
       words: cur ? cur.words : null,
       roomId: cur ? cur.roomId : null,
       pending: !!(s && s.pendingMove),
+      stats: s ? s.stats : null,
       table: t ? {
         game: t.game, opts: t.opts, status: t.status, seq: t.seq, epoch: t.epoch, round: t.round, nmoves: t.nmoves,
         turn: turnOf(t), result: t.result, seats: t.seats.map((x) => x && { name: x.name, pid: x.pid, bot: x.bot || 0 }),

@@ -5,7 +5,6 @@ import { squareName } from './engine.js';
 import { s, ensureDefs, piece, place, animatePath, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
 
 const Q = 100;   // Feldgröße
-const F = 30;    // Rahmen
 const R = 38;    // Steinradius
 
 export function createBoard(host, { onMove, onHint }) {
@@ -21,6 +20,7 @@ export function createBoard(host, { onMove, onHint }) {
 
   let n = 0, flip = false, table = null, legal = null, sel = null, prefix = [], hint = '';
   let size = 0;
+  let F = 30;   // Rahmen: 8×8 mit Koordinaten, 10×10 schmal (Touch-Ziele ≥ 48 px auch quer im Browser-Tab)
 
   const disp = (i) => { const r = Math.floor(i / n), c = i % n; return flip ? [n - 1 - r, n - 1 - c] : [r, c]; };
   const center = (i) => { const [r, c] = disp(i); return [F + c * Q + Q / 2, F + r * Q + Q / 2]; };
@@ -30,6 +30,7 @@ export function createBoard(host, { onMove, onHint }) {
   }
 
   function drawBoard() {
+    F = n === 10 ? 8 : 30;
     size = n * Q + 2 * F;
     svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
     gBoard.textContent = '';

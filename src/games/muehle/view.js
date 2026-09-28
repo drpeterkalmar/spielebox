@@ -4,7 +4,7 @@ import { POINTS, MILLS } from './engine.js';
 import { s, ensureDefs, piece, place, animatePath, animateDrop, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
 
 const U = 100;          // Rasterabstand
-const OFF = 62;         // Rand bis zum äußeren Ring
+const OFF = 52;         // Rand bis zum äußeren Ring (schmal: Touch-Ziele ≥ 48 px auch quer im Browser-Tab)
 const SIZE = 6 * U + 2 * OFF;
 const R = 38;           // Steinradius
 const HIT = 0.62 * U;   // größter Abstand für einen Treffer
@@ -15,8 +15,8 @@ export function createBoard(host, { onMove, onHint }) {
   ensureDefs();
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-muehle', role: 'img', 'aria-label': 'Mühlebrett' });
   svg.append(
-    s('rect', { width: SIZE, height: SIZE, rx: 22, fill: 'url(#sb-wood-frame)' }),
-    s('rect', { x: 16, y: 16, width: SIZE - 32, height: SIZE - 32, rx: 8, fill: 'url(#sb-wood-light)', stroke: 'rgba(40,20,5,.45)', 'stroke-width': 3 })
+    s('rect', { width: SIZE, height: SIZE, rx: 20, fill: 'url(#sb-wood-frame)' }),
+    s('rect', { x: 12, y: 12, width: SIZE - 24, height: SIZE - 24, rx: 8, fill: 'url(#sb-wood-light)', stroke: 'rgba(40,20,5,.45)', 'stroke-width': 3 })
   );
   const lines = s('g', { stroke: '#3a2515', 'stroke-width': 7, 'stroke-linecap': 'round', fill: 'none', opacity: 0.92 });
   for (const k of [0, 1, 2]) {

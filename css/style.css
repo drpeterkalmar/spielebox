@@ -168,8 +168,9 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
 .pill[data-net='lokal'] { padding-left: 12px; }
 .pill[data-net='lokal']::before { display: none; }
 @keyframes blink { 50% { opacity: .25; } }
-.tmain { display: flex; flex-direction: column; min-height: 0; padding: 0 4px; }
-.board-wrap { position: relative; flex: 1 1 auto; min-height: 0; }
+.tmain { display: flex; flex-direction: column; justify-content: center; min-height: 0; padding: 0 4px; }
+/* Hochformat: Brett so breit wie möglich, Spielerleisten direkt darüber/darunter */
+.board-wrap { position: relative; flex: 0 1 auto; width: 100%; aspect-ratio: 1 / 1; min-height: 0; }
 .board-wrap > svg.board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; filter: drop-shadow(0 8px 16px rgba(0,0,0,.4)); }
 .pbar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 14px; margin: 4px 2px; background: rgba(0,0,0,.18); min-height: 52px; border: 2px solid transparent; transition: background .2s, border-color .2s; }
 .pbar.active { background: rgba(228,165,60,.22); border-color: rgba(240,190,90,.85); }
@@ -235,9 +236,9 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
     column-gap: 10px;
   }
   .tbar { grid-area: bar; padding-top: 6px; }
-  .tmain { grid-area: main; flex-direction: row; width: min(100dvh - var(--safe-t) - var(--safe-b), 64vw); padding: 4px 0 4px 4px; }
+  .tmain { grid-area: main; flex-direction: row; width: min(100dvh - var(--safe-t) - var(--safe-b), 64vw); padding: 2px 0 2px 2px; }
   .tmain .pbar { display: none; }
-  .board-wrap { height: 100%; }
+  .board-wrap { height: 100%; width: auto; flex: 1 1 auto; aspect-ratio: auto; }
   .tside { grid-area: side; overflow: auto; padding: 0 10px 10px 0; }
   .side-players { display: flex; flex-direction: column; gap: 0; }
   .status { text-align: left; }

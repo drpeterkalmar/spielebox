@@ -109,7 +109,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
 
   function seatLabel(t, seat) {
     const s = t.seats[seat];
-    const name = s ? s.name : 'frei';
+    const name = s ? s.name : 'Platz frei';
     const me = mode === 'online' && s && s.pid === session.me.pid;
     return me ? `${name} (du)` : name;
   }

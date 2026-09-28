@@ -58,9 +58,14 @@ def open_table_ui(A, game_sel='[data-game="muehle"]'):
 def type_words_ui(B, words):
     """Gast tippt die Wörter ein: Wort 1 halb + Vorschlag antippen, Wort 2 komplett, Wort 3 in anderer Schreibweise."""
     B.tap('#w0')
-    B.pg.keyboard.type(words[2][:3], delay=40)          # Reihenfolge egal: mit dem dritten Wort anfangen
-    B.pg.wait_for_selector(f'.chip[data-word="{words[2]}"]', timeout=5000)
-    B.tap(f'.chip[data-word="{words[2]}"]')
+    target = words[2]                                     # Reihenfolge egal: mit dem dritten Wort anfangen
+    B.pg.keyboard.type(target[:2], delay=40)
+    for ch in target[2:]:
+        time.sleep(0.12)
+        if B.ev(f"!!document.querySelector('.chip[data-word=\"{target}\"]')"): break
+        B.pg.keyboard.type(ch, delay=40)
+    B.pg.wait_for_selector(f'.chip[data-word="{target}"]', timeout=5000)
+    B.tap(f'.chip[data-word="{target}"]')
     B.pg.keyboard.type(words[0].capitalize(), delay=30)
     B.pg.keyboard.press('Enter')
     B.pg.keyboard.type(words[1].upper() + ' ', delay=30)
@@ -150,7 +155,8 @@ def run(pw, srv_base, relay, name, rtc_all=True, full=True):
                 sc.setdefault('zug_s', []).append(round(time.time() - t1, 2))
             c.ok(tbl(B)['nmoves'] == n0 + 6, f'{name}: 6 Züge über den Fallback ({sc["zug_s"]} s)')
             errs = A.app_errors() + B.app_errors()
-            c.ok(errs == [], f'{name}: 0 Fehler {errs[:4]}')
+            sc['relay_verbindungsabbrueche'] = len(A.net_events()) + len(B.net_events())
+            c.ok(errs == [], f'{name}: 0 App-Fehler {errs[:4]} (Relay-Verbindungsabbrüche: {sc["relay_verbindungsabbrueche"]})')
             report['szenarien'][name] = sc
             A.close(); B.close()
             return
@@ -223,6 +229,18 @@ def run(pw, srv_base, relay, name, rtc_all=True, full=True):
         mover.ev("__box.botMove(1)")
         wait(lambda: tbl(A)['nmoves'] == n + 1 and tbl(B)['nmoves'] == n + 1, 60, 'Zug nach Host-Reload')
         c.ok(True, f'{name}: Host nach Reload wieder Schiedsrichter in {sc["reload_host_s"]} s, Partie geht weiter')
+        # Host schließt den Tab → Gast sieht „getrennt“ und kann „Wiederverbinden“ antippen
+        errs_a = A.app_errors()
+        if not relay:
+            A.close()
+            t0 = time.time()
+            wait(lambda: B.state()['net']['mode'] == 'getrennt', 60, 'Gast sieht getrennt')
+            sc['getrennt_erkannt_s'] = round(time.time() - t0, 1)
+            B.shot(f'e2e_{name}_gast_getrennt', 'dev')
+            B.tap('[data-act="menu"]'); B.tap('[data-act="net"]'); B.tap('[data-act="reconnect"]')
+            time.sleep(1.5)
+            c.ok(B.pg.locator('.pill').inner_text().strip() in ('getrennt', 'wartet', 'über Relay'), f'{name}: Host weg → Gast zeigt „getrennt“ nach {sc["getrennt_erkannt_s"]} s, Wiederverbinden ohne Fehler')
+            B.pg.keyboard.press('Escape')
         if relay:
             sc['relays_host'] = relay_summary(A)
             sc['relays_gast'] = relay_summary(B)
@@ -230,7 +248,9 @@ def run(pw, srv_base, relay, name, rtc_all=True, full=True):
             sent = sum(r['sent'] for r in rs); ok = sum(r['ok'] for r in rs)
             sc['relay_quote'] = f'{ok}/{sent} Events mit OK bestätigt'
             print('   Relay-Quote:', sc['relay_quote'])
-        errs = A.app_errors() + B.app_errors()
+        sc['zuege_gesendet_gast'] = B.state()['stats']
+        sc['relay_verbindungsabbrueche'] = len(B.net_events()) + (0 if not relay else len(A.net_events()))
+        errs = errs_a + B.app_errors()
         c.ok(errs == [], f'{name}: 0 Fehler in beiden Kontexten {errs[:4]}')
         A.close(); B.close()
     finally:

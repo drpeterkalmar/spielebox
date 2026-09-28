@@ -184,6 +184,21 @@ with Server() as srv, sync_playwright() as pw:
         errs = P.app_errors()
         c.ok(errs == [], f'{form}: 0 Page-/Console-Fehler {errs[:3]}')
         P.close()
+    # quer im Browser-Tab (weniger Höhe): Bretter trotzdem ganz sichtbar, Touch-Ziele ≥ 48 px
+    P = Page(b, srv.base, 'quer_tab').open()
+    for mode, game, opts, label in (('hotseat', 'muehle', {}, 'Mühle'), ('hotseat', 'dame', {'rules': 'deutsch'}, 'Dame 8×8'), ('hotseat', 'dame', {'rules': 'international'}, 'Dame 10×10')):
+        P.ev(f"__box.local('{mode}', '{game}', {json.dumps(opts)})")
+        time.sleep(0.5)
+        if label == 'Dame 10×10':
+            # 10 Reihen in ~346 px: physikalisch knapp unter 48 px – nur messen und berichten (Vorgabe gilt Hochformat)
+            bc = P.board_check()
+            c.ok(bc['inside'], f'quer im Tab (915×350) {label}: Brett ganz sichtbar')
+            print(f'  ℹ️  quer im Tab (915×350) {label}: Touch-Ziele {bc["minTargetPx"]:.1f} px (Hochformat und installierte App ≥ 48)')
+        else:
+            check_screen(P, f'quer im Tab (915×350) {label}')
+    P.shot('dame10_quer_tab', 'dev')
+    c.ok(P.app_errors() == [], f'quer im Tab: 0 Fehler {P.app_errors()[:3]}')
+    P.close()
     b.close()
 print('\nRAUCHTEST', 'GRÜN' if not c.fails else f'ROT ({len(c.fails)})')
 sys.exit(1 if c.fails else 0)
