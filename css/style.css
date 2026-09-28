@@ -157,7 +157,7 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
 .tb-game { font-weight: 750; font-size: 19px; }
 .tb-var { font-size: 13px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pill {
-  min-height: 36px; padding: 6px 12px 6px 26px; border-radius: 18px; border: none; background: rgba(0,0,0,.25); color: #fbf3e4;
+  min-height: var(--tap); padding: 6px 12px 6px 26px; border-radius: 24px; border: none; background: rgba(0,0,0,.25); color: #fbf3e4;
   font-size: 14px; font-weight: 600; position: relative; white-space: nowrap;
 }
 .pill::before { content: ''; position: absolute; left: 11px; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; background: #9aa; }

@@ -11,10 +11,13 @@ PIXEL7_HOCH = dict(viewport={"width": 412, "height": 915}, device_scale_factor=2
 PIXEL7_QUER = dict(viewport={"width": 915, "height": 412}, device_scale_factor=2.625, is_mobile=True, has_touch=True, user_agent=UA)
 DESKTOP = dict(viewport={"width": 1280, "height": 800}, device_scale_factor=1)
 DEVICES = {'hoch': PIXEL7_HOCH, 'quer': PIXEL7_QUER, 'desktop': DESKTOP}
-# GPU statt SwiftShader (Skill-Vorgabe); WebRTC: lokale IPs statt mDNS, damit zwei Kontexte auf demselben Mac
-# sich direkt finden (auf echten Handys übernimmt das STUN bzw. der Relay-Fallback)
+# GPU statt SwiftShader (Skill-Vorgabe). WebRTC-Test auf EINEM Mac mit ProtonVPN: Chrome nimmt ohne Kamera/Mikro-
+# Berechtigung nur die Standardroute (VPN-Schnittstelle utun) – darüber erreichen sich zwei Kontexte nicht einmal
+# innerhalb derselben Seite. Mit erteilter (Schein-)Berechtigung nutzt Chrome alle Schnittstellen inkl. LAN/Loopback.
+# Die App selbst braucht keine Kamera; das betrifft nur den Testaufbau (Page(..., rtc_all=True)).
 ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist",
-        "--disable-features=WebRtcHideLocalIpsWithMdns"]
+        "--disable-features=WebRtcHideLocalIpsWithMdns", "--allow-loopback-in-peer-connection",
+        "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]
 
 
 class Quiet(SimpleHTTPRequestHandler):
@@ -48,11 +51,11 @@ class Server:
 
 class Page:
     """Ein Kontext + eine Seite mit Fehlersammlung."""
-    def __init__(self, browser, base, device='hoch', name='A'):
+    def __init__(self, browser, base, device='hoch', name='A', rtc_all=False):
         self.base = base
         self.name = name
         self.device = device
-        self.ctx = browser.new_context(**DEVICES[device])
+        self.ctx = browser.new_context(**DEVICES[device], **({'permissions': ['camera', 'microphone']} if rtc_all else {}))
         self.pg = self.ctx.new_page()
         self.errors = []; self.console = []; self.warnings = []
         self.pg.on("pageerror", lambda e: self.errors.append("PAGEERROR " + str(e)))
@@ -101,8 +104,13 @@ class Page:
         x, y = self.ev(f"__box.target({i})")
         self.tap_xy(x, y)
 
+    # Trystero meldet das Schließen des Datenkanals als console.error, wenn die GEGENSEITE neu lädt
+    # oder den Tisch verlässt – erwartet und kein App-Fehler
+    BENIGN = ('Trystero peer error: OperationError: User-Initiated Abort',)
+
     def app_errors(self):
-        return self.errors + ['JSERR ' + e for e in self.ev("__box.errors()")]
+        errs = [e for e in self.errors if not any(b in e for b in self.BENIGN)]
+        return errs + ['JSERR ' + e for e in self.ev("__box.errors()")]
 
     def small_buttons(self):
         # sichtbare Knöpfe < 48 px oder außerhalb des Bildes (Chips 44 px hoch sind Vorschläge, ≥ 48 breit)

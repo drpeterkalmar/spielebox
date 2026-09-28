@@ -238,6 +238,7 @@ window.__box = {
   target: (i) => cur.screen.view.target(i),
   metrics: () => cur.screen.view.metrics(),
   reconnect: () => cur && cur.link && cur.link.reconnect(),
+  relayStats: () => (cur && cur.link && cur.link.relay ? cur.link.relay.status() : null),
   netlog: () => netlog.slice(-80),
   sessionLog: () => (cur ? cur.session.log.slice(-80) : []),
   errors: () => window.__errors || []

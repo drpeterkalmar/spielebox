@@ -9,7 +9,7 @@ import { gameOf } from '../games/registry.js';
 
 export const TIMING = {
   heartbeat: 4000,   // Host meldet sich regelmäßig (Stand seq/epoch, Anwesenheit)
-  hostGone: 20000,   // so lange kein Host → sitzender Spieler mit Zustand übernimmt
+  hostGone: 45000,   // so lange kein Host → sitzender Spieler mit Zustand übernimmt (> 3 Relay-Herzschläge)
   moveRetry: 5000,   // unbestätigten Zug erneut senden
   botDelay: 450      // Mindest-Denkzeit des Computers (fühlt sich natürlicher an)
 };

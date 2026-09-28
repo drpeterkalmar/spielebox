@@ -12,7 +12,8 @@ export const APP_ID = 'spielebox-v1';
 export const LINK_TIMING = {
   relayAfter: 12000,   // so lange ohne Direktverbindung → Relay zuschalten
   presence: 15000,     // Lebenszeichen über Relay
-  relayFresh: 40000    // Relay-Gegenstelle gilt so lange als erreichbar
+  relayFresh: 40000,   // Relay-Gegenstelle gilt so lange als erreichbar
+  relayHeartbeat: 12000 // Herzschlag des Hosts über Relay seltener (öffentliche Relays nicht fluten)
 };
 
 const MAX_SEEN = 4000;
@@ -151,6 +152,12 @@ export class NetLink {
       if (!this.peers.size) viaRelay = true;
     }
     if (direct.length) this._sendDirect(env, [...new Set(direct)]);
+    if (viaRelay && msg.t === 'hb') {
+      // Herzschlag ist verlustfrei verzichtbar: über Relay nur alle relayHeartbeat ms
+      const now = Date.now();
+      if (now - (this._lastRelayHb || 0) < LINK_TIMING.relayHeartbeat) return;
+      this._lastRelayHb = now;
+    }
     if (viaRelay) this._sendRelay(env);
   }
 
