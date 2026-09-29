@@ -26,7 +26,8 @@ export function clear(el) {
 }
 
 let toastBox = null;
-export function toast(text, ms = 2600) {
+// Standarddauer 5 s (bis 29.09.: 2600 ms; Peter 29.09.: „Meldungen länger anzeigen“)
+export function toast(text, ms = 5000) {
   if (!toastBox) {
     toastBox = h('div', { class: 'toasts', 'aria-live': 'polite' });
     document.body.appendChild(toastBox);
