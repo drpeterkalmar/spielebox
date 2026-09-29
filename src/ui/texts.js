@@ -113,7 +113,7 @@ export function rulesHalma(blockText = '') {
     ul(
       'Sternbrett mit 121 Löchern, 2, 3, 4 oder 6 Spieler mit je 10 Steinen. Ziel: alle Steine in die gegenüberliegende Zacke bringen.',
       'Ein Zug ist entweder ein Schritt auf ein freies Nachbarloch oder eine Sprungkette: über einen direkt benachbarten Stein (egal welcher Farbe) auf das freie Loch dahinter, beliebig oft hintereinander, kein Loch zweimal. Geschlagen wird nicht.',
-      'Bedienung: Stein antippen, Ziele leuchten. Bei Sprüngen Sprung für Sprung antippen und mit „Fertig“ abschließen (oder direkt aufs Endloch tippen).',
+      'Bedienung: Stein antippen – alle erreichbaren Löcher leuchten, auch die Enden langer Sprungketten. Ziel antippen, der Stein springt die Kette Sprung für Sprung ab. Ein Tipp trifft immer den nächsten sinnvollen Stein bzw. das nächste erlaubte Ziel; „Lupe“ vergrößert das Brett.',
       blockText || 'Blockade-Regel: Ist deine Zielzacke vollständig besetzt und steht mindestens einer deiner Steine darin, hast du gewonnen.',
       'Wer zuerst fertig ist, gewinnt. Gegen endlose Partien: Nach 200 Zügen je Spieler gewinnt der kürzeste Restweg.'
     ));

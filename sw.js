@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '8532c4c96a';
+const VERSION = 'f34cdc704d';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -115,6 +115,7 @@ const ASSETS = [
   'src/games/dame/view.js',
   'src/games/halma/bot.js',
   'src/games/halma/engine.js',
+  'src/games/halma/view.js',
   'src/games/muehle/bot.js',
   'src/games/muehle/engine.js',
   'src/games/muehle/view.js',

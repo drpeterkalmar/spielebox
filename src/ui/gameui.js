@@ -16,7 +16,9 @@ import { rulesBackgammon } from './texts.js';
 import { SEAT_COLORS, SEAT_SYMBOLS } from './seatcolors.js';
 import { createBoard as blackjackBoard } from '../games/blackjack/view.js';
 import * as BJ from '../games/blackjack/engine.js';
-import { rulesBlackjack } from './texts.js';
+import { rulesBlackjack, rulesHalma } from './texts.js';
+import { createBoard as halmaBoard } from '../games/halma/view.js';
+import * as HM from '../games/halma/engine.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -231,6 +233,39 @@ UI.blackjack = {
     if (has('stand')) out.push(b('Stehen', 'stand', has('stand')));
     if (has('double')) out.push(b('Verdoppeln', 'double', has('double')));
     if (has('split')) out.push(b('Teilen', 'split', has('split')));
+    return out;
+  }
+};
+
+function halmaIcon(seat) {
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('class', 'stone-ico');
+  svg.innerHTML = `<circle cx="10" cy="10" r="9" fill="${SEAT_COLORS[seat % 6]}" stroke="rgba(0,0,0,.5)"/><text x="10" y="14" text-anchor="middle" font-size="11" fill="#fff">${SEAT_SYMBOLS[seat % 6]}</text>`;
+  return svg;
+}
+
+UI.halma = {
+  board: halmaBoard,
+  icon: halmaIcon,
+  rules: () => rulesHalma(HM.BLOCK_RULE_TEXT),
+  sub(t, seat) {
+    const gs = t.gs;
+    const inGoal = HM.CAMP[HM.targetCamp(gs.n, seat)].filter((i) => gs.board[i] === seat).length;
+    return `${HM.PLAYERS[seat]} · Restweg ${HM.distance(gs, seat)} · ${inGoal}/10 im Ziel`;
+  },
+  // „Lupe“: Brett vergrößert und verschiebbar (121 Löcher sind am Handy eng)
+  actions(t, legal, submit, view) {
+    const wrap = view && view.svg.parentNode;
+    const on = !!(wrap && wrap.classList.contains('zoom'));
+    const out = [h('button', { class: 'btn', data: { act: 'lupe' }, on: { click: () => {
+      if (!wrap) return;
+      const z = wrap.classList.toggle('zoom');
+      if (z) { wrap.scrollTop = wrap.scrollHeight; wrap.scrollLeft = (wrap.scrollWidth - wrap.clientWidth) / 2; }
+      const b = document.querySelector('[data-act=lupe]');
+      if (b) b.textContent = z ? 'Lupe aus' : 'Lupe (größer)';
+    } } }, on ? 'Lupe aus' : 'Lupe (größer)')];
+    if (legal.length === 1 && legal[0].pass) out.push(h('button', { class: 'btn primary', data: { act: 'pass' }, on: { click: () => submit(legal[0]) } }, 'Aussetzen'));
     return out;
   }
 };

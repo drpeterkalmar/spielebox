@@ -135,7 +135,7 @@ class Page:
         # Brett ganz sichtbar (innerhalb des Viewports) und Touch-Ziele groß genug
         return self.ev("""() => { const m = __box.metrics(); const W = innerWidth, H = innerHeight;
           const svg = document.querySelector('svg.board'); const ctm = svg.getScreenCTM(); const vb = svg.viewBox.baseVal;
-          const x0 = ctm.e, y0 = ctm.f, x1 = ctm.e + vb.width * ctm.a, y1 = ctm.f + vb.height * ctm.d;
+          const x0 = ctm.e + vb.x * ctm.a, y0 = ctm.f + vb.y * ctm.d, x1 = x0 + vb.width * ctm.a, y1 = y0 + vb.height * ctm.d;
           return { minTargetPx: m.minTargetPx, x0, y0, x1, y1, W, H, inside: x0 >= -1 && y0 >= -1 && x1 <= W + 1 && y1 <= H + 1, sizePx: x1 - x0 }; }""")
 
     def metrics(self):

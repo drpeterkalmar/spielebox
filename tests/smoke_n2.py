@@ -209,6 +209,41 @@ def blackjack(P, form):
     P.shot(f'blackjack_ergebnis_{form}', 'n2')
 
 
+def halma(P, form):
+    for n in (2, 6):
+        P.ev(f"__box.local('bot', 'halma', {{players: {n}}}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'halma' and P.ev("__box.table().gs.n") == n and P.ev("__box.legal().length") > 0, 20, 'ich bin am Zug')
+        time.sleep(0.3)
+        sb = P.small_buttons()
+        c.ok(sb == [], f'{form} Halma {n}: Knöpfe ≥ 48 px {sb[:3]}')
+        bc = P.board_check()
+        c.ok(bc['inside'], f'{form} Halma {n}: Brett ganz sichtbar')
+        m = P.metrics()
+        # ehrlich: Lochabstand ist < 48 px (121 Löcher); Tipp trifft den nächsten Kandidaten
+        print(f'    Lochabstand {m["holePx"]:.1f} px, Brett {m["boardPx"]:.0f} px (Tipp → nächster Kandidat)')
+        legal = P.ev("__box.legal()")
+        mv = max(legal, key=lambda x: len(x.get('path', [])))
+        n0 = tbl(P)['nmoves']
+        # Stein leicht daneben antippen (Versatz 10 px) → trotzdem der richtige
+        x, y = P.ev(f"__box.target({mv['from']})"); P.tap_xy(x + 6, y - 6)
+        time.sleep(0.15)
+        dots = P.ev("document.querySelectorAll('.board .hint-dot').length")
+        c.ok(dots >= 1, f'{form} Halma {n}: Stein gewählt, {dots} Ziel(e) leuchten')
+        to = mv['path'][-1]
+        x, y = P.ev(f"__box.target({to})"); P.tap_xy(x, y)
+        wait(lambda: tbl(P)['nmoves'] >= n0 + 1, 5, 'Zug')
+        c.ok(P.ev(f"__box.table().gs.board[{to}]") == 0, f'{form} Halma {n}: Zug per Tipp (Sprungkette {len(mv["path"])} Glied(er))')
+        wait(lambda: tbl(P)['nmoves'] >= n0 + n or tbl(P)['status'] != 'play', 30, 'Computer ziehen')
+        P.shot(f'halma{n}_{form}', 'n2')
+    # Lupe
+    P.tap('[data-act="lupe"]')
+    time.sleep(0.3)
+    m = P.metrics()
+    c.ok(m['holePx'] >= 48, f'{form}: mit Lupe Lochabstand {m["holePx"]:.1f} px ≥ 48')
+    P.shot(f'halma_lupe_{form}', 'n2')
+    P.tap('[data-act="lupe"]')
+
+
 with Server() as srv, sync_playwright() as pw:
     b = launch(pw)
     for form in ['hoch', 'quer', 'desktop']:
