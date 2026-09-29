@@ -71,6 +71,21 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const statusEl = h('div', { class: 'status', 'aria-live': 'polite' });
   const hintEl = h('div', { class: 'hint' });
   const offerEl = h('div', { class: 'offer' });
+  // Wiederverbinden: erst weich (Trystero + Relays neu), hilft das nach 12 s nicht, Seite neu laden –
+  // Wörter stehen im #-Teil, der Stand in localStorage → die Partie geht danach einfach weiter
+  let reconnectTimer = null;
+  const reconnectNow = () => {
+    session.link.reconnect();
+    toast('Verbinde neu …');
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      const m = session.netStatus().mode;
+      if (m === 'getrennt' || (!session.table && m !== 'direkt' && m !== 'relay')) location.reload();
+    }, 12000);
+  };
+  const netEl = h('div', { class: 'netwarn hidden' },
+    h('span', { text: 'Verbindung weg.' }),
+    h('button', { class: 'btn primary small', data: { act: 'reconnect-now' }, on: { click: reconnectNow } }, 'Wiederverbinden'));
   const actions = h('div', { class: 'actions' });
   const movesEl = h('ol', { class: 'movelist' });
   const overlay = h('div', { class: 'overlay hidden' });
@@ -79,7 +94,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const screen = h('div', { class: 'screen table-screen', data: { mode } },
     bar,
     h('div', { class: 'tmain' }, pTop, boardWrap, pBot),
-    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), statusEl, hintEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
+    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), statusEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
   clear(root).appendChild(screen);
 
   const eng = () => gameOf(session.table.game).engine;
@@ -240,8 +255,10 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       overlay.append(h('div', { class: 'ov-card' },
         h('h2', { text: 'Verbinde mit dem Tisch …' }),
         words ? wordsBlock(words) : null,
-        h('p', { class: 'muted', text: netMode === 'getrennt' ? 'Keine Verbindung. Ist der Tisch offen?' : 'Warte auf den Gastgeber. Das kann ein paar Sekunden dauern.' }),
-        h('div', { class: 'row' }, h('button', { class: 'btn', on: { click: () => onLeave() } }, 'Abbrechen'))));
+        h('p', { class: 'muted', text: netMode === 'getrennt' ? 'Keine Verbindung. Ist der Tisch offen?' : 'Warte auf den Gastgeber. Das kann ein paar Sekunden dauern – ohne Direktverbindung gut 15 Sekunden.' }),
+        h('div', { class: 'row' },
+          h('button', { class: 'btn', data: { act: 'retry' }, on: { click: () => location.reload() } }, 'Neu versuchen'),
+          h('button', { class: 'btn', on: { click: () => onLeave() } }, 'Abbrechen'))));
     } else if (t.status === 'wait' && session.role === 'host' && words) {
       show = true;
       const g = gameOf(t.game);
@@ -263,6 +280,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     pill.dataset.net = st.mode;
     pill.textContent = st.text;
     pill.title = st.relay ? `Relays offen: ${st.relay.open}/${st.relay.total}` : '';
+    netEl.classList.toggle('hidden', !(mode === 'online' && st.mode === 'getrennt'));
   }
 
   function render(info = {}) {
@@ -305,7 +323,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       st.relay ? h('p', { text: `Relay-Fallback aktiv (${st.relayReason || ''}): ${st.relay.open} von ${st.relay.total} Relays verbunden.` }) : h('p', { text: 'Direktverbindung über WebRTC (Relay-Fallback nicht nötig).' }),
       st.joinError ? h('p', { class: 'muted small', text: 'Letzte Meldung: ' + st.joinError }) : null,
       peers.length ? h('ul', {}, ...peers) : h('p', { class: 'muted', text: 'Noch niemand verbunden.' }),
-      h('div', { class: 'row' }, h('button', { class: 'btn primary', data: { act: 'reconnect' }, on: { click: () => { session.link.reconnect(); toast('Verbinde neu …'); } } }, 'Wiederverbinden')),
+      h('div', { class: 'row' }, h('button', { class: 'btn primary', data: { act: 'reconnect' }, on: { click: reconnectNow } }, 'Wiederverbinden')),
       helpNet());
   }
 
@@ -330,6 +348,6 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     get view() { return view; },
     render,
     showWords,
-    destroy() { offChange(); offNet(); offToast(); if (view) view.destroy(); }
+    destroy() { clearTimeout(reconnectTimer); offChange(); offNet(); offToast(); if (view) view.destroy(); }
   };
 }

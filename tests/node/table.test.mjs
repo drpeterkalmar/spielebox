@@ -7,7 +7,7 @@ import { gameOf } from '../../src/games/registry.js';
 import { mulberry32, pick } from '../../src/rng.js';
 import * as muehleBot from '../../src/games/muehle/bot.js';
 
-Object.assign(TIMING, { heartbeat: 40, hostGone: 400, moveRetry: 150, botDelay: 0 });
+Object.assign(TIMING, { heartbeat: 40, hostGone: 400, moveRetry: 150, botDelay: 0, relayAfter: 120 });
 
 let fails = 0;
 async function ok(name, fn) {
@@ -31,7 +31,10 @@ class FakeLink {
     this.hub = hub; this.pid = pid; this.name = name; this.up = false;
     this.onMessage = null; this.onPeers = null; this.onStatus = null;
     this.sent = [];
+    this.via = 'direkt';       // so meldet status() die anderen (Test für Relay-Zuschaltung)
+    this.relayWanted = null;   // Grund, falls ensureRelay aufgerufen wurde
   }
+  ensureRelay(reason) { if (!this.relayWanted) this.relayWanted = reason; }
   connect() {
     this.up = true;
     const others = [...this.hub.links].filter((l) => l.up && l !== this);
@@ -54,7 +57,7 @@ class FakeLink {
     }
   }
   status() {
-    return { peers: [...this.hub.links].filter((l) => l !== this && l.up).map((l) => ({ pid: l.pid, name: l.name, via: 'direkt' })), relay: null };
+    return { peers: [...this.hub.links].filter((l) => l !== this && l.up).map((l) => ({ pid: l.pid, name: l.name, via: l.via === 'direkt' && this.via === 'direkt' ? 'direkt' : 'relay' })), relay: null };
   }
 }
 
@@ -303,6 +306,26 @@ await ok('Zu zweit an einem Gerät: Sitz folgt dem Zug', async () => {
   s.act('draw-offer');
   assert.equal(s.table.status, 'over');
   s.close();
+});
+
+await ok('Relay wird zugeschaltet, wenn der Mitspieler nicht direkt erreichbar ist (auch mit direktem Zuschauer)', async () => {
+  const keep = TIMING.hostGone;
+  TIMING.hostGone = 10000; // Herzschlag kommt im Test nur im 1-s-Takt → keine Übernahme in Ruhephasen
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'muehle', host: { pid: 'H', name: 'Peter' } }) });
+  const w = player(hub, 'W', 'Oma', { want: 'watch' });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play' && w.table);
+  await sleep(300);
+  assert.equal(h.link.relayWanted, null, 'alle direkt → kein Relay');
+  g.link.via = 'relay'; // Gast nur noch über Relay erreichbar, Zuschauer weiter direkt
+  await until(() => h.link.relayWanted && g.link.relayWanted, 2000, 'Host und Gast schalten Relay zu');
+  assert.match(h.link.relayWanted, /Mitspieler/);
+  assert.match(g.link.relayWanted, /Gastgeber/);
+  assert.equal(w.link.relayWanted, null, 'Zuschauer mit direktem Host braucht kein Relay');
+  assert.equal(h.role, 'host');
+  h.close(); g.close(); w.close();
+  TIMING.hostGone = keep;
 });
 
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');

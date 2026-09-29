@@ -109,6 +109,11 @@ export class NetLink {
     this._status();
   }
 
+  // vom Tisch angefordert: wichtige Gegenstelle (Host bzw. Mitspieler) ist nicht direkt erreichbar
+  ensureRelay(reason) {
+    if (!this.relay && this.key) this._startRelay(reason);
+  }
+
   async _fromRelay(content) {
     let env;
     try { env = await open(this.key, content); } catch { return; } // fremder Raum/kaputt

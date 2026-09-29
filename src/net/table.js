@@ -11,7 +11,8 @@ export const TIMING = {
   heartbeat: 4000,   // Host meldet sich regelmäßig (Stand seq/epoch, Anwesenheit)
   hostGone: 45000,   // so lange kein Host → sitzender Spieler mit Zustand übernimmt (> 3 Relay-Herzschläge)
   moveRetry: 5000,   // unbestätigten Zug erneut senden
-  botDelay: 450      // Mindest-Denkzeit des Computers (fühlt sich natürlicher an)
+  botDelay: 450,     // Mindest-Denkzeit des Computers (fühlt sich natürlicher an)
+  relayAfter: 12000  // wie NetLink: so lange ohne Direktweg zur wichtigen Gegenstelle → Relay zuschalten
 };
 const HIST = 40;
 
@@ -497,10 +498,26 @@ export class TableSession {
     return Math.random().toString(36).slice(2, 10);
   }
 
+  // Relay zuschalten, wenn die Gegenstelle, auf die es ankommt, länger nicht direkt erreichbar ist
+  // (auch wenn z. B. ein Zuschauer direkt verbunden ist)
+  _checkDirect(now) {
+    const t = this.table;
+    if (!this.link.ensureRelay) return;
+    const peers = this.link.status().peers || [];
+    const direct = (pid) => peers.some((p) => p.pid === pid && p.via === 'direkt');
+    let missing;
+    if (!t || this.role !== 'host') missing = !t || !direct(t.hostPid);
+    else missing = t.seats.some((s) => !s || (!s.bot && s.pid !== this.me.pid && !direct(s.pid)));
+    if (!missing) { this._indirectSince = 0; return; }
+    if (!this._indirectSince) this._indirectSince = now;
+    if (now - this._indirectSince > TIMING.relayAfter) this.link.ensureRelay(this.role === 'host' ? 'Mitspieler nicht direkt erreichbar' : 'Gastgeber nicht direkt erreichbar');
+  }
+
   _tick() {
     if (this.closed) return;
     const t = this.table;
     const now = this.now();
+    this._checkDirect(now);
     if (this.role === 'host' && t) {
       if (!this._lastHb || now - this._lastHb >= TIMING.heartbeat) {
         this._lastHb = now;

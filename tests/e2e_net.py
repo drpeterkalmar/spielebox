@@ -11,6 +11,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--nur-relay', action='store_true')
 ap.add_argument('--nur-direkt', action='store_true')
 ap.add_argument('--url', default=None)
+ap.add_argument('--nur-fallback', type=int, default=0, help='nur das Auto-Fallback-Szenario N-mal (Diagnose)')
 args = ap.parse_args()
 
 c = Checker()
@@ -99,7 +100,7 @@ def play_to_end(P0, P1, others=(), levels=(2, 1), taps=2, max_plies=600):
             if not r.get('ok'):
                 raise RuntimeError('Zug abgelehnt: ' + json.dumps(r))
         t0 = time.time()
-        wait(lambda: tbl(other)['nmoves'] > n0 or tbl(other)['status'] == 'over', 60, 'Gegenseite sieht Zug')
+        wait(lambda: tbl(other)['nmoves'] > n0 or tbl(other)['status'] == 'over', 60, 'Gegenseite sieht Zug', step=0.01)
         lat.append(time.time() - t0)
     raise RuntimeError('Partie endet nicht')
 
@@ -116,9 +117,11 @@ def run(pw, srv_base, relay, name, rtc_all=True, full=True):
     sc = {'relay': relay, 'rtc_alle_schnittstellen': rtc_all}
     b = launch(pw)
     q = '?nosw&relay=1' if relay else '?nosw'
+    pages = []
     try:
         A = Page(b, srv_base, 'hoch', 'Host', rtc_all=rtc_all).open(q)
         B = Page(b, srv_base, 'hoch' if not relay else 'quer', 'Gast', rtc_all=rtc_all).open(q)
+        pages += [A, B]
         A.ev("__box.setName('Peter')")
         # Gast gibt den Namen über die Oberfläche ein
         B.tap('#name'); B.pg.keyboard.type('Anna', delay=30)
@@ -175,6 +178,7 @@ def run(pw, srv_base, relay, name, rtc_all=True, full=True):
         others = (W,) if W else ()
         lat = play_to_end(A, B, others)
         sc['partie_s'] = round(time.time() - t0, 1)
+        sc['link_nach_partie'] = {'host': A.state()['link']['stats'], 'gast': B.state()['link']['stats']}
         t = tbl(A)
         sc['halbzuege'] = t['nmoves']
         sc['ergebnis'] = t['result']
@@ -253,6 +257,19 @@ def run(pw, srv_base, relay, name, rtc_all=True, full=True):
         errs = errs_a + B.app_errors()
         c.ok(errs == [], f'{name}: 0 Fehler in beiden Kontexten {errs[:4]}')
         A.close(); B.close()
+    except Exception:
+        # Diagnose: Verbindungsstand beider Seiten, Relay-Sockets, Netzprotokoll
+        for P in pages:
+            try:
+                st = P.state()
+                print(f'   [{P.name}] net={st["net"] and st["net"]["mode"]} link={json.dumps(st["link"], ensure_ascii=False)[:400]}')
+                rs = P.ev("__box.relayStats()")
+                if rs: print(f'   [{P.name}] relays ' + ', '.join(f"{r['url'][6:20]}:{r['state']}/{r['sent']}/{r['received']}/{(r['lastError'] or '')[:30]}" for r in rs['relays']))
+                print(f'   [{P.name}] netlog ' + ' | '.join(P.ev("__box.netlog()")[-8:]))
+                print(f'   [{P.name}] Netz-Ereignisse {len(P.net_events())}: ' + ' | '.join(e[:90] for e in P.net_events()[-3:]))
+            except Exception as e2:
+                print(f'   [{P.name}] Diagnose nicht möglich: {e2}')
+        raise
     finally:
         b.close()
     report['szenarien'][name] = sc
@@ -273,10 +290,13 @@ def run_retry(pw, base, relay, name, tries=2, **kw):
 with Server() as srv, sync_playwright() as pw:
     base = args.url or srv.base
     t_all = time.time()
-    if not args.nur_relay:
+    if args.nur_fallback:
+        for k in range(args.nur_fallback):
+            run_retry(pw, base, False, f'auto-fallback-{k + 1}', tries=1, rtc_all=False, full=False)
+    elif not args.nur_relay:
         run_retry(pw, base, False, 'direkt')
         run_retry(pw, base, False, 'auto-fallback', rtc_all=False, full=False)
-    if not args.nur_direkt:
+    if not args.nur_direkt and not args.nur_fallback:
         run_retry(pw, base, True, 'relay')
     report['dauer_s'] = round(time.time() - t_all)
 
