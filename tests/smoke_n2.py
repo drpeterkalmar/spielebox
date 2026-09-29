@@ -138,6 +138,53 @@ def schnapsen(P, form):
     c.ok(P.ev("document.querySelectorAll('.hand [data-hand]').length") == 5, f'{form}: nach „Karten zeigen“ 5 Karten sichtbar')
 
 
+def backgammon(P, form):
+    P.ev("__box.local('bot', 'backgammon', {cube: true}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'backgammon' and P.ev("__box.legal().length") > 0, 20, 'ich bin am Zug')
+    time.sleep(0.4)
+    if P.ev("__box.table().gs.phase") == 'roll':
+        c.ok(P.ev("!!document.querySelector('[data-act=roll]')"), f'{form}: Knopf „Würfeln“')
+        P.tap('[data-act="roll"]')
+        wait(lambda: P.ev("__box.table().gs.phase") == 'move', 10, 'gewürfelt')
+    time.sleep(0.9)
+    check_screen(P, f'{form} Backgammon')
+    dice = P.ev("document.querySelectorAll('.board .die').length")
+    c.ok(dice >= 2, f'{form}: Würfel sichtbar ({dice})')
+    P.shot(f'backgammon_{form}', 'n2')
+    legal = P.ev("__box.legal()")
+    m = max(legal, key=lambda x: len(x.get('steps', [])))
+    n = tbl(P)['nmoves']
+    for k, st in enumerate(m['steps']):
+        # nach einem Teilzug bleibt derselbe Stein gewählt, wenn er weiterziehen kann
+        if not (k and m['steps'][k - 1]['to'] == st['from']):
+            x, y = P.ev(f"__box.target({json.dumps(st['from'])})"); P.tap_xy(x, y)
+        if k == 0:
+            tg = P.ev("document.querySelectorAll('.board .pt-target').length")
+            c.ok(tg >= 1, f'{form}: Stein angetippt → {tg} Ziel(e) leuchten')
+        if st['to'] == 'off':
+            P.tap('[data-act="off"]')
+        else:
+            x, y = P.ev(f"__box.target({st['to']})"); P.tap_xy(x, y)
+        time.sleep(0.15)
+    P.shot(f'backgammon_zug_{form}', 'n2')
+    c.ok(P.ev("!document.querySelector('[data-act=done]').disabled"), f'{form}: „Fertig“ aktiv nach {len(m["steps"])} Teilzügen')
+    if m['steps']:
+        P.tap('[data-act="undo"]')
+        time.sleep(0.2)
+        c.ok(P.ev("document.querySelector('[data-act=done]').disabled"), f'{form}: „Zurück“ nimmt einen Teilzug zurück')
+        st = m['steps'][-1]
+        if not (len(m['steps']) > 1 and m['steps'][-2]['to'] == st['from']):
+            x, y = P.ev(f"__box.target({json.dumps(st['from'])})"); P.tap_xy(x, y)
+        if st['to'] == 'off': P.tap('[data-act="off"]')
+        else:
+            x, y = P.ev(f"__box.target({st['to']})"); P.tap_xy(x, y)
+        time.sleep(0.2)
+    P.tap('[data-act="done"]')
+    wait(lambda: tbl(P)['nmoves'] >= n + 1, 5, 'Zug abgeschickt')
+    wait(lambda: tbl(P)['nmoves'] >= n + 3 or tbl(P)['status'] != 'play', 20, 'Computer würfelt und zieht')
+    c.ok(True, f'{form}: Zug per Taps gespielt, Computer hat geantwortet')
+
+
 with Server() as srv, sync_playwright() as pw:
     b = launch(pw)
     for form in ['hoch', 'quer', 'desktop']:

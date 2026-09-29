@@ -303,3 +303,34 @@ table.bummerl { width: 100%; border-collapse: collapse; font-variant-numeric: ta
 table.bummerl td, table.bummerl th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
 table.bummerl .bt-num { text-align: right; width: 22%; }
 table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
+
+/* Backgammon */
+.board .pt-a { fill: #8b2f24; }
+.board .pt-b { fill: #efe2c4; stroke: rgba(80,50,20,.25); stroke-width: 1.5; }
+.board .pt-target { fill: rgba(60, 200, 120, .45); }
+.board .pt-num { font: 700 20px system-ui, sans-serif; fill: rgba(70, 40, 15, .7); text-anchor: middle; dominant-baseline: middle; }
+.board .stack-n { font: 800 26px system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle; }
+.board .stack-n.on-w { fill: #5a3a1a; }
+.board .stack-n.on-b { fill: #f3e3c0; }
+.board .die-face { fill: #fffdf6; stroke: #3a2515; stroke-width: 2.5; }
+.board .die-pip { fill: #1f140c; }
+.board .die.used .die-face { fill: #b9ad97; }
+.board .die.used .die-pip { fill: #6d6252; }
+.board .cube-face { fill: #f6ecd8; stroke: #8a6412; stroke-width: 3; }
+.board .cube-n { font: 800 24px system-ui, sans-serif; fill: #3a2515; text-anchor: middle; dominant-baseline: middle; }
+.table-screen[data-game='backgammon'] .board-wrap { aspect-ratio: 640 / 1000; }
+.actions .btn[disabled] { opacity: .5; }
+@media (orientation: landscape) {
+  .table-screen[data-game='backgammon'] { grid-template-columns: minmax(0, auto) minmax(240px, 1fr); }
+  .table-screen[data-game='backgammon'] .tmain { width: min((100dvh - var(--safe-t) - var(--safe-b)) * 1.5625, 72vw); }
+  .table-screen[data-game='backgammon'] .board-wrap { aspect-ratio: auto; }
+}
+@media (orientation: portrait) {
+  .table-screen[data-game='backgammon'] .tmain .pbar { min-height: 44px; padding: 2px 10px; margin: 2px; }
+  .table-screen[data-game='backgammon'] .tmain .pbar .pb-sub { display: inline; margin-left: 8px; }
+  .table-screen[data-game='backgammon'] .tmain .pbar .pb-name { display: inline; }
+  .table-screen[data-game='backgammon'] .hint { min-height: 0; font-size: 13.5px; }
+}
+.tb-title { min-width: 0; overflow: hidden; }
+.tb-game { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbar .pill { max-width: 48%; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }

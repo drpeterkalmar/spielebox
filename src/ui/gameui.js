@@ -9,6 +9,9 @@ import { material, inCheck, pgn } from '../games/schach/engine.js';
 import { rulesMuehle, rulesDame, rulesSchach, rulesSchnapsen } from './texts.js';
 import { createBoard as schnapsenBoard } from '../games/schnapsen/view.js';
 import * as SN from '../games/schnapsen/engine.js';
+import { createBoard as backgammonBoard } from '../games/backgammon/view.js';
+import * as BG from '../games/backgammon/engine.js';
+import { rulesBackgammon } from './texts.js';
 
 // Farben je Sitz (auch farbenblind unterscheidbar: zusätzlich Symbol/Buchstabe)
 export const SEAT_COLORS = ['#d8453b', '#2f6fd6', '#2e9e57', '#e0b12c', '#8a4fc9', '#e07b27'];
@@ -147,6 +150,48 @@ UI.schnapsen = {
   },
   menu(t, { item, sheet }) {
     return [item('Bummerl-Tafel', () => sheet('Bummerl-Tafel', bummerlTafel(t)), 'tafel')];
+  }
+};
+
+UI.backgammon = {
+  board: backgammonBoard,
+  icon: stoneIcon,
+  rules: rulesBackgammon,
+  sub(t, seat) {
+    const gs = t.gs;
+    const parts = [`${BG.pips(gs, seat)} Pips`];
+    if (gs.bar[seat]) parts.push(`${gs.bar[seat]} auf der Bar`);
+    if (gs.off[seat]) parts.push(`${gs.off[seat]} abgetragen`);
+    if (gs.options.cube && gs.cube.owner === seat) parts.push(`Doppler ${gs.cube.value}`);
+    return parts.join(' · ');
+  },
+  status(t, seat) {
+    const gs = t.gs;
+    if (gs.phase === 'double' && seat !== gs.turn) return `Verdoppelt auf ${gs.cube.value * 2} – annehmen?`;
+    if (gs.phase === 'roll') return 'Du bist dran: würfeln';
+    return null;
+  },
+  actions(t, legal, submit, view) {
+    const gs = t.gs;
+    const b = (label, act, fn, primary) => h('button', { class: 'btn' + (primary ? ' primary' : ''), data: { act }, on: { click: fn } }, label);
+    const out = [];
+    const has = (type) => legal.find((m) => m.type === type);
+    if (gs.phase === 'roll') {
+      out.push(b('Würfeln', 'roll', () => submit(has('roll')), true));
+      if (has('double')) out.push(b(`Verdoppeln auf ${gs.cube.value * 2}`, 'double', () => submit(has('double'))));
+    } else if (gs.phase === 'double') {
+      out.push(b(`Annehmen (${gs.cube.value * 2})`, 'take', () => submit(has('take')), true));
+      out.push(b(`Aufgeben (−${gs.cube.value})`, 'drop', () => submit(has('drop'))));
+    } else if (gs.phase === 'move' && view) {
+      if (legal.length === 1 && legal[0].steps && !legal[0].steps.length) {
+        out.push(b('Weiter (kein Zug möglich)', 'pass', () => submit(legal[0]), true));
+      } else {
+        if (view.canUndo()) out.push(b('Zurück', 'undo', () => view.undo()));
+        if (view.offStep()) out.push(b('Abtragen', 'off', () => view.bearOff(), true));
+        out.push(Object.assign(b('Fertig', 'done', () => view.finish(), view.complete()), { disabled: !view.complete() }));
+      }
+    }
+    return out;
   }
 };
 

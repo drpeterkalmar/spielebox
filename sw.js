@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '1ca0a4697a';
+const VERSION = 'a10a5f06d1';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -106,6 +106,7 @@ const ASSETS = [
   'src/build.js',
   'src/games/backgammon/bot.js',
   'src/games/backgammon/engine.js',
+  'src/games/backgammon/view.js',
   'src/games/blackjack/bot.js',
   'src/games/blackjack/engine.js',
   'src/games/dame/bot.js',

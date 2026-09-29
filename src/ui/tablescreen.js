@@ -88,7 +88,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const overlay = h('div', { class: 'overlay hidden' });
   boardWrap.appendChild(overlay);
 
-  const screen = h('div', { class: 'screen table-screen', data: { mode } },
+  const screen = h('div', { class: 'screen table-screen', data: { mode, game: '' } },
     bar,
     h('div', { class: 'tmain' }, pTop, boardWrap, pBot),
     h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), statusEl, fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
@@ -113,7 +113,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
         const r = session.submitMove(m);
         if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); }
       },
-      onHint: (text) => { hintText = text; hintEl.textContent = text; }
+      onHint: (text) => { hintText = text; hintEl.textContent = text; },
+      onLocal: () => { if (session.table) renderActions(session.table); }
     });
     boardWrap.appendChild(overlay);
   }
@@ -234,7 +235,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const gu = gameUi(t.game);
     if (gu.actions) {
       const legal = legalFor(t);
-      if (legal) actions.append(...gu.actions(shownOf(t), legal, submit));
+      if (legal) actions.append(...gu.actions(shownOf(t), legal, submit, view));
       if (gu.hidden || !gameOf(t.game).draws) return; // Aufgeben steht dann im Menü
     }
     const canOffer = mode !== 'bot' && gameOf(t.game).draws && (t.drawOffer === null || t.drawOffer === undefined);
@@ -322,6 +323,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     renderMoves(t);
     renderOverlay(t);
     screen.dataset.status = t.status;
+    screen.dataset.game = t.game;
     lastTable = t;
   }
 
