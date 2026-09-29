@@ -2,6 +2,7 @@
 // Engines sind rein (ohne DOM); Ansicht und Bot werden getrennt geladen.
 import * as muehle from './muehle/engine.js';
 import * as dame from './dame/engine.js';
+import * as schach from './schach/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -35,10 +36,19 @@ export const GAMES = {
       if (opts.pusten) parts.push('Pusten');
       return parts.join(' · ');
     }
+  },
+  schach: {
+    id: 'schach',
+    title: 'Schach',
+    engine: schach,
+    blurb: 'Klassisch, mit Remis-Angebot und PGN',
+    seats: 2,
+    options: [],
+    variantName: () => 'Schach'
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach];
 
 export function gameOf(id) {
   const g = GAMES[id];

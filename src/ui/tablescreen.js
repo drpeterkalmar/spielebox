@@ -4,12 +4,8 @@ import { h, clear, sheet, toast } from './dom.js';
 import { gameOf } from '../games/registry.js';
 import { turnOf } from '../net/table.js';
 import { displayWord, formatWords } from '../words.js';
-import { createBoard as muehleBoard } from '../games/muehle/view.js';
-import { createBoard as dameBoard } from '../games/dame/view.js';
-import { rulesMuehle, rulesDame, helpNet } from './texts.js';
-import { miniBoard } from './lobby.js';
-
-const BOARDS = { muehle: muehleBoard, dame: dameBoard };
+import { helpNet } from './texts.js';
+import { gameUi } from './gameui.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -38,13 +34,12 @@ async function copy(text) {
   }
 }
 
-function stoneIcon(color) {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg');
-  svg.setAttribute('viewBox', '0 0 20 20');
-  svg.setAttribute('class', 'stone-ico');
-  svg.innerHTML = `<circle cx="10" cy="10" r="8.5" fill="url(#sb-st-${color === 0 ? 'w' : 'b'})" stroke="${color === 0 ? '#7a6548' : '#000'}" stroke-width="1"/>`;
-  return svg;
+// Text teilen (Android-Teilen-Menü) oder kopieren
+async function shareText(title, text) {
+  if (navigator.share) {
+    try { await navigator.share({ title, text }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+  }
+  copy(text);
 }
 
 export function showTableScreen(root, { session, words = null, onLeave, onAnotherGame, onNewLocal }) {
@@ -104,7 +99,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (view && viewGame === t.game) return;
     if (view) view.destroy();
     viewGame = t.game;
-    view = BOARDS[t.game](boardWrap, {
+    view = gameUi(t.game).board(boardWrap, {
       onMove: (m) => {
         const r = session.submitMove(m);
         if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); }
@@ -133,23 +128,14 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     clear(el);
     const s = t.seats[seat];
     const e = eng();
-    let sub = '';
-    if (t.game === 'muehle') {
-      const c = e.countStones(t.gs);
-      sub = c.hand[seat] ? `${c.hand[seat]} in der Hand · ${c.board[seat]} auf dem Brett` : `${c.board[seat]} Steine${e.phase(t.gs, seat) === 'springen' ? ' · springt' : ''}`;
-    } else {
-      const b = t.gs.board;
-      const men = b.filter((v) => (seat === 0 ? v === 1 : v === -1)).length;
-      const kings = b.filter((v) => (seat === 0 ? v === 2 : v === -2)).length;
-      sub = `${men} Steine${kings ? ` · ${kings} ${kings === 1 ? 'Dame' : 'Damen'}` : ''}`;
-    }
+    const sub = gameUi(t.game).sub(t, seat);
     const score = s ? t.score[s.pid] || 0 : 0;
     const active = t.status === 'play' && turnOf(t) === seat;
     const here = mode !== 'online' || !s || s.bot || s.pid === session.me.pid || isHere(s.pid);
     el.className = `pbar ${el.classList.contains('top') ? 'top' : 'bottom'}${active ? ' active' : ''}`;
     el.dataset.seat = seat;
     el.append(
-      stoneIcon(seat),
+      gameUi(t.game).icon(seat),
       h('div', { class: 'pb-text' },
         h('div', { class: 'pb-name' }, seatLabel(t, seat), !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
         h('div', { class: 'pb-sub', text: sub })),
@@ -190,8 +176,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (mode === 'hotseat') return `${who.name} (${eng().PLAYERS[turn]}) ist am Zug`;
     if (who && who.bot) return 'Der Computer denkt nach …';
     if (seat === turn) {
-      if (t.game === 'dame' && t.gs.pusted) return 'Gepustet – jetzt normal ziehen';
-      return 'Du bist am Zug';
+      const extra = gameUi(t.game).status && gameUi(t.game).status(t, seat);
+      return extra || 'Du bist am Zug';
     }
     return `${who ? who.name : eng().PLAYERS[turn]} ist am Zug`;
   }
@@ -242,7 +228,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     clear(movesEl);
     const first = t.nmoves - t.hist.length;
     t.hist.forEach((e, k) => {
-      movesEl.appendChild(h('li', { class: 'mv mv-' + e.by, value: first + k + 1 }, stoneIcon(e.by), e.d));
+      movesEl.appendChild(h('li', { class: 'mv mv-' + e.by, value: first + k + 1 }, gameUi(t.game).icon(e.by), e.d));
     });
     movesEl.scrollTop = movesEl.scrollHeight;
   }
@@ -293,7 +279,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     renderPlayers(t);
     const bs = bottomSeat();
     const legal = legalFor(t);
-    view.update(t, info, { legal, flip: t.game === 'dame' && bs === 1 });
+    view.update(t, info, { legal, flip: !!gameUi(t.game).flip && bs === 1 });
     statusEl.textContent = statusText(t);
     statusEl.dataset.state = t.status;
     if (!legal) hintEl.textContent = t.status === 'play' && t.game === 'muehle' && session.mySeat === null ? '' : (legal === null && t.status === 'play' && session.mySeat !== null && turnOf(t) !== session.mySeat ? '' : hintText);
@@ -333,7 +319,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const item = (label, fn, act) => h('button', { class: 'menu-item', data: { act }, on: { click: () => { sh.close(); fn(); } } }, label);
     if (words) items.push(item('Die drei Wörter zeigen', showWords, 'words'));
     if (mode === 'online') items.push(item('Verbindung / Wiederverbinden', openNet, 'net'));
-    if (t) items.push(item('Regeln', () => sheet('Regeln', t.game === 'dame' ? rulesDame() : rulesMuehle()), 'rules'));
+    if (t) items.push(item('Regeln', () => sheet('Regeln', gameUi(t.game).rules(t.opts)), 'rules'));
+    if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(t, { item, share: shareText }));
     if (t && mode !== 'online') items.push(item('Neue Partie', () => onNewLocal(), 'new'));
     items.push(item('Zur Übersicht', () => onLeave(), 'leave'));
     const sh = sheet('Menü', ...items);

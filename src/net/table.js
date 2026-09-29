@@ -182,6 +182,7 @@ export class TableSession {
     if (turnOf(t) !== seat) return { ok: false, reason: 'Nicht am Zug' };
     if (!eng.isLegal(t.gs, move)) return { ok: false, reason: 'Zug nicht erlaubt' };
     const d = eng.describeMove(t.gs, move);
+    const prevGs = t.gs;
     t.gs = eng.applyMove(t.gs, move);
     t.last = { m: move, by: seat, d };
     t.hist.push(t.last);
@@ -190,7 +191,7 @@ export class TableSession {
     t.drawOffer = null;
     const r = eng.result(t.gs);
     if (r) this._finish(r.winner, r.reason);
-    this._commit({ kind: 'move', move, by: seat });
+    this._commit({ kind: 'move', move, by: seat, prevGs });
     this._maybeBot();
     return { ok: true };
   }

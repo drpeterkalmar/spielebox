@@ -7,7 +7,8 @@ import { roomIdFor } from './net/crypto.js';
 import { parseWords, randomWords, formatWords, findWord } from './words.js';
 import * as store from './store.js';
 import { chooseBotMove, quickMove } from './botclient.js';
-import { gameOf } from './games/registry.js';
+import { gameOf, GAME_LIST } from './games/registry.js';
+import { h, sheet } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
 import { BUILD } from './build.js';
 
@@ -125,20 +126,20 @@ function mount(session, { words = null, roomId = null, link = null }) {
   cur = { session, screen, link, words, roomId, mode: session.mode };
 }
 
+// Spiel-Auswahl (nach Partieende): online am selben Tisch, lokal neu
 function anotherGame() {
   const s = cur && cur.session;
   if (!s) return;
-  if (s.mode === 'online') {
-    const pick = (game) => openGameSheet(game, {
-      onlyOnline: true, onlineLabel: 'Am selben Tisch starten', title: gameOf(game).title,
-      onOnline: (g, o) => { const r = s.newGame(g, o); if (!r.ok) alert(r.reason); }
-    });
-    const other = s.table.game === 'muehle' ? 'dame' : 'muehle';
-    pick(other);
-    return;
-  }
-  const other = s.table.game === 'muehle' ? 'dame' : 'muehle';
-  openGameSheet(other, { onOnline: onCreate, onLocal });
+  const pick = (game) => {
+    if (s.mode === 'online') {
+      openGameSheet(game, {
+        onlyOnline: true, onlineLabel: 'Am selben Tisch starten', title: gameOf(game).title,
+        onOnline: (g, o) => { const r = s.newGame(g, o); if (!r.ok) alert(r.reason); }
+      });
+    } else openGameSheet(game, { onOnline: onCreate, onLocal });
+  };
+  const list = GAME_LIST.filter((g) => g.id !== s.table.game);
+  const sh = sheet('Anderes Spiel', ...list.map((g) => h('button', { class: 'menu-item', data: { game: g.id }, on: { click: () => { sh.close(); pick(g.id); } } }, g.title)));
 }
 
 function newLocal() {

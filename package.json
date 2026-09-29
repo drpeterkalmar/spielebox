@@ -9,6 +9,7 @@
     "build:lib": "node tools/build_lib.mjs"
   },
   "devDependencies": {
+    "chess.js": "^1.4.0",
     "esbuild": "0.28.2",
     "trystero": "0.25.4"
   }

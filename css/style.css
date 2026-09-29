@@ -262,3 +262,20 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
 @media (min-width: 900px) and (orientation: landscape) {
   .tmain { width: min(100dvh - 8px, 60vw); }
 }
+
+/* Schach */
+.board .check-glow { fill: rgba(230, 50, 40, .55); filter: blur(6px); }
+.board .hint-capture { fill: none; stroke: rgba(40, 175, 105, .9); stroke-width: 9; }
+.board .hint-selsq { fill: rgba(255, 224, 120, .45); }
+.board .promo-veil { fill: rgba(10, 20, 15, .45); }
+.board .promo-bg { fill: #f6ecd8; stroke: #b8862c; stroke-width: 5; }
+.menu-item[data-game] { font-weight: 700; }
+img.stone-ico { object-fit: contain; }
+
+/* Kein versehentlicher Zoom: Doppeltipp-Zoom aus, Scroll-Container nur senkrecht, Eingaben ≥ 16 px (sonst zoomt iOS) */
+button, .btn, .game, .chip, .seg-btn, .switch, .menu-item, .icon-btn, .pill, .card-el, a { touch-action: manipulation; }
+html, body, .screen, .sheet, .ov-card, .movelist, .tside, .sheet-body, .lobby { touch-action: pan-y; }
+input, select, textarea { font-size: max(16px, 1em); }
+.board .coord-in { font: 700 19px system-ui, sans-serif; }
+.board .coord-in.on-light { fill: rgba(92, 58, 32, .85); }
+.board .coord-in.on-dark { fill: rgba(250, 232, 205, .85); }

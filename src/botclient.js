@@ -1,9 +1,10 @@
 // Bot-Anbindung: rechnet im Web Worker, sonst (kein Worker möglich) direkt im Hauptthread.
 import { chooseMove as muehle } from './games/muehle/bot.js';
 import { chooseMove as dame } from './games/dame/bot.js';
+import { chooseMove as schach } from './games/schach/bot.js';
 
-const BOTS = { muehle, dame };
-const TIME = { 1: 150, 2: 400, 3: 900 };
+const BOTS = { muehle, dame, schach };
+const TIME = { 1: 150, 2: 400, 3: 1200 };
 let worker = null;
 let seq = 0;
 const waiting = new Map();

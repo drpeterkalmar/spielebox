@@ -4,7 +4,9 @@ import { h, clear, sheet, toast, relTime } from './dom.js';
 import { GAME_LIST, gameOf } from '../games/registry.js';
 import { suggest, findWord, parseWords, displayWord } from '../words.js';
 import * as store from '../store.js';
-import { rulesMuehle, rulesDame, helpNet, credits } from './texts.js';
+import { rulesMuehle, rulesDame, rulesSchach, helpNet, credits } from './texts.js';
+
+const RULES = { muehle: rulesMuehle, dame: rulesDame, schach: rulesSchach };
 import { BUILD } from '../build.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -21,6 +23,12 @@ export function miniBoard(game) {
       '<g fill="none" stroke="#3a2515" stroke-width="3.2"><rect x="12" y="12" width="76" height="76"/><rect x="25" y="25" width="50" height="50"/><rect x="38" y="38" width="24" height="24"/>' +
       '<path d="M50 12V38M50 62V88M12 50H38M62 50H88"/></g>' +
       '<circle cx="12" cy="12" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="50" cy="25" r="7.5" fill="url(#sb-st-b)"/><circle cx="88" cy="88" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="62" cy="62" r="7.5" fill="url(#sb-st-b)"/>';
+  } else if (game === 'schach') {
+    let sq = '';
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;
+    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' +
+      `<g fill="url(#sb-wood-dark)">${sq}</g>` +
+      '<image href="assets/pieces/bK.svg" x="52" y="2" width="46" height="46"/><image href="assets/pieces/wN.svg" x="2" y="52" width="46" height="46"/>';
   } else {
     let sq = '';
     for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if ((r + c) % 2) sq += `<rect x="${c * 20}" y="${r * 20}" width="20" height="20"/>`;
@@ -90,7 +98,7 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
         segmented('Gegen den Computer', LEVELS, level, (v) => { level = v; }),
         h('button', { class: 'btn', data: { act: 'bot' }, on: { click: go(() => onLocal('bot', gameId, g.engine.normalizeOptions(opts), color, level)) } }, 'Spielen')),
       h('button', { class: 'btn', data: { act: 'hotseat' }, on: { click: go(() => onLocal('hotseat', gameId, g.engine.normalizeOptions(opts), 'weiss')) } }, 'Zu zweit an diesem Gerät'),
-      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', gameId === 'dame' ? rulesDame() : rulesMuehle()) } }, 'Regeln lesen')
+      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', RULES[gameId]()) } }, 'Regeln lesen')
     );
   }
   return sh;
@@ -239,7 +247,7 @@ export function renderLobby(root, handlers) {
   const screen = h('div', { class: 'screen lobby' },
     h('header', { class: 'lobby-head' },
       h('img', { class: 'logo', src: 'icons/icon-192.png', alt: '' }),
-      h('div', {}, h('h1', { text: 'Spielebox' }), h('p', { text: 'Brettspiele zu zweit – ohne Konto, mit 3 Wörtern' }))),
+      h('div', {}, h('h1', { text: 'Spielebox' }), h('p', { text: 'Brett- und Kartenspiele – ohne Konto, mit 3 Wörtern' }))),
     h('div', { class: 'lobby-grid' },
       h('div', { class: 'col' },
         h('section', { class: 'card profile' }, h('label', { for: 'name', class: 'card-label', text: 'Dein Name' }), nameInput),
@@ -254,7 +262,7 @@ export function renderLobby(root, handlers) {
         h('section', { class: 'card resume' }, h('h2', { text: 'Weiterspielen' }), resume))),
     h('footer', { class: 'lobby-foot' },
       h('button', { class: 'btn link', on: { click: () => sheet('So geht’s', helpNet()) } }, 'So geht’s'),
-      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', rulesMuehle(), rulesDame()) } }, 'Regeln'),
+      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', ...GAME_LIST.map((g) => RULES[g.id]())) } }, 'Regeln'),
       h('button', { class: 'btn link', on: { click: () => sheet('Credits', credits()) } }, 'Credits'),
       h('span', { class: 'version', text: 'Version ' + BUILD })));
 

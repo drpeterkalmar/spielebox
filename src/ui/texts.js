@@ -46,6 +46,18 @@ export function rulesDame() {
     ));
 }
 
+export function rulesSchach() {
+  return h('div', { class: 'rules' },
+    h('h3', { text: 'Schach' }),
+    ul(
+      'Die üblichen Schachregeln (FIDE). Weiß beginnt. Tippe eine Figur an, die erlaubten Felder werden markiert.',
+      'Rochade: König zwei Felder Richtung Turm ziehen (oder nach dem König den eigenen Turm antippen). En passant und Umwandlung gehen ebenfalls per Tipp; bei der Umwandlung wählst du die Figur direkt auf dem Brett.',
+      'Die Partie endet mit Schachmatt, Aufgeben oder Remis: Patt, zu wenig Material, 50 Züge ohne Bauernzug und ohne Schlag, dreifache Stellungswiederholung (diese Remis werden automatisch erkannt) oder Remis nach Angebot.',
+      'Im Menü kannst du die Partie als PGN teilen – das lesen alle Schachprogramme (z. B. Lichess-Analyse).',
+      'Der Computer (3 Stufen) ist ein Übungsgegner ohne Eröffnungsbuch.'
+    ));
+}
+
 export function helpNet() {
   return h('div', { class: 'rules' },
     h('h3', { text: 'So funktioniert der Tisch' }),
@@ -64,6 +76,8 @@ export function credits() {
     h('h3', { text: 'Credits und Lizenzen' }),
     ul(
       'Programm, Bretter, Steine, Icons und Wortliste: eigene Arbeit (MIT-Lizenz).',
+      'Schachfiguren: Colin M. L. Burnett (cburnett), Wikimedia Commons, BSD-3-Clause.',
+      'Schachregeln: chess.js 1.4.0 (BSD-2-Clause, Jeff Hlywa).',
       'Holztexturen: Poly Haven, CC0 – „Silver Oak Veneer 01“ und „Walnut Veneer“ (Jenelle van Heerden), „Dark Wood“ (Dario Barresi, Dimitrios Savva, Rico Cilliers).',
       'Netz: Trystero 0.25.4 (MIT, Dan Motzenbecker), @noble/secp256k1 (MIT, Paul Miller).',
       'Regelquellen: de.wikipedia „Mühle (Spiel)“ und „Dame (Spiel)“, strategy-games.de (deutsche Dame), FMJD (internationale Dame).'

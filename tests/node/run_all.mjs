@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const quick = process.argv.includes('--schnell');
-const files = ['words.test.mjs', 'crypto.test.mjs', 'relaychannel.test.mjs', 'muehle.test.mjs', 'dame.test.mjs', 'table.test.mjs'];
-if (!quick) files.push('muehle.swarm.test.mjs', 'dame.swarm.test.mjs');
+const files = ['words.test.mjs', 'crypto.test.mjs', 'relaychannel.test.mjs', 'muehle.test.mjs', 'dame.test.mjs', 'table.test.mjs', 'schnapsen.test.mjs', 'backgammon.test.mjs'];
+if (!quick) files.push('muehle.swarm.test.mjs', 'dame.swarm.test.mjs', 'schach.test.mjs', 'schnapsen.swarm.test.mjs', 'backgammon.swarm.test.mjs');
 let bad = 0;
 const t0 = Date.now();
 for (const f of files) {

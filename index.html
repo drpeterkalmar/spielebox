@@ -2,9 +2,9 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1f4a3a">
-<meta name="description" content="Spielebox – Mühle und Dame zu zweit übers Netz. Kein Konto, kein Server: Tisch aufmachen, drei Wörter ansagen, losspielen.">
+<meta name="description" content="Spielebox – Mühle, Dame, Schach, Schnapsen, Backgammon, Blackjack und Stern-Halma übers Netz. Kein Konto, kein Server: Tisch aufmachen, drei Wörter ansagen, losspielen.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -21,6 +21,9 @@
 <script>
   window.__errors = [];
   addEventListener('error', function (e) { __errors.push(String(e.message || e)); });
+  // kein versehentlicher Zoom (iOS Safari ignoriert user-scalable=no)
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturechange', function (e) { e.preventDefault(); }, { passive: false });
   addEventListener('unhandledrejection', function (e) { __errors.push('Promise: ' + String(e.reason && e.reason.message || e.reason)); });
   if ('serviceWorker' in navigator && !/[?&]nosw/.test(location.search) && location.protocol === 'https:') {
     var hadCtl = !!navigator.serviceWorker.controller;
