@@ -279,3 +279,27 @@ input, select, textarea { font-size: max(16px, 1em); }
 .board .coord-in { font: 700 19px system-ui, sans-serif; }
 .board .coord-in.on-light { fill: rgba(92, 58, 32, .85); }
 .board .coord-in.on-dark { fill: rgba(250, 232, 205, .85); }
+
+/* Kartentisch */
+.board .felt { fill: #1d5a3f; stroke: rgba(0,0,0,.35); stroke-width: 4; }
+.board-cards .card { will-change: transform; }
+.board-cards .card.dim { opacity: .5; }
+.board-cards .card.sel image, .board-cards .card.sel rect:last-of-type { filter: drop-shadow(0 0 10px #ffd24a); }
+.board-cards .card.done { opacity: .82; }
+.board .card-rank { font-family: Georgia, 'Times New Roman', serif; font-weight: 800; text-anchor: middle; }
+.board .card-fig { font-family: Georgia, serif; font-weight: 800; text-anchor: middle; }
+.board .card-name { font-family: system-ui, sans-serif; font-weight: 700; text-anchor: middle; fill: #5a4a35; }
+.board .card-count { font: 700 30px system-ui, sans-serif; fill: rgba(255,245,225,.9); text-anchor: middle; }
+.board .atout-label { font: 800 32px system-ui, sans-serif; fill: #ffe7a8; text-anchor: middle; }
+.board .trick-label { font: 700 30px system-ui, sans-serif; fill: rgba(255,245,225,.92); text-anchor: middle; }
+.board .closed-bar { stroke: #ffd24a; stroke-width: 10; stroke-linecap: round; }
+.board .end-card { fill: rgba(251,246,234,.96); stroke: #b8862c; stroke-width: 4; }
+.board .end-title { font: 800 40px system-ui, sans-serif; fill: #3a2515; text-anchor: middle; }
+.board .end-sub { font: 600 30px system-ui, sans-serif; fill: #5a4a35; text-anchor: middle; }
+.fair-badge { align-self: center; border: none; background: rgba(63, 208, 140, .18); color: #c9f5dc; border-radius: 12px; min-height: 48px; padding: 4px 14px; font-weight: 650; font-size: 14.5px; }
+.fair-badge.bad { background: rgba(239, 91, 79, .25); color: #ffd4cf; }
+.fair-badge.hidden { display: none; }
+table.bummerl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.bummerl td, table.bummerl th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+table.bummerl .bt-num { text-align: right; width: 22%; }
+table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }

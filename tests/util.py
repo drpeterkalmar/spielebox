@@ -138,6 +138,9 @@ class Page:
           const x0 = ctm.e, y0 = ctm.f, x1 = ctm.e + vb.width * ctm.a, y1 = ctm.f + vb.height * ctm.d;
           return { minTargetPx: m.minTargetPx, x0, y0, x1, y1, W, H, inside: x0 >= -1 && y0 >= -1 && x1 <= W + 1 && y1 <= H + 1, sizePx: x1 - x0 }; }""")
 
+    def metrics(self):
+        return self.ev("__box.metrics()")
+
     def close(self):
         try: self.ctx.close()
         except Exception: pass

@@ -49,6 +49,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   let hintText = '';
   let lastTable = null;
   let netMode = mode === 'online' ? 'wartet' : 'lokal';
+  let unlocked = null;   // zu zweit an einem Gerät mit verdeckten Karten: wessen Hand gerade gezeigt wird
 
   const title = h('div', { class: 'tb-title' });
   const pill = h('button', { class: 'pill', data: { net: '' }, on: { click: () => openNet() } });
@@ -64,6 +65,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const pBot2 = h('div', { class: 'pbar bottom' });
   const boardWrap = h('div', { class: 'board-wrap' });
   const statusEl = h('div', { class: 'status', 'aria-live': 'polite' });
+  const fairEl = h('button', { class: 'fair-badge hidden', data: { act: 'fair' }, on: { click: () => openFair() } });
   const hintEl = h('div', { class: 'hint' });
   const offerEl = h('div', { class: 'offer' });
   // Wiederverbinden: erst weich (Trystero + Relays neu), hilft das nach 12 s nicht, Seite neu laden –
@@ -89,11 +91,18 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const screen = h('div', { class: 'screen table-screen', data: { mode } },
     bar,
     h('div', { class: 'tmain' }, pTop, boardWrap, pBot),
-    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), statusEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
+    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), statusEl, fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
   clear(root).appendChild(screen);
 
   const eng = () => gameOf(session.table.game).engine;
-  const bottomSeat = () => (mode === 'hotseat' ? 0 : session.mySeat ?? 0);
+  const hidden = () => !!(session.table && eng().HIDDEN);
+  // wer schaut gerade auf den Bildschirm (Sitz, dessen Karten gezeigt werden)
+  const viewer = () => (mode === 'hotseat' ? (hidden() ? unlocked : null) : session.mySeat);
+  const bottomSeat = () => (mode === 'hotseat' ? (hidden() ? unlocked ?? 0 : 0) : session.mySeat ?? 0);
+  // zu zweit am Gerät + verdeckte Karten: Hand erst zeigen, wenn der Richtige das Gerät hat
+  const locked = (t) => mode === 'hotseat' && hidden() && t.status === 'play' && turnOf(t) !== null && turnOf(t) !== unlocked &&
+    !(eng().phase && eng().phase(t.gs) === 'spielende');
+  const shownOf = (t) => (hidden() ? { ...t, gs: eng().viewFor(t.gs, locked(t) ? null : viewer() ?? null) } : t);
 
   function ensureView(t) {
     if (view && viewGame === t.game) return;
@@ -110,11 +119,16 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   }
 
   function legalFor(t) {
-    if (!t || t.status !== 'play' || session.pendingMove) return null;
+    if (!t || t.status !== 'play' || session.pendingMove || locked(t)) return null;
     const seat = session.mySeat;
     if (seat === null || turnOf(t) !== seat) return null;
     if (t.seats[seat] && t.seats[seat].bot) return null;
-    return eng().legalMoves(t.gs);
+    return eng().legalMoves(shownOf(t).gs);
+  }
+
+  function submit(m) {
+    const r = session.submitMove(m);
+    if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); }
   }
 
   function seatLabel(t, seat) {
@@ -128,7 +142,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     clear(el);
     const s = t.seats[seat];
     const e = eng();
-    const sub = gameUi(t.game).sub(t, seat);
+    const sub = gameUi(t.game).sub(shownOf(t), seat, viewer());
     const score = s ? t.score[s.pid] || 0 : 0;
     const active = t.status === 'play' && turnOf(t) === seat;
     const here = mode !== 'online' || !s || s.bot || s.pid === session.me.pid || isHere(s.pid);
@@ -173,6 +187,10 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const turn = turnOf(t);
     const who = t.seats[turn];
     if (session.pendingMove) return 'Zug wird übertragen …';
+    if (turn === null) {
+      const c = eng().chance && eng().chance(t.gs);
+      return c && c.kind === 'dice' ? 'Es wird gewürfelt …' : 'Karten werden gemischt …';
+    }
     if (mode === 'hotseat') return `${who.name} (${eng().PLAYERS[turn]}) ist am Zug`;
     if (who && who.bot) return 'Der Computer denkt nach …';
     if (seat === turn) {
@@ -205,6 +223,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     }
     if (t.status === 'wait') {
       if (words) actions.append(btn('Wörter zeigen', 'words', () => showWords()));
+      if (session.role === 'host' && t.seats.length > 2) actions.append(btn('Freie Plätze: Computer', 'fill-bots', () => session.act('fill-bots'), 'btn primary'));
       actions.append(btn('Übersicht', 'leave', () => onLeave()));
       return;
     }
@@ -212,7 +231,13 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       actions.append(h('span', { class: 'muted', text: 'Du schaust zu.' }));
       return;
     }
-    const canOffer = mode !== 'bot' && (t.drawOffer === null || t.drawOffer === undefined);
+    const gu = gameUi(t.game);
+    if (gu.actions) {
+      const legal = legalFor(t);
+      if (legal) actions.append(...gu.actions(shownOf(t), legal, submit));
+      if (gu.hidden || !gameOf(t.game).draws) return; // Aufgeben steht dann im Menü
+    }
+    const canOffer = mode !== 'bot' && gameOf(t.game).draws && (t.drawOffer === null || t.drawOffer === undefined);
     if (canOffer) actions.append(btn(mode === 'hotseat' ? 'Remis' : 'Remis anbieten', 'draw-offer', () => confirmAct('Remis', mode === 'hotseat' ? 'Partie als Remis beenden?' : 'Remis anbieten?', 'draw-offer')));
     actions.append(btn('Aufgeben', 'resign', () => confirmAct('Aufgeben', mode === 'hotseat' ? `${t.seats[turnOf(t)].name} gibt auf?` : 'Wirklich aufgeben?', 'resign')));
   }
@@ -236,7 +261,16 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   function renderOverlay(t) {
     clear(overlay);
     let show = false;
-    if (!t) {
+    if (t && locked(t)) {
+      // Sichtschutz: Gerät weitergeben, erst dann die Karten zeigen
+      show = true;
+      const turn = turnOf(t);
+      const name = t.seats[turn] ? t.seats[turn].name : `Spieler ${turn + 1}`;
+      overlay.append(h('div', { class: 'ov-card', data: { overlay: 'handoff' } },
+        h('h2', { text: `Gerät an ${name} weitergeben` }),
+        h('p', { text: 'Die Karten bleiben verdeckt, bis du bereit bist.' }),
+        h('button', { class: 'btn primary big', data: { act: 'unlock' }, on: { click: () => { unlocked = turn; render({ kind: 'state' }); } } }, `Ich bin ${name} – Karten zeigen`)));
+    } else if (!t) {
       show = true;
       overlay.append(h('div', { class: 'ov-card' },
         h('h2', { text: 'Verbinde mit dem Tisch …' }),
@@ -279,8 +313,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     renderPlayers(t);
     const bs = bottomSeat();
     const legal = legalFor(t);
-    view.update(t, info, { legal, flip: !!gameUi(t.game).flip && bs === 1 });
+    view.update(shownOf(t), info, { legal, flip: !!gameUi(t.game).flip && bs === 1, viewer: viewer() ?? bs });
     statusEl.textContent = statusText(t);
+    renderFair(t);
     statusEl.dataset.state = t.status;
     if (!legal) hintEl.textContent = t.status === 'play' && t.game === 'muehle' && session.mySeat === null ? '' : (legal === null && t.status === 'play' && session.mySeat !== null && turnOf(t) !== session.mySeat ? '' : hintText);
     renderActions(t);
@@ -298,6 +333,27 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
         h('button', { class: 'btn primary', on: { click: () => share(words, g.title) } }, 'Teilen'),
         h('button', { class: 'btn', on: { click: () => copy(`${words.map(displayWord).join(' · ')}\n${shareUrl(words)}`) } }, 'Kopieren')),
       h('p', { class: 'muted small', text: 'Mit diesen Wörtern kann auch jemand zuschauen oder nach einem Neustart weiterspielen.' }));
+  }
+
+  // Fair-Play-Anzeige: eigenes Gerät hat Commit, Kette und Mischung/Würfe nachgeprüft
+  function renderFair(t) {
+    const fc = session.fairCheck;
+    const kind = eng().chance ? (gameOf(t.game).cards ? 'gemischt' : 'gewürfelt') : null;
+    const show = mode === 'online' && kind && fc && (fc.checked > 0 || !fc.ok);
+    fairEl.classList.toggle('hidden', !show);
+    if (!show) return;
+    fairEl.classList.toggle('bad', !fc.ok);
+    fairEl.textContent = fc.ok ? `✓ fair ${kind} (${fc.checked} geprüft${fc.fallback ? `, ${fc.fallback} ohne Mitspieler` : ''})` : `⚠ Prüfung fehlgeschlagen`;
+  }
+
+  function openFair() {
+    const fc = session.fairCheck;
+    if (!fc) return;
+    sheet('Fair Play',
+      h('p', { text: fc.ok ? `Dein Gerät hat ${fc.checked} Zufallsereignisse nachgeprüft: Jede Mischung bzw. jeder Wurf passt zu den vorher festgelegten Ketten aller Spieler.` : 'Achtung: Mindestens ein Zufallsereignis passt nicht zu den festgelegten Ketten.' }),
+      fc.bad && fc.bad.length ? h('ul', {}, ...fc.bad.slice(0, 6).map((b) => h('li', { text: b }))) : null,
+      fc.fallback ? h('p', { class: 'muted', text: `${fc.fallback} Ereignis(se) ohne Beitrag eines Mitspielers (war nicht erreichbar) – diese sind nicht prüfbar.` }) : null,
+      h('p', { class: 'muted small', text: 'Kartenmischungen werden erst nach dem jeweiligen Spiel offengelegt und dann geprüft.' }));
   }
 
   function openNet() {
@@ -320,7 +376,10 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (words) items.push(item('Die drei Wörter zeigen', showWords, 'words'));
     if (mode === 'online') items.push(item('Verbindung / Wiederverbinden', openNet, 'net'));
     if (t) items.push(item('Regeln', () => sheet('Regeln', gameUi(t.game).rules(t.opts)), 'rules'));
-    if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(t, { item, share: shareText }));
+    if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(shownOf(t), { item, share: shareText, sheet }));
+    if (t && t.status === 'play' && session.mySeat !== null && gameUi(t.game).actions && (gameUi(t.game).hidden || !gameOf(t.game).draws)) {
+      items.push(item(t.seats.length > 2 ? 'Platz dem Computer überlassen' : 'Aufgeben', () => confirmAct('Aufgeben', t.seats.length > 2 ? 'Der Computer spielt für dich weiter. Sicher?' : 'Wirklich aufgeben?', 'resign'), 'resign'));
+    }
     if (t && mode !== 'online') items.push(item('Neue Partie', () => onNewLocal(), 'new'));
     items.push(item('Zur Übersicht', () => onLeave(), 'leave'));
     const sh = sheet('Menü', ...items);

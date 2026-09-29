@@ -10,6 +10,8 @@ for d in ['src', 'lib', 'icons', 'assets']:
                 files.append(os.path.relpath(os.path.join(dp, f), ROOT))
 # JPG-Texturen sind nur Rückfall (die App lädt .webp) → nicht vorab laden
 files = sorted(set(f for f in files if not (f.startswith('assets/wood/') and f.endswith('.jpg'))))
+# Karten: nur die doppelt aufgelösten vorab laden (Handys); 1× lädt ein Desktop bei Bedarf
+files = [f for f in files if not (f.startswith('assets/cards/') and f.endswith('.webp') and '@2x' not in f)]
 h = hashlib.sha256()
 for f in files:
     if f == 'src/build.js': continue  # enthält selbst die Version

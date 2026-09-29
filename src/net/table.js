@@ -4,15 +4,21 @@
 // Tisch-Zustand (reines JSON, liegt bei allen in localStorage):
 //   { v, game, opts, hostPid, epoch, seq, round, seats: [{pid,name,bot?}|null, …], gs (Engine-Zustand),
 //     status: 'wait'|'play'|'over', result: null|{winner,reason}, drawOffer: null|Sitz,
-//     last: null|{m, by, d}, hist: [{m, by, d}] (letzte Züge), nmoves, score: {pid: Punkte}, created, updated }
-import { gameOf } from '../games/registry.js';
+//     last: null|{m, by, d}, hist: [{m, by, d}] (letzte Züge), nmoves, score: {pid: Punkte}, created, updated,
+//     id (Tisch-Kennung), fair: null|{ round, commits: [je Sitz], log: [öffentliche Zufallsereignisse], k },
+//     fairNeed: null|{ k, kind, missing: [Sitze] }, fairPriv (nur beim Host, wird nie verschickt) }
+// Kartenspiele (Engine mit HIDDEN): Jeder Empfänger bekommt nur viewFor(gs, sein Sitz); Zuschauer sehen keine Hand.
+// Zufall (Engine mit chance): lokal crypto-Zufall, online Hash-Ketten aller Sitze (src/net/fair.js).
+import { gameOf, seatCount } from '../games/registry.js';
+import { chainLink, verifyLink, mixLinks, valueFor, randomHex, sha256, verifyFair, CHAIN } from './fair.js';
 
 export const TIMING = {
   heartbeat: 4000,   // Host meldet sich regelmäßig (Stand seq/epoch, Anwesenheit)
   hostGone: 45000,   // so lange kein Host → sitzender Spieler mit Zustand übernimmt (> 3 Relay-Herzschläge)
   moveRetry: 5000,   // unbestätigten Zug erneut senden
   botDelay: 450,     // Mindest-Denkzeit des Computers (fühlt sich natürlicher an)
-  relayAfter: 12000  // wie NetLink: so lange ohne Direktweg zur wichtigen Gegenstelle → Relay zuschalten
+  relayAfter: 12000, // wie NetLink: so lange ohne Direktweg zur wichtigen Gegenstelle → Relay zuschalten
+  fairWait: 12000    // so lange auf Kettenglieder/Commits der Mitspieler warten, dann Host-Zufall (als ungeprüft markiert)
 };
 const HIST = 40;
 
@@ -22,12 +28,13 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 export function newTable({ game, opts, host, hostSeat = 0, now = Date.now() }) {
   const g = gameOf(game);
   const o = g.engine.normalizeOptions(opts);
-  const seats = [null, null];
-  seats[hostSeat] = { pid: host.pid, name: host.name };
+  const seats = Array(seatCount(g, o)).fill(null);
+  seats[Math.min(hostSeat, seats.length - 1)] = { pid: host.pid, name: host.name };
   return {
     v: 1, game, opts: o, hostPid: host.pid, epoch: 1, seq: 0, round: 1, seats,
     gs: g.engine.initialState(o), status: 'wait', result: null, drawOffer: null,
-    last: null, hist: [], nmoves: 0, score: {}, created: now, updated: now
+    last: null, hist: [], nmoves: 0, score: {}, created: now, updated: now,
+    id: Math.random().toString(36).slice(2, 12), fair: null, fairNeed: null
   };
 }
 
@@ -48,12 +55,20 @@ export function turnOf(table) {
   return gameOf(table.game).engine.currentPlayer(table.gs);
 }
 
+// Tisch für einen Empfänger: Kartenspiele nur mit dessen Sicht, private Host-Daten nie
+export function tableFor(table, seat) {
+  const eng = gameOf(table.game).engine;
+  const { fairPriv, ...pub } = table;
+  if (eng.HIDDEN) pub.gs = eng.viewFor(table.gs, seat === undefined ? null : seat);
+  return pub;
+}
+
 export class TableSession {
   // mode: 'online' | 'bot' | 'hotseat'
   // me: { pid, name }; want: 'play' | 'watch'
   // table: gespeicherter oder neuer Tisch (online beim Beitreten ohne Speicherstand: null)
   // link: Netz (nur online); save(table): Speicher-Rückruf; bot: { choose(game, gs, seat) → Promise<Move> }
-  constructor({ mode = 'online', me, want = 'play', table = null, link = null, save = () => {}, bot = null, now = () => Date.now(), timers = globalThis }) {
+  constructor({ mode = 'online', me, want = 'play', table = null, link = null, save = () => {}, bot = null, now = () => Date.now(), timers = globalThis, secret = null, random = randomHex }) {
     this.mode = mode;
     this.me = me;
     this.want = want;
@@ -72,6 +87,10 @@ export class TableSession {
     this.closed = false;
     this.botBusy = false;
     this.log = [];
+    this.secret = secret || randomHex();   // Geräte-Geheimnis für die eigenen Hash-Ketten
+    this.random = random;                  // lokaler Zufall (Tests: fester Strom)
+    this.fairCheck = null;                 // Ergebnis der eigenen Prüfung des Zufalls-Protokolls
+    this._sentFair = {};
   }
 
   get role() {
@@ -110,6 +129,7 @@ export class TableSession {
     if (this.mode !== 'online') {
       // lokal: beide Sitze sofort belegt, Partie läuft
       if (this.table.status === 'wait' && this.table.seats.every(Boolean)) this.table.status = 'play';
+      if (this.table.status === 'play') this._resolveChance();
       this._changed({ kind: 'start' });
       this._maybeBot();
       return;
@@ -119,7 +139,11 @@ export class TableSession {
     this.link.onStatus = () => this._emit('net', this.netStatus());
     this._timer = this.timers.setInterval(() => this._tick(), 1000);
     this._hello();
-    if (this.table) this._changed({ kind: 'start' });
+    if (this.table) {
+      if (this.role === 'host' && this.table.status === 'play') { this._ensureFair(); if (this._resolveChance()) this._save(this.table); }
+      this._changed({ kind: 'start' });
+      if (this.role === 'host') this._maybeBot();
+    }
   }
 
   close() {
@@ -143,13 +167,19 @@ export class TableSession {
     if (this.pendingMove) return { ok: false, reason: 'Zug wird noch übertragen' };
     this.pendingMove = { id: this._id(), move, seq: t.seq, sent: this.now() };
     this.stats.movesSent++;
-    this._sendHost({ t: 'move', id: this.pendingMove.id, move, seq: t.seq });
-    // Vorschau: Zug lokal schon zeigen, bis der Host bestätigt (bei Ablehnung kommt der alte Stand zurück)
-    this._optimistic(seat, move);
+    const msg = { t: 'move', id: this.pendingMove.id, move, seq: t.seq };
+    const reveal = this._revealFor(move);
+    if (reveal) msg.reveal = reveal;
+    this.pendingMove.reveal = reveal;
+    this._sendHost(msg);
+    // Vorschau: Zug lokal schon zeigen, bis der Host bestätigt (bei Ablehnung kommt der alte Stand zurück).
+    // Nicht bei Kartenspielen (die Sicht reicht nicht zum Ausführen) und nicht, wenn Zufall folgt.
+    if (!this.engine.HIDDEN && !reveal) this._optimistic(seat, move);
+    this._changed({ kind: 'pending' });
     return { ok: true, pending: true };
   }
 
-  // 'resign' | 'draw-offer' | 'draw-accept' | 'draw-decline' | 'rematch'
+  // 'resign' | 'draw-offer' | 'draw-accept' | 'draw-decline' | 'rematch' | 'fill-bots' (Host: freie Plätze mit Computer)
   act(a) {
     const t = this.table;
     if (!t) return { ok: false };
@@ -169,6 +199,11 @@ export class TableSession {
     const g = gameOf(game);
     t.game = game;
     t.opts = g.engine.normalizeOptions(opts);
+    // Sitzanzahl anpassen (Sitzende behalten, so weit Platz ist)
+    const n = seatCount(g, t.opts);
+    const people = t.seats.filter((x) => x && !x.bot);
+    t.seats = Array(n).fill(null);
+    people.slice(0, n).forEach((p, i) => { t.seats[i] = p; });
     this._reset(false);
     return { ok: true };
   }
@@ -189,8 +224,9 @@ export class TableSession {
     if (t.hist.length > HIST) t.hist.shift();
     t.nmoves++;
     t.drawOffer = null;
+    this._resolveChance();
     const r = eng.result(t.gs);
-    if (r) this._finish(r.winner, r.reason);
+    if (r) this._finish(r.winner, r.reason, r.points);
     this._commit({ kind: 'move', move, by: seat, prevGs });
     this._maybeBot();
     return { ok: true };
@@ -204,8 +240,25 @@ export class TableSession {
       this._reset(true);
       return { ok: true };
     }
+    if (a === 'fill-bots') {
+      if (t.status !== 'wait') return { ok: false, reason: 'Partie läuft schon' };
+      t.seats = t.seats.map((x, i) => x || { pid: 'bot' + i, name: `Computer ${i + 1}`, bot: 2 });
+      t.status = 'play';
+      this._startRound();
+      this._commit({ kind: 'seat' });
+      this._maybeBot();
+      return { ok: true };
+    }
     if (seat === null || seat === undefined || t.status !== 'play') return { ok: false, reason: 'Partie läuft nicht' };
     if (a === 'resign') {
+      if (t.seats.length > 2) {
+        // mehr als zwei: der Computer übernimmt den Platz, die Partie geht weiter
+        const old = t.seats[seat];
+        t.seats[seat] = { pid: 'bot' + seat, name: `Computer (für ${old ? old.name : 'Spieler'})`, bot: 2 };
+        this._commit({ kind: 'act', a, by: seat });
+        this._maybeBot();
+        return { ok: true };
+      }
       this._finish(1 - seat, `${this._seatName(seat)} gibt auf`);
     } else if (a === 'draw-offer') {
       if (t.drawOffer !== null) return { ok: false };
@@ -230,15 +283,18 @@ export class TableSession {
     return { ok: true };
   }
 
-  _finish(winner, reason) {
+  _finish(winner, reason, points) {
     const t = this.table;
     t.status = 'over';
     t.result = { winner, reason };
+    if (points) t.result.points = points;
     t.drawOffer = null;
+    this._publishFair(true);
+    const two = t.seats.length === 2;
     for (let s = 0; s < t.seats.length; s++) {
       const p = t.seats[s];
       if (!p) continue;
-      const pts = winner === null ? 0.5 : winner === s ? 1 : 0;
+      const pts = winner === null ? (two ? 0.5 : 0) : winner === s ? points || 1 : 0;
       t.score[p.pid] = (t.score[p.pid] || 0) + pts;
     }
   }
@@ -247,7 +303,7 @@ export class TableSession {
   _reset(swap) {
     const t = this.table;
     const eng = this.engine;
-    if (swap) t.seats.reverse();
+    if (swap) t.seats.push(t.seats.shift()); // bei zwei Sitzen = Farben tauschen, sonst reihum weiter
     t.gs = eng.initialState(t.opts);
     t.round++;
     t.result = null;
@@ -256,8 +312,182 @@ export class TableSession {
     t.hist = [];
     t.nmoves = 0;
     t.status = t.seats.every(Boolean) ? 'play' : 'wait';
+    t.fair = null;
+    t.fairNeed = null;
+    t.fairPriv = null;
+    if (t.status === 'play') this._startRound();
     this._commit({ kind: 'reset' });
     this._maybeBot();
+  }
+
+  // Partie beginnt (alle Plätze besetzt): Zufalls-Protokoll anlegen, ggf. gleich mischen/würfeln
+  _startRound() {
+    this._ensureFair();
+    this._resolveChance();
+  }
+
+  // ---------- Zufall ----------
+
+  _needsFair() {
+    return this.mode === 'online' && !!this.engine.chance;
+  }
+
+  _seed(seat) {
+    const t = this.table;
+    const p = t.seats[seat];
+    const who = p && p.bot ? `bot${seat}|${this.me.pid}` : this.me.pid;
+    return sha256(`${this.secret}|${t.id || t.created}|${t.round}|${who}`);
+  }
+
+  // Host: Protokoll der Runde anlegen (eigene und Computer-Commits sofort)
+  _ensureFair() {
+    const t = this.table;
+    if (!this._needsFair() || this.role !== 'host') return;
+    if (t.fair && t.fair.round === t.round) return;
+    t.fair = { round: t.round, commits: t.seats.map(() => null), log: [], k: 0 };
+    t.fairPriv = { last: t.seats.map(() => null), pending: {}, secret: [] };
+    t.seats.forEach((p, i) => {
+      if (p && (p.bot || p.pid === this.me.pid)) t.fair.commits[i] = chainLink(this._seed(i), 0);
+    });
+  }
+
+  // Kettenglied k eines Sitzes, wenn bekannt (eigene/Computer sofort, Mitspieler aus ihren Nachrichten)
+  _linkOf(seat, k) {
+    const t = this.table;
+    const p = t.seats[seat];
+    if (!p) return null;
+    if (p.bot || p.pid === this.me.pid) return chainLink(this._seed(seat), k);
+    const pend = t.fairPriv.pending[seat];
+    return pend && pend[k] ? pend[k] : null;
+  }
+
+  // Host: Zufallsereignisse auflösen, solange die Engine welche verlangt. false = wartet auf Mitspieler.
+  _resolveChance(force = false) {
+    const t = this.table;
+    const eng = this.engine;
+    if (!eng.chance) return true;
+    let c;
+    while ((c = eng.chance(t.gs))) {
+      let v;
+      if (!this._needsFair()) {
+        v = valueFor(c, this.random());
+      } else {
+        this._ensureFair();
+        const k = t.fair.k + 1;
+        if (k > CHAIN) throw new Error('Zufalls-Kette aufgebraucht');
+        const links = t.seats.map((_, s) => this._linkOf(s, k));
+        const missing = links.map((l, s) => (l ? -1 : s)).filter((s) => s >= 0);
+        const commitsMissing = t.fair.commits.map((x, s) => (x ? -1 : s)).filter((s) => s >= 0);
+        const miss = [...new Set([...missing, ...commitsMissing])];
+        if (miss.length && !force) {
+          // Aufrufer verteilt den Stand (commit) – Mitspieler sehen fairNeed und schicken ihr Glied
+          if (!t.fairNeed || t.fairNeed.k !== k) { t.fairNeed = { k, kind: c.kind, missing: miss }; this._needSince = this.now(); }
+          else t.fairNeed.missing = miss;
+          return false;
+        }
+        const entry = { k, kind: c.kind };
+        if (c.n) entry.n = c.n;
+        if (miss.length) {
+          entry.fallback = true;  // Mitspieler nicht erreichbar: Host-Zufall, im Protokoll als ungeprüft markiert
+          v = valueFor(c, this.random());
+        } else {
+          entry.links = links;
+          v = valueFor(c, mixLinks(links, k, c.kind));
+          links.forEach((l, s) => { t.fairPriv.last[s] = { k, link: l }; });
+        }
+        entry.value = v;
+        for (const s of Object.keys(t.fairPriv.pending)) delete t.fairPriv.pending[s][k];
+        t.fair.k = k;
+        t.fairNeed = null;
+        if (c.kind === 'shuffle') {
+          // alte Mischungen veröffentlichen, sobald ihre Karten keine Rolle mehr spielen (neues Spiel/Runde)
+          const ph = eng.phase ? eng.phase(t.gs) : 'deal';
+          if (ph === 'deal' || ph === 'bet') this._publishFair(false);
+          t.fairPriv.secret.push(entry);
+        } else {
+          t.fair.log.push(entry);
+        }
+      }
+      t.gs = eng.applyChance(t.gs, v);
+    }
+    return true;
+  }
+
+  _publishFair(all) {
+    const t = this.table;
+    if (!t.fair || !t.fairPriv) return;
+    const sec = t.fairPriv.secret;
+    if (!sec.length) return;
+    t.fair.log.push(...sec);
+    t.fair.log.sort((a, b) => a.k - b.k);
+    t.fairPriv.secret = [];
+  }
+
+  // Host: Nachricht mit Commit bzw. Kettenglied eines Mitspielers
+  _hostOnFair(from, msg) {
+    const t = this.table;
+    const seat = seatOf(t, from.pid);
+    if (seat === null || !t.fair || msg.round !== t.round) return;
+    let changed = false;
+    if (typeof msg.commit === 'string' && !t.fair.commits[seat] && /^[0-9a-f]{64}$/.test(msg.commit)) {
+      t.fair.commits[seat] = msg.commit;
+      changed = true;
+    }
+    if (msg.reveal) changed = this._takeReveal(seat, msg.reveal) || changed;
+    if (!changed) return;
+    if (t.status === 'play') this._resolveChance();
+    this._commit({ kind: 'fair' });
+    this._maybeBot();
+  }
+
+  // Kettenglied prüfen (gegen Commit bzw. letztes bekanntes Glied) und merken
+  _takeReveal(seat, { k, link }) {
+    const t = this.table;
+    if (!t.fair || !t.fair.commits[seat] || !Number.isInteger(k) || k !== t.fair.k + 1) return false;
+    const last = t.fairPriv.last[seat] || { k: 0, link: t.fair.commits[seat] };
+    let x = link;
+    for (let i = last.k; i < k - 1; i++) x = sha256(x);
+    if (!verifyLink(last.link, x)) { this._note(`Falsches Kettenglied von Sitz ${seat}`); return false; }
+    (t.fairPriv.pending[seat] ||= {})[k] = link;
+    return true;
+  }
+
+  // Client: eigenes Glied für einen Zug, der Zufall auslöst (spart eine Netz-Runde)
+  _revealFor(move) {
+    const t = this.table;
+    const seat = this.mySeat;
+    if (!t.fair || t.fair.round !== t.round || seat === null || this.engine.HIDDEN || !this.engine.chance) return null;
+    try {
+      const next = this.engine.applyMove(t.gs, move);
+      if (!this.engine.chance(next)) return null;
+    } catch { return null; }
+    const k = t.fair.k + 1;
+    return { k, link: chainLink(this._seed(seat), k) };
+  }
+
+  // Client: Commit/Glied schicken, wenn der Host darauf wartet; öffentliches Protokoll prüfen
+  _clientFair() {
+    const t = this.table;
+    if (!t || !t.fair || t.fair.round !== t.round) return;
+    const seat = seatOf(t, this.me.pid);
+    if (seat !== null) {
+      const msg = { t: 'fair', round: t.round };
+      if (!t.fair.commits[seat]) msg.commit = chainLink(this._seed(seat), 0);
+      if (t.fairNeed && t.fairNeed.missing.includes(seat) && t.fair.commits[seat]) {
+        msg.reveal = { k: t.fairNeed.k, link: chainLink(this._seed(seat), t.fairNeed.k) };
+      }
+      const key = `${t.round}|${msg.commit ? 'c' : ''}|${msg.reveal ? msg.reveal.k : ''}`;
+      const now = this.now();
+      if ((msg.commit || msg.reveal) && (!this._sentFair[key] || now - this._sentFair[key] > 3000)) {
+        this._sentFair[key] = now;
+        this._sendHost(msg);
+      }
+    }
+    const n = (t.fair.log || []).length;
+    if (!this.fairCheck || this.fairCheck.n !== n || this.fairCheck.round !== t.round) {
+      const r = verifyFair({ commits: t.fair.commits, log: t.fair.log.filter((e) => !e.fallback && e.links && e.links.every(Boolean)) });
+      this.fairCheck = { ...r, n, round: t.round, fallback: t.fair.log.filter((e) => e.fallback).length };
+    }
   }
 
   _commit(info) {
@@ -266,6 +496,7 @@ export class TableSession {
     t.updated = this.now();
     this._save(t);
     if (this.mode === 'online') this._broadcastState();
+    if (this.mode === 'online' && this.role === 'host') this._clientFair();
     this._changed(info);
   }
 
@@ -273,8 +504,28 @@ export class TableSession {
     this._emit('change', this.table, info);
   }
 
+  // Stand verteilen: bei Kartenspielen je Empfänger dessen Sicht (gezielt an einzelne Peers)
   _broadcastState(to) {
-    this.link.send({ t: 'state', table: this.table }, to);
+    const t = this.table;
+    if (!t) return;
+    const hidden = !!this.engine.HIDDEN;
+    if (!hidden && !t.fairPriv) {
+      this.link.send({ t: 'state', table: t }, to);
+      return;
+    }
+    const targets = to ? [to] : this._audience();
+    if (!hidden && !to) { this.link.send({ t: 'state', table: tableFor(t, null) }); return; }
+    for (const pid of targets) this.link.send({ t: 'state', table: tableFor(t, seatOf(t, pid)) }, pid);
+  }
+
+  // alle bekannten Gegenstellen (Sitzende, Anwesende, verbundene Peers) außer mir
+  _audience() {
+    const out = new Set();
+    for (const s of this.table.seats) if (s && !s.bot) out.add(s.pid);
+    for (const pid of this.present.keys()) out.add(pid);
+    try { for (const p of this.link.status().peers || []) out.add(p.pid); } catch { /* egal */ }
+    out.delete(this.me.pid);
+    return [...out];
   }
 
   _isBot(seat) {
@@ -296,8 +547,10 @@ export class TableSession {
     this.botBusy = true;
     const seq = t.seq;
     const t0 = this.now();
-    Promise.resolve(this.bot.choose(t.game, t.gs, t.seats[seat].bot)).then((move) => {
-      const wait = Math.max(0, TIMING.botDelay - (this.now() - t0));
+    const eng = this.engine;
+    const gs = eng.HIDDEN ? eng.viewFor(t.gs, seat) : t.gs;   // Computer sieht nur, was ihm zusteht
+    Promise.resolve(this.bot.choose(t.game, gs, t.seats[seat].bot)).then((move) => {
+      const wait = Math.max(0, (this.botDelayFor ? this.botDelayFor(t, move) : TIMING.botDelay) - (this.now() - t0));
       this._botTimer = this.timers.setTimeout(() => {
         this.botBusy = false;
         if (this.closed || this.table.seq !== seq || !move) return;
@@ -320,7 +573,7 @@ export class TableSession {
       const free = t.seats.findIndex((s) => !s);
       if (free >= 0) {
         t.seats[free] = { pid: from.pid, name: msg.name || 'Gast' };
-        if (t.seats.every(Boolean)) t.status = 'play';
+        if (t.seats.every(Boolean)) { t.status = 'play'; this._startRound(); }
         changed = true;
         this._emit('toast', `${msg.name || 'Gast'} hat Platz genommen`);
       }
@@ -343,6 +596,7 @@ export class TableSession {
       this._broadcastState(from.pid);
       return;
     }
+    if (msg.reveal) this._takeReveal(seat, msg.reveal);
     const r = this._applyMove(seat, msg.move);
     if (!r.ok) reject(r.reason);
   }
@@ -370,6 +624,7 @@ export class TableSession {
     this._confirmed = null;
     this.table = incoming;
     this._save(incoming);
+    this._clientFair();
     const info = { kind: 'state' };
     const oneMore = base && incoming.round === base.round && incoming.nmoves === base.nmoves + 1 && incoming.last;
     if (oneMore && wasOptimistic && shown.last && JSON.stringify(shown.last.m) === JSON.stringify(incoming.last.m)) {
@@ -464,6 +719,9 @@ export class TableSession {
       case 'nack':
         if (!isHost) this._clientOnNack(from, msg);
         break;
+      case 'fair':
+        if (isHost) this._hostOnFair(from, msg);
+        break;
     }
     this._emit('net', this.netStatus());
   }
@@ -525,8 +783,18 @@ export class TableSession {
         const here = [...this.present.entries()].filter(([, p]) => now - p.lastSeen < 30000).map(([pid]) => pid);
         this.link.send({ t: 'hb', epoch: t.epoch, seq: t.seq, round: t.round, here });
       }
+      // Mitspieler liefert kein Kettenglied (weg, alte Version) → nach fairWait Host-Zufall, als ungeprüft markiert
+      if (t.fairNeed && t.status === 'play' && now - (this._needSince || now) > TIMING.fairWait) {
+        this._note('Zufall ohne Mitspieler-Glied (Zeitüberschreitung)');
+        this._resolveChance(true);
+        const r = this.engine.result(t.gs);
+        if (r && t.status === 'play') this._finish(r.winner, r.reason, r.points);
+        this._commit({ kind: 'fair' });
+        this._maybeBot();
+      }
       return;
     }
+    if (t) this._clientFair();
     // Client: unbestätigten Zug wiederholen
     if (this.pendingMove && now - this.pendingMove.sent > TIMING.moveRetry) {
       this.pendingMove.sent = now;
@@ -535,7 +803,7 @@ export class TableSession {
     }
     // Host lange weg? Sitzender Spieler mit Stand übernimmt die Schiedsrichter-Rolle
     const since = Math.max(this.hostSeen, this.startedAt);
-    if (t && seatOf(t, this.me.pid) !== null && !this.pendingMove && now - since > TIMING.hostGone && this._othersPresent()) {
+    if (t && !this.engine.HIDDEN && seatOf(t, this.me.pid) !== null && !this.pendingMove && now - since > TIMING.hostGone && this._othersPresent()) {
       this._takeOver();
     }
   }

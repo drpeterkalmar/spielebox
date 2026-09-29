@@ -1,12 +1,13 @@
 // Lobby: Profilname, Tisch aufmachen (Spiel + Optionen), Beitreten mit 3 Wörtern (Autovervollständigung),
 // Zuschauen, Weiterspielen (laufende Tische und lokale Partien).
 import { h, clear, sheet, toast, relTime } from './dom.js';
-import { GAME_LIST, gameOf } from '../games/registry.js';
+import { GAME_LIST, LIVE, gameOf } from '../games/registry.js';
 import { suggest, findWord, parseWords, displayWord } from '../words.js';
 import * as store from '../store.js';
-import { rulesMuehle, rulesDame, rulesSchach, helpNet, credits } from './texts.js';
+import { rulesMuehle, rulesDame, rulesSchach, rulesSchnapsen, rulesBackgammon, rulesBlackjack, rulesHalma, helpNet, credits } from './texts.js';
 
-const RULES = { muehle: rulesMuehle, dame: rulesDame, schach: rulesSchach };
+const RULES = { muehle: rulesMuehle, dame: rulesDame, schach: rulesSchach, schnapsen: rulesSchnapsen, backgammon: rulesBackgammon, blackjack: rulesBlackjack, halma: rulesHalma };
+const liveGames = () => GAME_LIST.filter((g) => LIVE.has(g.id) || /[?&]alle/.test(location.search));
 import { BUILD } from '../build.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -23,6 +24,29 @@ export function miniBoard(game) {
       '<g fill="none" stroke="#3a2515" stroke-width="3.2"><rect x="12" y="12" width="76" height="76"/><rect x="25" y="25" width="50" height="50"/><rect x="38" y="38" width="24" height="24"/>' +
       '<path d="M50 12V38M50 62V88M12 50H38M62 50H88"/></g>' +
       '<circle cx="12" cy="12" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="50" cy="25" r="7.5" fill="url(#sb-st-b)"/><circle cx="88" cy="88" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="62" cy="62" r="7.5" fill="url(#sb-st-b)"/>';
+  } else if (game === 'schnapsen' || game === 'blackjack') {
+    const de = game === 'schnapsen';
+    const cards = de ? ['HA', 'LK', 'EO'] : ['AS', 'KH', 'TD'];
+    const dir = de ? 'de' : 'fr';
+    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="#1d5a3f"/>' + cards.map((c, i) =>
+      `<g transform="translate(${30 + i * 20} ${56}) rotate(${(i - 1) * 14})"><image href="assets/cards/${dir}/${c}.webp" x="-17" y="-27" width="34" height="${de ? 54 : 49}"/></g>`).join('');
+  } else if (game === 'backgammon') {
+    let tri = '';
+    for (let i = 0; i < 6; i++) {
+      const x = 8 + i * 14;
+      tri += `<path d="M${x} 8 L${x + 7} 44 L${x + 14} 8Z" fill="${i % 2 ? '#e8d7b5' : '#8b2f24'}"/><path d="M${x} 92 L${x + 7} 56 L${x + 14} 92Z" fill="${i % 2 ? '#8b2f24' : '#e8d7b5'}"/>`;
+    }
+    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' + tri +
+      '<circle cx="15" cy="84" r="6.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="15" cy="72" r="6.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="85" cy="16" r="6.5" fill="url(#sb-st-b)"/>' +
+      '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/><circle cx="50" cy="50" r="2" fill="#222"/>';
+  } else if (game === 'halma') {
+    const col = ['#d8453b', '#2f6fd6', '#2e9e57', '#e0b12c', '#8a4fc9', '#e07b27'];
+    let dots = '';
+    for (let k = 0; k < 6; k++) {
+      const a = (k * 60 + 90) * Math.PI / 180;
+      for (let j = 0; j < 3; j++) dots += `<circle cx="${50 + Math.cos(a) * (28 + j * 6)}" cy="${50 + Math.sin(a) * (28 + j * 6)}" r="4" fill="${col[k]}"/>`;
+    }
+    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/><path d="M50 6 L62 30 L88 30 L74 50 L88 70 L62 70 L50 94 L38 70 L12 70 L26 50 L12 30 L38 30Z" fill="rgba(90,55,25,.25)" stroke="#5a3a1a" stroke-width="1.5"/>' + dots;
   } else if (game === 'schach') {
     let sq = '';
     for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;
@@ -122,7 +146,7 @@ export function renderLobby(root, handlers) {
   };
 
   // --- Neuer Tisch ---
-  const games = h('div', { class: 'games' }, ...GAME_LIST.map((g) =>
+  const games = h('div', { class: 'games' }, ...liveGames().map((g) =>
     h('button', { class: 'game', data: { game: g.id }, on: { click: () => openGameSheet(g.id, {
       onOnline: (...a) => { if (needName()) handlers.onCreate(...a); },
       onLocal: (...a) => handlers.onLocal(...a)
@@ -262,7 +286,7 @@ export function renderLobby(root, handlers) {
         h('section', { class: 'card resume' }, h('h2', { text: 'Weiterspielen' }), resume))),
     h('footer', { class: 'lobby-foot' },
       h('button', { class: 'btn link', on: { click: () => sheet('So geht’s', helpNet()) } }, 'So geht’s'),
-      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', ...GAME_LIST.map((g) => RULES[g.id]())) } }, 'Regeln'),
+      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', ...liveGames().map((g) => RULES[g.id]())) } }, 'Regeln'),
       h('button', { class: 'btn link', on: { click: () => sheet('Credits', credits()) } }, 'Credits'),
       h('span', { class: 'version', text: 'Version ' + BUILD })));
 

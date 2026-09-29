@@ -37,6 +37,18 @@ export function profile() {
   return p;
 }
 
+// Geräte-Geheimnis für die eigenen Hash-Ketten (Fair Play); bleibt über Neuladen gleich
+export function deviceSecret() {
+  const p = profile();
+  if (typeof p.secret !== 'string' || p.secret.length < 32) {
+    const b = new Uint8Array(16);
+    crypto.getRandomValues(b);
+    p.secret = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+    set('profile', p);
+  }
+  return p.secret;
+}
+
 export function saveProfile(p) {
   set('profile', p);
 }

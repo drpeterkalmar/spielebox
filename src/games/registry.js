@@ -3,6 +3,10 @@
 import * as muehle from './muehle/engine.js';
 import * as dame from './dame/engine.js';
 import * as schach from './schach/engine.js';
+import * as schnapsen from './schnapsen/engine.js';
+import * as backgammon from './backgammon/engine.js';
+import * as blackjack from './blackjack/engine.js';
+import * as halma from './halma/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -13,7 +17,8 @@ export const GAMES = {
     seats: 2,
     // Beschreibung der Optionen für das Auswahlblatt (Mühle hat keine)
     options: [],
-    variantName: () => 'Mühle'
+    variantName: () => 'Mühle',
+    draws: true
   },
   dame: {
     id: 'dame',
@@ -35,7 +40,8 @@ export const GAMES = {
       if (opts.kurz) parts.push('Kurze Dame');
       if (opts.pusten) parts.push('Pusten');
       return parts.join(' · ');
-    }
+    },
+    draws: true
   },
   schach: {
     id: 'schach',
@@ -44,11 +50,70 @@ export const GAMES = {
     blurb: 'Klassisch, mit Remis-Angebot und PGN',
     seats: 2,
     options: [],
-    variantName: () => 'Schach'
+    variantName: () => 'Schach',
+    draws: true
+  },
+  schnapsen: {
+    id: 'schnapsen',
+    title: 'Schnapsen',
+    engine: schnapsen,
+    blurb: '20 Blatt doppeldeutsch, Bummerl-Tafel',
+    seats: 2,
+    cards: true,
+    options: [
+      { key: 'bummerl', type: 'choice', label: 'Partie', choices: [
+        { value: 2, label: 'Auf 2 Bummerl' }, { value: 3, label: 'Auf 3 Bummerl' }] },
+      { key: 'hart', type: 'switch', label: 'Hart', sub: 'Bei nur einer Talonkarte auch kein Austauschen' },
+      { key: 'schneider', type: 'switch', label: 'Schneider-Bummerl doppelt', sub: '7:0 zählt zwei Bummerl' }
+    ],
+    variantName: (o) => { const x = schnapsen.normalizeOptions(o); return [`${x.bummerl} Bummerl`, x.hart ? 'hart' : 'weich', x.schneider ? 'Schneider doppelt' : ''].filter(Boolean).join(' · '); }
+  },
+  backgammon: {
+    id: 'backgammon',
+    title: 'Backgammon',
+    engine: backgammon,
+    blurb: 'Mit Verdopplungswürfel, fair gewürfelt',
+    seats: 2,
+    options: [
+      { key: 'cube', type: 'switch', label: 'Verdopplungswürfel', sub: 'Doppeln, Annehmen oder Aufgeben', dflt: true }
+    ],
+    variantName: (o) => (backgammon.normalizeOptions(o).cube ? 'mit Doppler' : 'ohne Doppler')
+  },
+  blackjack: {
+    id: 'blackjack',
+    title: 'Blackjack',
+    engine: blackjack,
+    blurb: '2–6 Spieler, Bank reihum, Bohnen statt Geld',
+    seats: (o) => o.players,
+    cards: true,
+    options: [
+      { key: 'players', type: 'choice', label: 'Plätze am Tisch', choices: [2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n) })), dflt: 4 },
+      { key: 'wechselBJ', type: 'switch', label: 'Bankwechsel bei Black Jack', sub: 'Wer Black Jack hat, wird Bank (alte Hausregel)' }
+    ],
+    variantName: (o) => { const x = blackjack.normalizeOptions(o); return `${x.players} Plätze${x.wechselBJ ? ' · Bank bei Black Jack' : ''}`; }
+  },
+  halma: {
+    id: 'halma',
+    title: 'Stern-Halma',
+    engine: halma,
+    blurb: '2, 3, 4 oder 6 Spieler, Sprungketten',
+    seats: (o) => o.players,
+    options: [
+      { key: 'players', type: 'choice', label: 'Spieler', choices: [2, 3, 4, 6].map((n) => ({ value: n, label: String(n) })), dflt: 2 }
+    ],
+    variantName: (o) => `${halma.normalizeOptions(o).players} Spieler`
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma];
+// in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
+export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen']);
+
+// Sitzanzahl eines Spiels (fest oder aus den Optionen, z. B. Blackjack 2–6)
+export function seatCount(g, opts) {
+  if (typeof g === 'string') g = gameOf(g);
+  return typeof g.seats === 'function' ? g.seats(g.engine.normalizeOptions(opts)) : g.seats;
+}
 
 export function gameOf(id) {
   const g = GAMES[id];

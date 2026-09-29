@@ -47,11 +47,12 @@ def zoom(P, form):
     c.ok('user-scalable=no' in vp and 'maximum-scale=1' in vp, f'{form}: Viewport sperrt Zoom ({vp})')
     if P.device != 'desktop':
         cdp = P.ctx.new_cdp_session(P.pg)
-        for sel in ['.lobby-head h1', '.card.join h2']:
-            box = P.pg.locator(sel).first.bounding_box()
-            cdp.send('Input.synthesizeTapGesture', {'x': box['x'] + 10, 'y': box['y'] + 10, 'tapCount': 2, 'gestureSourceType': 'touch'})
+        W, H = P.ev("[innerWidth, innerHeight]")
+        for (x, y) in [(W * 0.5, 60), (W * 0.3, H * 0.5)]:
+            cdp.send('Input.synthesizeTapGesture', {'x': x, 'y': y, 'tapCount': 2, 'gestureSourceType': 'touch'})
             time.sleep(0.5)
         sc = P.ev("visualViewport.scale")
+        P.ev("document.querySelectorAll('.sheet-wrap').forEach(e => e.remove())")
         c.ok(abs(sc - 1) < 1e-3, f'{form}: Doppeltipp zoomt nicht (visualViewport.scale = {sc})')
 
 
@@ -99,11 +100,49 @@ def schach(P, form):
     P.shot(f'schach_bot_{form}', 'n2')
 
 
+def schnapsen(P, form):
+    P.ev("__box.local('bot', 'schnapsen', {}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'schnapsen' and P.ev("__box.table().gs.phase") == 'play', 10, 'Schnapsen ausgeteilt')
+    wait(lambda: P.ev("__box.legal().length") > 0, 15, 'ich bin am Zug')
+    time.sleep(0.4)
+    check_screen(P, f'{form} Schnapsen')
+    m = P.metrics()
+    c.ok(m['cardW'] >= 48, f'{form}: Handkarten {m["cardW"]:.0f} px breit (≥ 48)')
+    hand = P.ev("[...document.querySelectorAll('.hand [data-hand]')].map(e => e.dataset.hand)")
+    opp = P.ev("document.querySelectorAll('.opp .card:not(.back)').length")
+    c.ok(len(hand) == 5 and opp == 0, f'{form}: 5 eigene Karten offen ({" ".join(hand)}), Gegner nur Rücken')
+    dom_leak = P.ev("(() => { const g = __box.table().gs; const other = g.hands[1]; return other.filter(c => document.querySelector(`[data-card=\"${c}\"]`)).length; })()")
+    c.ok(dom_leak == 0, f'{form}: keine Gegnerkarte im Bild (DOM)')
+    P.shot(f'schnapsen_{form}', 'n2')
+    legal = [x for x in P.ev("__box.legal()") if x['type'] == 'play']
+    card = legal[0]['card']
+    n = tbl(P)['nmoves']
+    x, y = P.ev(f"__box.target('{card}')"); P.tap_xy(x, y)
+    time.sleep(0.2)
+    x, y = P.ev(f"__box.target('{card}')"); P.tap_xy(x, y)
+    wait(lambda: tbl(P)['nmoves'] >= n + 1, 5, 'Karte ausgespielt')
+    wait(lambda: tbl(P)['nmoves'] >= n + 2, 10, 'Computer antwortet')
+    time.sleep(0.4)
+    c.ok(True, f'{form}: Karte {card} per Doppeltipp ausgespielt, Computer hat geantwortet')
+    P.shot(f'schnapsen_stich_{form}', 'n2')
+    # zu zweit: Sichtschutz vor der ersten Hand
+    P.ev("__box.local('hotseat', 'schnapsen', {})")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'schnapsen' and P.ev("__box.table().gs.phase") == 'play', 10, 'zu zweit')
+    time.sleep(0.3)
+    ov = P.ev("!!document.querySelector('[data-overlay=handoff]')")
+    shown = P.ev("document.querySelectorAll('.hand [data-hand]').length")
+    c.ok(ov and shown == 0, f'{form}: zu zweit → Sichtschutz „Gerät weitergeben“, keine Karte sichtbar')
+    P.shot(f'schnapsen_sichtschutz_{form}', 'n2')
+    P.tap('[data-act="unlock"]')
+    time.sleep(0.3)
+    c.ok(P.ev("document.querySelectorAll('.hand [data-hand]').length") == 5, f'{form}: nach „Karten zeigen“ 5 Karten sichtbar')
+
+
 with Server() as srv, sync_playwright() as pw:
     b = launch(pw)
     for form in ['hoch', 'quer', 'desktop']:
         print(form, flush=True)
-        P = Page(b, srv.base, form).open()
+        P = Page(b, srv.base, form).open('?nosw&alle')
         c.ok(P.boot_s < 10, f'{form}: Start in {P.boot_s:.1f} s')
         time.sleep(0.3)
         check_screen(P, f'{form} Lobby', board=False)

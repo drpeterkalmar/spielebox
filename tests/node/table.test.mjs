@@ -6,6 +6,8 @@ import { TableSession, newTable, TIMING, seatOf } from '../../src/net/table.js';
 import { gameOf } from '../../src/games/registry.js';
 import { mulberry32, pick } from '../../src/rng.js';
 import * as muehleBot from '../../src/games/muehle/bot.js';
+import * as bjBot from '../../src/games/blackjack/bot.js';
+const BOTS = { blackjack: bjBot.chooseMove, muehle: muehleBot.chooseMove };
 
 Object.assign(TIMING, { heartbeat: 40, hostGone: 400, moveRetry: 150, botDelay: 0, relayAfter: 120 });
 
@@ -63,7 +65,7 @@ class FakeLink {
 
 function player(hub, pid, name, { table = null, want = 'play', store = {} } = {}) {
   const link = new FakeLink(hub, pid, name);
-  const s = new TableSession({ mode: 'online', me: { pid, name }, want, table, link, save: (t) => { store.t = JSON.parse(JSON.stringify(t)); } });
+  const s = new TableSession({ mode: 'online', me: { pid, name }, want, table, link, save: (t) => { store.t = JSON.parse(JSON.stringify(t)); }, bot: { choose: (g, gs, level) => BOTS[g](gs, { level, timeMs: 30 }) } });
   s.store = store;
   s.start();
   link.connect();
@@ -326,6 +328,139 @@ await ok('Relay wird zugeschaltet, wenn der Mitspieler nicht direkt erreichbar i
   assert.equal(h.role, 'host');
   h.close(); g.close(); w.close();
   TIMING.hostGone = keep;
+});
+
+
+// ---------- Tagesspurt: Karten (verdeckt), Würfel (fair), mehrere Sitze ----------
+const schnapsen = gameOf('schnapsen').engine;
+const backgammon = gameOf('backgammon').engine;
+const handsOf = (gs) => gs.hands;
+
+await ok('Schnapsen online: Gast sieht die Hand des Hosts nie, fair gemischt, ganze Partie', async () => {
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'schnapsen', opts: { bummerl: 2 }, host: { pid: 'H', name: 'Peter' } }) });
+  const w = player(hub, 'W', 'Zaungast', { want: 'watch' });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play' && g.table.gs.phase === 'play', 3000, 'Karten ausgeteilt');
+  const rng = mulberry32(5);
+  let steps = 0, sawHost = 0, spiele = 0;
+  while (h.table.status === 'play' && steps < 3000) {
+    // Sicherheit: kein Gast-/Zuschauer-Stand enthält eine Karte aus der Hand des anderen
+    const hostHand = h.table.gs.hands[0].filter(Boolean);
+    const gj = JSON.stringify(g.table.gs.hands[0]) + JSON.stringify(g.table.gs.talon);
+    const wj = JSON.stringify(w.table ? w.table.gs.hands : []);
+    if (h.table.gs.phase === 'play' && (hostHand.some((c) => gj.includes(`"${c}"`)) || wj.includes('"'))) sawHost++;
+    const turn = schnapsen.currentPlayer(h.table.gs);
+    const who = turn === 0 ? h : g;
+    if (turn === null || who.pendingMove) { await sleep(3); continue; }
+    const legal = schnapsen.legalMoves(who.table.gs);
+    if (!legal.length) { await sleep(3); continue; }
+    const pick1 = legal.find((m) => m.type === 'ausmelden' && schnapsen.canDeclare(who.table.gs)) || legal.find((m) => m.type === 'weiter') || pick(rng, legal.filter((m) => m.type !== 'ausmelden'));
+    if (pick1.type === 'weiter') spiele++;
+    const n = h.table.nmoves;
+    const r = who.submitMove(pick1);
+    assert.ok(r.ok, 'Zug angenommen: ' + JSON.stringify(pick1) + ' ' + r.reason);
+    await until(() => h.table.nmoves === n + 1 && !who.pendingMove && g.table.seq === h.table.seq, 3000, 'Zug verteilt');
+    steps++;
+  }
+  assert.equal(sawHost, 0, 'Gast/Zuschauer hat Karten des Hosts gesehen');
+  assert.equal(h.table.status, 'over', 'Partie zu Ende');
+  await until(() => g.table.seq === h.table.seq && g.fairCheck && g.fairCheck.n === h.table.fair.log.length, 2000, 'Protokoll beim Gast');
+  assert.ok(h.table.fair.log.length >= spiele, 'jede Mischung veröffentlicht');
+  assert.ok(g.fairCheck.ok && g.fairCheck.checked === h.table.fair.log.length && g.fairCheck.fallback === 0, JSON.stringify(g.fairCheck));
+  assert.ok(!('fairPriv' in g.table), 'private Host-Daten nicht verschickt');
+  console.log(`   ${steps} Züge, ${spiele + 1} Spiele, ${g.fairCheck.checked} Mischungen vom Gast geprüft`);
+  h.close(); g.close(); w.close();
+});
+
+await ok('Fair Play: gefälschtes Kettenglied wird abgelehnt, manipulierte Mischung erkannt', async () => {
+  const { verifyFair, chainLink, mixLinks, permFrom } = await import('../../src/net/fair.js');
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'backgammon', host: { pid: 'H', name: 'Peter' } }) });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play' && g.table.fair && g.table.fair.commits.every(Boolean), 3000, 'Commits');
+  // Eröffnungswurf braucht beide Glieder: Gast liefert, Host würfelt
+  await until(() => h.table.fair.k >= 1 && !h.table.fairNeed, 3000, 'Eröffnungswurf');
+  const k = h.table.fair.k + 1;
+  assert.equal(h._takeReveal(1, { k, link: 'ab'.repeat(32) }), false, 'falsches Glied abgelehnt');
+  // Protokoll-Fälschung: Wert ändern → Prüfung schlägt fehl
+  const fair = JSON.parse(JSON.stringify(h.table.fair));
+  assert.ok(verifyFair(fair).ok, 'echtes Protokoll ok');
+  fair.log[0].value = [6, 6];
+  const bad = verifyFair(fair);
+  assert.ok(!bad.ok || JSON.stringify(h.table.fair.log[0].value) === '[6,6]', 'gefälschter Wurf erkannt');
+  const f2 = JSON.parse(JSON.stringify(h.table.fair));
+  f2.log[0].links[1] = chainLink('anderer-seed', 1);
+  assert.ok(!verifyFair(f2).ok, 'fremdes Kettenglied erkannt');
+  // Mischung: Host behauptet andere Permutation
+  const links = [chainLink('a', 1), chainLink('b', 1)];
+  const good = { commits: [chainLink('a', 0), chainLink('b', 0)], log: [{ k: 1, kind: 'shuffle', n: 20, links, value: permFrom(mixLinks(links, 1, 'shuffle'), 20) }] };
+  assert.ok(verifyFair(good).ok);
+  good.log[0].value = [...good.log[0].value].reverse();
+  assert.ok(!verifyFair(good).ok, 'andere Mischung erkannt');
+  h.close(); g.close();
+});
+
+await ok('Backgammon online: Würfel aus beiden Ketten, Gast prüft jeden Wurf, einige Züge', async () => {
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'backgammon', host: { pid: 'H', name: 'Peter' } }) });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play' && backgammon.currentPlayer(h.table.gs) !== null, 3000, 'Eröffnung');
+  const rng = mulberry32(9);
+  for (let i = 0; i < 40 && h.table.status === 'play'; i++) {
+    const turn = backgammon.currentPlayer(h.table.gs);
+    const who = turn === 0 ? h : g;
+    if (turn === null || who.pendingMove || who.table.seq !== h.table.seq) { await sleep(3); i--; continue; }
+    const legal = backgammon.legalMoves(who.table.gs).filter((m) => m.type !== 'double');
+    const m = pick(rng, legal);
+    const n = h.table.nmoves;
+    assert.ok(who.submitMove(m).ok);
+    await until(() => h.table.nmoves === n + 1 && !h.table.fairNeed && g.table.seq === h.table.seq, 3000, 'Zug/Wurf verteilt');
+  }
+  assert.ok(h.table.fair.log.length >= 5, 'Würfe im Protokoll');
+  assert.ok(h.table.fair.log.every((e) => !e.fallback));
+  await until(() => g.fairCheck && g.fairCheck.n === h.table.fair.log.length, 2000);
+  assert.ok(g.fairCheck.ok, JSON.stringify(g.fairCheck));
+  console.log(`   ${h.table.fair.log.length} Würfe vom Gast geprüft`);
+  h.close(); g.close();
+});
+
+await ok('Mehr-Sitz-Tisch: Blackjack 4 Sitze, 2 Gäste + Computer, alle sehen denselben Tisch', async () => {
+  const hub = new Hub();
+  const t0 = newTable({ game: 'blackjack', opts: { players: 4 }, host: { pid: 'H', name: 'Peter' } });
+  assert.equal(t0.seats.length, 4);
+  const h = player(hub, 'H', 'Peter', { table: t0 });
+  const a = player(hub, 'A', 'Anna');
+  const b = player(hub, 'B', 'Berni');
+  await until(() => h.table.seats.filter(Boolean).length === 3, 3000, 'drei sitzen');
+  assert.equal(h.table.status, 'wait');
+  assert.ok(h.act('fill-bots').ok);
+  await until(() => a.table.status === 'play' && b.table.status === 'play' && h.table.fair.k >= 1, 3000, 'Start mit Computer auf Platz 4');
+  assert.ok(h.table.seats[3].bot);
+  const bj = gameOf('blackjack').engine;
+  const rng = mulberry32(3);
+  const byPid = { H: h, A: a, B: b };
+  let moves = 0;
+  for (let i = 0; i < 3000 && moves < 40 && h.table.status === 'play'; i++) {
+    const turn = bj.currentPlayer(h.table.gs);
+    const p = turn === null ? null : h.table.seats[turn];
+    if (!p || p.bot || byPid[p.pid].pendingMove) { await sleep(5); continue; }
+    const who = byPid[p.pid];
+    if (who.table.seq !== h.table.seq) { await sleep(3); continue; }
+    const legal = bj.legalMoves(who.table.gs);
+    const m = pick(rng, legal);
+    const n = h.table.nmoves;
+    assert.ok(who.submitMove(m).ok, JSON.stringify(m));
+    await until(() => h.table.nmoves > n, 3000, 'Zug');
+    moves++;
+  }
+  const sum = (gs) => gs.beans.reduce((x, y) => x + y, 0);
+  assert.equal(sum(h.table.gs), 400);
+  await until(() => a.table.seq === h.table.seq && b.table.seq === h.table.seq, 3000);
+  assert.equal(JSON.stringify(a.table.gs.beans), JSON.stringify(h.table.gs.beans));
+  assert.ok(!JSON.stringify(a.table.gs.shoe).match(/[AKQJT2-9][SHDC]/), 'Schuh beim Gast verdeckt');
+  console.log(`   ${moves} Züge von Menschen, Runde ${h.table.gs.round}, Phase ${h.table.gs.phase}, am Zug ${bj.currentPlayer(h.table.gs)}, need ${JSON.stringify(h.table.fairNeed)}, status ${h.table.status}, seqs ${h.table.seq}/${a.table.seq}/${b.table.seq}`);
+  h.close(); a.close(); b.close();
 });
 
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');

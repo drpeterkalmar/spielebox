@@ -16,6 +16,7 @@ const SEED = Number(args.find(a => /^\d+$/.test(a)) ?? 20260929);
 const GAMES = num('games', 500);        // Partien je Spielerzahl (gemischt)
 const VSRAND = num('vsrand', 200);      // Stufe 2 gegen Zufall, 2 Spieler
 const SELF = num('selfplay', 60);       // reine Stufe-2-Partien je Spielerzahl
+const MIN_GAMES = args.some(a => a.startsWith('--games=')) ? 0 : 2000;   // mit eigener Partienzahl keine Mindestzahl
 const REF_EVERY = 5;                    // Referenzvergleich jeden 5. Halbzug
 const REASONS = new Set([E.REASON_HOME, E.REASON_BLOCK, E.REASON_LIMIT]);
 
@@ -281,7 +282,7 @@ test('Stufe 3 gegen Stufe 2 (2 Spieler, 20 Partien)', () => {
 
 test(`insgesamt ≥ 2000 Partien, Laufzeit < 3 min`, () => {
   const sec = (performance.now() - t0) / 1000;
-  assert.ok(totalGames >= 2000, `${totalGames}`);
+  assert.ok(totalGames >= MIN_GAMES, `${totalGames}`);
   assert.ok(sec < 180, `${sec.toFixed(0)} s`);
   return `${totalGames} Partien, ${sec.toFixed(1)} s`;
 });

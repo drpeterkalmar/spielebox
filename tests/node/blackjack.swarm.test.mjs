@@ -11,6 +11,7 @@ import { mulberry32 } from '../../src/rng.js';
 const args = process.argv.slice(2);
 const SEED = Number(args.find(a => /^\d+$/.test(a)) || 20260929);
 const GAMES = Number((args.find(a => a.startsWith('--games=')) || '--games=10000').split('=')[1]);
+const DUEL = 5000;
 
 const t0 = performance.now();
 let passed = 0, failed = 0;
@@ -136,12 +137,12 @@ test(`${GAMES} ganze Partien (2–6 Sitze, Zufall + Bot 1–3), Invarianten nach
     `${stats.double} × verdoppelt`;
 });
 
-test('Bot Stufe 2 (Basic Strategy) verliert weniger als Stufe 1 (2 000 Partien, 2 Sitze)', () => {
+test(`Bot Stufe 2 (Basic Strategy) verliert weniger als Stufe 1 (${DUEL} Partien, 2 Sitze, je 10 Runden)`, () => {
   // Beide Stufen spielen gegen dieselbe automatische Bank; gemessen: Bohnen-Änderung je gesetzter Bohne
   const res = {};
   for (const level of [1, 2]) {
     let won = 0, staked = 0;
-    for (let g = 0; g < 2000; g++) {
+    for (let g = 0; g < DUEL; g++) {
       const rng = mulberry32(SEED + 7 * g + 1);
       let s = B.initialState({ players: 2, start: 1000 }), last = 0;
       while (!B.result(s)) {

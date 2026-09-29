@@ -7,7 +7,7 @@ import { roomIdFor } from './net/crypto.js';
 import { parseWords, randomWords, formatWords, findWord } from './words.js';
 import * as store from './store.js';
 import { chooseBotMove, quickMove } from './botclient.js';
-import { gameOf, GAME_LIST } from './games/registry.js';
+import { gameOf, GAME_LIST, LIVE } from './games/registry.js';
 import { h, sheet } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
 import { BUILD } from './build.js';
@@ -85,7 +85,7 @@ async function openOnline({ words, want, create, resume = false }) {
     words, roomId, pid: m.pid, name: m.name, relayOnly: RELAY_ONLY,
     log: (x) => { netlog.push(`${new Date().toISOString().slice(11, 19)} ${x}`); if (netlog.length > 300) netlog.shift(); }
   });
-  const session = new TableSession({ mode: 'online', me: m, want, table, link, save });
+  const session = new TableSession({ mode: 'online', me: m, want, table, link, save, secret: store.deviceSecret(), bot: { choose: chooseBotMove } });
   setHash(formatWords(words));
   mount(session, { words, roomId, link });
   session.start();
@@ -138,7 +138,7 @@ function anotherGame() {
       });
     } else openGameSheet(game, { onOnline: onCreate, onLocal });
   };
-  const list = GAME_LIST.filter((g) => g.id !== s.table.game);
+  const list = GAME_LIST.filter((g) => g.id !== s.table.game && (LIVE.has(g.id) || /[?&]alle/.test(location.search)));
   const sh = sheet('Anderes Spiel', ...list.map((g) => h('button', { class: 'menu-item', data: { game: g.id }, on: { click: () => { sh.close(); pick(g.id); } } }, g.title)));
 }
 
