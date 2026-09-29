@@ -7,6 +7,8 @@ import { chooseMove as backgammon } from './games/backgammon/bot.js';
 import { chooseMove as blackjack } from './games/blackjack/bot.js';
 import { chooseMove as halma } from './games/halma/bot.js';
 
+import { evalPosition } from './evalpos.js';
+
 const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma };
 const TIME = { 1: 150, 2: 400, 3: 1200 };
 let worker = null;
@@ -45,4 +47,15 @@ export function chooseBotMove(game, gs, level = 2) {
 // schneller Vorschlag im Hauptthread (Debug/Tests: __box.botMove)
 export function quickMove(game, gs, level = 1) {
   return BOTS[game](gs, { level, timeMs: 60 });
+}
+
+// Einschätzung „Wer gewinnt?“ (im Worker, sonst direkt)
+export function evaluateBoard(game, gs, seat) {
+  const w = getWorker();
+  if (!w) return Promise.resolve(evalPosition(game, gs, seat));
+  return new Promise((resolve, reject) => {
+    const id = ++seq;
+    waiting.set(id, { resolve, reject, fallback: () => resolve(evalPosition(game, gs, seat)) });
+    w.postMessage({ id, game, gs, evalSeat: seat });
+  });
 }

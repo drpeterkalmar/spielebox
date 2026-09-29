@@ -7,12 +7,15 @@ import { chooseMove as backgammon } from './games/backgammon/bot.js';
 import { chooseMove as blackjack } from './games/blackjack/bot.js';
 import { chooseMove as halma } from './games/halma/bot.js';
 
+import { evalPosition } from './evalpos.js';
+
 const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma };
 const TIME = { 1: 150, 2: 400, 3: 1200 };
 
 self.onmessage = (e) => {
-  const { id, game, gs, level } = e.data;
+  const { id, game, gs, level, evalSeat } = e.data;
   try {
+    if (evalSeat !== undefined) { self.postMessage({ id, move: evalPosition(game, gs, evalSeat) }); return; }
     const move = BOTS[game](gs, { level, timeMs: TIME[level] || 400 });
     self.postMessage({ id, move });
   } catch (err) {

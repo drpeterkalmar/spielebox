@@ -329,3 +329,11 @@ export function millsAt(state) {
 export function countStones(state) {
   return { board: countBoard(state.board), hand: [state.hand[0], state.hand[1]], lost: [state.lost[0], state.lost[1]] };
 }
+
+// Bewertung aus Sicht von seat in „Steinen“: eigene minus gegnerische (Brett + Hand); Ende = ±10 / 0
+export function evaluate(state, seat) {
+  if (state.over) return state.over.winner === null || state.over.winner === undefined ? 0 : state.over.winner === seat ? 10 : -10;
+  const c = countStones(state);
+  const mine = c.board[seat] + c.hand[seat], theirs = c.board[1 - seat] + c.hand[1 - seat];
+  return mine - theirs;
+}

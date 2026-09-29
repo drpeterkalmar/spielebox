@@ -438,3 +438,12 @@ export function describeMove(state, move) {
   if (Array.isArray(move.cap) && move.cap.length) return [move.from, ...move.path].map(name).join('×');
   return `${name(move.from)}–${name(move.path[move.path.length - 1])}`;
 }
+
+// Bewertung aus Sicht von seat in „Steinen“: Stein 1, Dame 2 (eigene minus gegnerische); Ende = ±20 / 0
+export function evaluate(state, seat) {
+  const r = result(state);
+  if (r) return r.winner === null || r.winner === undefined ? 0 : r.winner === seat ? 20 : -20;
+  let d = 0;
+  for (const v of state.board) d += v === 1 ? 1 : v === 2 ? 2 : v === -1 ? -1 : v === -2 ? -2 : 0;
+  return seat === 0 ? d : -d;
+}

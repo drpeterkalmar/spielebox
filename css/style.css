@@ -375,3 +375,25 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board .hint-dot.far { fill: rgba(40, 175, 105, .75); }
 .board-wrap.zoom { overflow: auto; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
 .board-wrap.zoom > svg.board { width: 190%; height: 190%; }
+
+/* Wer gewinnt? */
+.evalbar { position: absolute; left: 0; top: 6%; bottom: 6%; width: 7px; border-radius: 4px; background: #2b2320; overflow: hidden; z-index: 3; pointer-events: none; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.evalbar .evalfill { position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: #f3ead8; transition: height .4s ease; }
+.evalbar.hidden, .eval-btn.hidden { display: none; }
+.eval-btn { align-self: center; border: none; background: rgba(0,0,0,.2); color: #fbf3e4; border-radius: 12px; min-height: 48px; padding: 4px 14px; font-weight: 650; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+@media (orientation: landscape) { .eval-btn, .fair-badge { align-self: flex-start; } }
+.status-row { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+@media (orientation: landscape) {
+  .status-row { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+  .status-row .eval-btn { padding: 2px 10px; font-size: 13.5px; }
+}
+@media (orientation: portrait) {
+  .table-screen[data-game='backgammon'] .hint { display: none; }
+  .table-screen[data-game='backgammon'] .status-row { flex-direction: row; justify-content: center; gap: 10px; }
+  .table-screen[data-game='backgammon'] .status { font-size: 17px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .table-screen[data-game='halma'] .hint, .table-screen[data-game='blackjack'] .hint { display: none; }
+  .side-players .pchip { min-height: 38px; }
+}
+.eval-btn.pending { visibility: hidden; }

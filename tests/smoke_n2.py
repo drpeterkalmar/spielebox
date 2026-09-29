@@ -98,6 +98,15 @@ def schach(P, form):
     wait(lambda: tbl(P)['nmoves'] >= n + 2, 15, 'eigener Zug + Antwort des Computers')
     c.ok(True, f'{form}: gegen Computer gezogen, Computer hat geantwortet')
     P.shot(f'schach_bot_{form}', 'n2')
+    q = "(() => { const e = document.querySelector('.eval-btn'); return e && !e.classList.contains('hidden') ? e.textContent : null; })()"
+    wait(lambda: P.ev(q), 10, 'Wer gewinnt?')
+    t1 = P.ev(q)
+    bar = P.ev("!document.querySelector('.evalbar').classList.contains('hidden')")
+    P.tap('[data-act="eval"]')
+    time.sleep(0.2)
+    t2 = P.ev("document.querySelector('.eval-btn').textContent")
+    P.tap('[data-act="eval"]')
+    c.ok(bar and 'Bauern' in t1 and '%' in t2, f'{form}: „Wer gewinnt?“ Balken + „{t1}“ ↔ „{t2}“')
 
 
 def schnapsen(P, form):
@@ -173,8 +182,8 @@ def backgammon(P, form):
         time.sleep(0.2)
         c.ok(P.ev("document.querySelector('[data-act=done]').disabled"), f'{form}: „Zurück“ nimmt einen Teilzug zurück')
         st = m['steps'][-1]
-        if not (len(m['steps']) > 1 and m['steps'][-2]['to'] == st['from']):
-            x, y = P.ev(f"__box.target({json.dumps(st['from'])})"); P.tap_xy(x, y)
+        # nach „Zurück“ ist kein Stein gewählt
+        x, y = P.ev(f"__box.target({json.dumps(st['from'])})"); P.tap_xy(x, y)
         if st['to'] == 'off': P.tap('[data-act="off"]')
         else:
             x, y = P.ev(f"__box.target({st['to']})"); P.tap_xy(x, y)

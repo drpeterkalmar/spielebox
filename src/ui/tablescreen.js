@@ -6,6 +6,9 @@ import { turnOf } from '../net/table.js';
 import { displayWord, formatWords } from '../words.js';
 import { helpNet } from './texts.js';
 import { gameUi } from './gameui.js';
+import { evaluateBoard } from '../botclient.js';
+import { EVAL } from '../evalpos.js';
+import * as store from '../store.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -66,6 +69,12 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const boardWrap = h('div', { class: 'board-wrap' });
   const statusEl = h('div', { class: 'status', 'aria-live': 'polite' });
   const fairEl = h('button', { class: 'fair-badge hidden', data: { act: 'fair' }, on: { click: () => openFair() } });
+  // „Wer gewinnt?“: Balken am Brettrand + Zahl (antippen: Einheit ↔ Prozent)
+  const evalBar = h('div', { class: 'evalbar hidden', 'aria-hidden': 'true' }, h('div', { class: 'evalfill' }));
+  const evalBtn = h('button', { class: 'eval-btn hidden', data: { act: 'eval' }, on: { click: () => {
+    const st = store.settings(); st.evalMode = st.evalMode === 'pct' ? 'num' : 'pct'; store.saveSettings(st); showEval();
+  } } });
+  let evalRes = null, evalKey = '';
   const hintEl = h('div', { class: 'hint' });
   const offerEl = h('div', { class: 'offer' });
   // Wiederverbinden: erst weich (Trystero + Relays neu), hilft das nach 12 s nicht, Seite neu laden –
@@ -91,7 +100,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const screen = h('div', { class: 'screen table-screen', data: { mode, game: '' } },
     bar,
     h('div', { class: 'tmain' }, pTop, boardWrap, pBot),
-    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), statusEl, fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
+    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), h('div', { class: 'status-row' }, statusEl, evalBtn), fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
   clear(root).appendChild(screen);
 
   const eng = () => gameOf(session.table.game).engine;
@@ -117,6 +126,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       onLocal: () => { if (session.table) renderActions(session.table); }
     });
     boardWrap.appendChild(overlay);
+    boardWrap.appendChild(evalBar);
   }
 
   function legalFor(t) {
@@ -339,6 +349,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     view.update(shownOf(t), info, { legal, flip: !!gameUi(t.game).flip && bs === 1, viewer: viewer() ?? bs });
     statusEl.textContent = statusText(t);
     renderFair(t);
+    requestEval(t);
     statusEl.dataset.state = t.status;
     if (!legal) hintEl.textContent = t.status === 'play' && t.game === 'muehle' && session.mySeat === null ? '' : (legal === null && t.status === 'play' && session.mySeat !== null && turnOf(t) !== session.mySeat ? '' : hintText);
     renderActions(t);
@@ -357,6 +368,41 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
         h('button', { class: 'btn primary', on: { click: () => share(words, g.title) } }, 'Teilen'),
         h('button', { class: 'btn', on: { click: () => copy(`${words.map(displayWord).join(' · ')}\n${shareUrl(words)}`) } }, 'Kopieren')),
       h('p', { class: 'muted small', text: 'Mit diesen Wörtern kann auch jemand zuschauen oder nach einem Neustart weiterspielen.' }));
+  }
+
+  const evalOn = () => store.settings().evalOn !== false;
+
+  function requestEval(t) {
+    const cfg = EVAL[t.game];
+    const seat = hidden() ? viewer() : bottomSeat();
+    if (!evalOn() || !cfg || t.status === 'wait' || seat === null || seat === undefined || locked(t) || (eng().chance && eng().chance(t.gs))) {
+      evalRes = null; showEval(); return;
+    }
+    const key = `${t.game}|${t.round}|${t.nmoves}|${t.seq}|${seat}`;
+    if (key === evalKey) return;
+    evalKey = key;
+    showEval();
+    const gs = shownOf(t).gs;
+    evaluateBoard(t.game, gs, seat).then((r) => { if (evalKey === key) { evalRes = { ...r, game: t.game }; showEval(); } }).catch(() => {});
+  }
+
+  function showEval() {
+    const t = session.table;
+    const supported = !!(t && EVAL[t.game]) && evalOn() && t.status !== 'wait';
+    const on = supported && !!evalRes && evalRes.game === t.game;
+    evalBar.classList.toggle('hidden', !on);
+    // Platz bleibt reserviert, solange gerechnet wird (sonst springt das Brett)
+    evalBtn.classList.toggle('hidden', !supported);
+    evalBtn.classList.toggle('pending', supported && !on);
+    if (!on) { if (supported && !evalBtn.textContent) evalBtn.textContent = 'Wer gewinnt? …'; return; }
+    const cfg = EVAL[evalRes.game];
+    const p = Math.max(0, Math.min(1, evalRes.p));
+    evalBar.firstChild.style.height = `${(p * 100).toFixed(1)}%`;
+    const x = evalRes.x;
+    const num = Math.abs(x) >= 99 ? (x > 0 ? 'Matt in Sicht' : 'Matt droht') : `${x > 0 ? '+' : x < 0 ? '−' : '±'}${Math.abs(x).toFixed(cfg.digits).replace('.', ',')} ${cfg.unit}`;
+    const pct = `${Math.round(p * 100)} % Gewinnchance`;
+    evalBtn.textContent = `Wer gewinnt? ${store.settings().evalMode === 'pct' ? pct : num}`;
+    evalBtn.title = 'Antippen: Zahl ↔ Prozent';
   }
 
   // Fair-Play-Anzeige: eigenes Gerät hat Commit, Kette und Mischung/Würfe nachgeprüft
@@ -399,6 +445,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const item = (label, fn, act) => h('button', { class: 'menu-item', data: { act }, on: { click: () => { sh.close(); fn(); } } }, label);
     if (words) items.push(item('Die drei Wörter zeigen', showWords, 'words'));
     if (mode === 'online') items.push(item('Verbindung / Wiederverbinden', openNet, 'net'));
+    if (t && EVAL[t.game]) items.push(item(`„Wer gewinnt?“ ${evalOn() ? 'ausblenden' : 'einblenden'}`, () => {
+      const st = store.settings(); st.evalOn = !evalOn(); store.saveSettings(st); evalKey = ''; render({ kind: 'state' });
+    }, 'eval-toggle'));
     if (t) items.push(item('Regeln', () => sheet('Regeln', gameUi(t.game).rules(t.opts)), 'rules'));
     if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(shownOf(t), { item, share: shareText, sheet }));
     if (t && t.status === 'play' && session.mySeat !== null && gameUi(t.game).actions && (gameUi(t.game).hidden || !gameOf(t.game).draws)) {
