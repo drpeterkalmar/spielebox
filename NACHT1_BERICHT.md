@@ -108,7 +108,7 @@ Außerdem geprüft:
 - **Grenzen:**
   - Die Bots sind Übungsgegner ohne Eröffnungsbuch.
   - Es gibt noch keine Töne.
-  - Die Mühle-Hausregel „50 Züge ohne Mühle“ bitte bestätigen oder streichen.
+  - Die Mühle-Hausregel „50 Züge ohne Mühle“ bleibt (von Peter am 29.09. bestätigt).
 
 ## Vorschlag für Nacht 2 (laut Plan)
 1. **Schach:** chess.js (BSD-2) + cburnett-Figuren (BSD-3, Nennung), Remis anbieten, Aufgeben, PGN-Export, Bedenkzeit optional.
