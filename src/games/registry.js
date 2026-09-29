@@ -11,6 +11,7 @@ import * as halma from './halma/engine.js';
 export const GAMES = {
   muehle: {
     id: 'muehle',
+    colors: true,
     title: 'Mühle',
     engine: muehle,
     blurb: '9 Steine, Mühlen schließen, Springen ab 3',
@@ -22,6 +23,7 @@ export const GAMES = {
   },
   dame: {
     id: 'dame',
+    colors: true,
     title: 'Dame',
     engine: dame,
     blurb: 'Deutsch 8×8 oder International 10×10',
@@ -45,6 +47,7 @@ export const GAMES = {
   },
   schach: {
     id: 'schach',
+    colors: true,
     title: 'Schach',
     engine: schach,
     blurb: 'Klassisch, mit Remis-Angebot und PGN',
@@ -70,6 +73,7 @@ export const GAMES = {
   },
   backgammon: {
     id: 'backgammon',
+    colors: true,
     title: 'Backgammon',
     engine: backgammon,
     blurb: 'Mit Verdopplungswürfel, fair gewürfelt',
@@ -84,6 +88,7 @@ export const GAMES = {
     title: 'Blackjack',
     engine: blackjack,
     blurb: '2–6 Spieler, Bank reihum, Bohnen statt Geld',
+    soloLast: true,
     seats: (o) => o.players,
     cards: true,
     options: [
@@ -107,7 +112,7 @@ export const GAMES = {
 
 export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma];
 // in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
-export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon']);
+export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack']);
 
 // Sitzanzahl eines Spiels (fest oder aus den Optionen, z. B. Blackjack 2–6)
 export function seatCount(g, opts) {

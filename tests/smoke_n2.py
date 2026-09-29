@@ -185,6 +185,30 @@ def backgammon(P, form):
     c.ok(True, f'{form}: Zug per Taps gespielt, Computer hat geantwortet')
 
 
+def blackjack(P, form):
+    P.ev("__box.local('bot', 'blackjack', {players: 5}, 'weiss', 2)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'blackjack' and P.ev("__box.legal().length") > 0, 20, 'ich setze')
+    time.sleep(0.4)
+    check_screen(P, f'{form} Blackjack')
+    chips = P.ev("document.querySelectorAll('.tmain .pchip, .side-players .pchip').length")
+    c.ok(chips >= 4, f'{form}: Mehr-Sitz-Leiste zeigt die anderen Plätze ({chips} Einträge)')
+    P.shot(f'blackjack_setzen_{form}', 'n2')
+    n = tbl(P)['nmoves']
+    P.tap('[data-act="bet-5"]')
+    wait(lambda: P.ev("__box.table().gs.phase") == 'play' and P.ev("__box.legal().length") > 0 or tbl(P)['nmoves'] > n + 6 and P.ev("__box.table().gs.phase") == 'bet', 20, 'ausgeteilt, ich spiele')
+    time.sleep(0.5)
+    if P.ev("__box.table().gs.phase") == 'play':
+        P.shot(f'blackjack_spielen_{form}', 'n2')
+        acts = P.ev("[...document.querySelectorAll('.actions [data-act]')].map(e => e.dataset.act)")
+        c.ok('hit' in acts and 'stand' in acts, f'{form}: Knöpfe {acts}')
+        P.tap('[data-act="stand"]')
+    wait(lambda: P.ev("__box.table().gs.round") >= 1, 20, 'Runde abgerechnet')
+    time.sleep(0.8)
+    beans = P.ev("__box.table().gs.beans")
+    c.ok(abs(sum(beans) - 500) < 1e-9, f'{form}: Runde gespielt, Bohnen {beans} (Summe 500)')
+    P.shot(f'blackjack_ergebnis_{form}', 'n2')
+
+
 with Server() as srv, sync_playwright() as pw:
     b = launch(pw)
     for form in ['hoch', 'quer', 'desktop']:

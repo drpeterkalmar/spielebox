@@ -1,0 +1,152 @@
+// Blackjack-Tisch als SVG (1000 × 1000): oben die Bank (Karten, Summe), in der Mitte die anderen Spieler
+// (kleine Karten, Einsatz, Ergebnis), unten groß der eigene Platz. Nach der Runde bleiben die Karten mit
+// Ergebnis liegen, bis neu ausgeteilt wird. Knöpfe (Setzen, Ziehen, Stehen, Verdoppeln, Teilen) aus gameui.js.
+import { handValue, fmtBeans } from './engine.js';
+import { s, ensureDefs, place, animatePath, toScreen, onTap } from '../../ui/svg.js';
+import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
+import { SEAT_COLORS } from '../../ui/seatcolors.js';
+
+const SIZE = 1000;
+const RES = { bj: 'Black Jack!', win: 'gewonnen', push: 'unentschieden', lose: 'verloren', bust: 'überkauft' };
+
+export function createBoard(host, { onHint }) {
+  ensureDefs();
+  ensureCardDefs();
+  const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-cards board-bj', role: 'img', 'aria-label': 'Blackjack-Tisch' });
+  const felt = s('g');
+  felt.append(
+    s('rect', { width: SIZE, height: SIZE, rx: 26, fill: 'url(#sb-wood-frame)' }),
+    s('rect', { x: 14, y: 14, width: SIZE - 28, height: SIZE - 28, rx: 18, class: 'felt' }),
+    s('path', { d: 'M 90 330 Q 500 520 910 330', class: 'bj-arc' }),
+    s('text', { x: 500, y: 372, class: 'bj-rule', text: 'BANK ZIEHT BIS 16 · STEHT AB 17 · BLACK JACK ZAHLT 3:2' }));
+  const gBank = s('g'), gOthers = s('g'), gMe = s('g');
+  svg.append(felt, gBank, gOthers, gMe);
+  host.appendChild(svg);
+  onTap(svg, () => {});
+
+  let table = null, gs = null, me = 0, seen = new Set();
+
+  function cardsRow(g, cards, cx, cy, w, { label, sub, dim, badge, active } = {}) {
+    const n = cards.length;
+    const off = w * 0.42;
+    const x0 = cx - ((n - 1) * off) / 2;
+    const h = frHeight(w);
+    if (active) g.append(s('rect', { x: x0 - w / 2 - 10, y: cy - h / 2 - 10, width: (n - 1) * off + w + 20, height: h + 20, rx: 14, class: 'bj-active' }));
+    cards.forEach((c, i) => {
+      const el = place(c ? frCard(c, w) : backCard(w, h), x0 + i * off, cy);
+      if (dim) el.classList.add('done');
+      const key = `${gs.round}|${label}|${i}|${c}`;
+      if (!seen.has(key)) { seen.add(key); el.dataset.fresh = '1'; }
+      g.append(el);
+    });
+    if (label) g.append(s('text', { x: cx, y: cy + h / 2 + 34, class: 'bj-label', text: label }));
+    if (sub) g.append(s('text', { x: cx, y: cy + h / 2 + 66, class: 'bj-sub', text: sub }));
+    if (badge) {
+      const bw = Math.max(120, badge.text.length * 17);
+      g.append(s('rect', { x: cx - bw / 2, y: cy - 24, width: bw, height: 44, rx: 22, class: 'bj-badge ' + badge.cls }),
+        s('text', { x: cx, y: cy + 7, class: 'bj-badge-t', text: badge.text }));
+    }
+  }
+
+  const total = (cards) => {
+    if (!cards.length || cards.some((c) => !c)) return '';
+    const v = handValue(cards);
+    return v.bj ? 'Black Jack' : v.total > 21 ? `${v.total} – überkauft` : `${v.soft && v.total <= 21 ? 'weich ' : ''}${v.total}`;
+  };
+
+  const names = () => table.seats.map((x, i) => (i === me ? 'Du' : x ? x.name : `Platz ${i + 1}`));
+
+  // was gezeigt wird: laufende Runde, sonst die letzte Runde mit Ergebnis
+  function spot(seat) {
+    const cur = gs.hands[seat] || [];
+    if (gs.phase === 'play' || cur.some((hd) => hd.cards.length)) return { hands: cur, done: false };
+    const lr = gs.lastRound;
+    if (lr && lr.hands[seat] && lr.hands[seat].length) return { hands: lr.hands[seat], done: true };
+    return { hands: [], done: false };
+  }
+
+  function drawBank() {
+    gBank.textContent = '';
+    const running = gs.phase === 'play' || gs.bankCards.length;
+    const lr = gs.lastRound;
+    const cards = running && gs.bankCards.length ? gs.bankCards : lr ? lr.bankCards : [];
+    const bankSeat = running || !lr ? gs.bank : lr.bank;
+    const t = total(cards);
+    cardsRow(gBank, cards, 500, 150, 118, { label: `Bank: ${names()[bankSeat]}`, sub: t ? `${t}` : `${fmtBeans(gs.beans[gs.bank])} Bohnen` });
+  }
+
+  function drawPlayers() {
+    gOthers.textContent = '';
+    gMe.textContent = '';
+    const n = table.seats.length;
+    const others = [];
+    for (let k = 1; k <= n; k++) {
+      const seat = (gs.bank + k) % n;
+      if (seat === gs.bank) continue;
+      if (seat === me) continue;
+      others.push(seat);
+    }
+    const w = others.length > 3 ? 84 : 100;
+    others.forEach((seat, i) => {
+      const cx = (SIZE / (others.length + 1)) * (i + 1);
+      drawSpot(gOthers, seat, cx, 500, w, true);
+    });
+    if (me !== gs.bank && me !== null) drawSpot(gMe, me, 500, 815, 140, false);
+  }
+
+  function drawSpot(g, seat, cx, cy, w, small) {
+    const sp = spot(seat);
+    const name = names()[seat];
+    const col = SEAT_COLORS[seat % 6];
+    g.append(s('circle', { cx: cx - (small ? 0 : 0), cy: cy + frHeight(w) / 2 + (small ? 88 : 90), r: 0 }));
+    if (!sp.hands.length) {
+      const bet = gs.bets[seat];
+      g.append(s('circle', { cx, cy, r: small ? 34 : 44, class: 'bj-spot', stroke: col }));
+      g.append(s('text', { x: cx, y: cy + 8, class: 'bj-bet', text: bet ? fmtBeans(bet) : '' }));
+      g.append(s('text', { x: cx, y: cy + (small ? 72 : 90), class: 'bj-label', text: seat === me ? 'Du' : name }));
+      g.append(s('text', { x: cx, y: cy + (small ? 104 : 124), class: 'bj-sub', text: `${fmtBeans(gs.beans[seat])} Bohnen` }));
+      return;
+    }
+    const k = sp.hands.length;
+    const gap = small ? w * 1.1 : 330;
+    sp.hands.forEach((hd, j) => {
+      const hx = cx + (j - (k - 1) / 2) * gap;
+      const active = !sp.done && gs.phase === 'play' && gs.turn === seat && gs.hand === j;
+      const winTxt = `${hd.win > 0 ? '+' : hd.win < 0 ? '−' : '±'}${fmtBeans(Math.abs(hd.win || 0))}`;
+      const res = sp.done && hd.result ? { text: small ? `${hd.result === 'bj' ? 'BJ ' : ''}${winTxt}` : `${RES[hd.result]} ${winTxt}`, cls: hd.win > 0 ? 'plus' : hd.win < 0 ? 'minus' : 'even' } : null;
+      const mine = `${j === 0 ? 'Du · ' : ''}${total(hd.cards)}${hd.bet ? ` · Einsatz ${fmtBeans(hd.bet)}${hd.doubled ? ' ×2' : ''}` : ''}`;
+      cardsRow(g, hd.cards, hx, cy, w, { label: small ? (j === 0 ? name : '') : mine, sub: small ? total(hd.cards) : '', dim: sp.done, badge: res, active });
+    });
+    if (small) g.append(s('text', { x: cx, y: cy + frHeight(w) / 2 + 98, class: 'bj-sub', text: `${fmtBeans(gs.beans[seat])} Bohnen` }));
+  }
+
+  function render() {
+    drawBank();
+    drawPlayers();
+    // neue Karten fliegen vom Schuh (rechts oben) herein
+    for (const el of svg.querySelectorAll('[data-fresh="1"]')) {
+      delete el.dataset.fresh;
+      animatePath(el, [[900, 60], [Number(el.dataset.x), Number(el.dataset.y)]], 280);
+    }
+  }
+
+  return {
+    svg,
+    update(t, info = {}, ctx = {}) {
+      table = t;
+      gs = t.gs;
+      me = ctx.viewer === undefined ? null : ctx.viewer;
+      render();
+      const legal = ctx.legal && ctx.legal.length ? ctx.legal : null;
+      if (!legal) onHint && onHint('');
+      else if (gs.phase === 'bet') onHint && onHint('Wähle deinen Einsatz.');
+      else onHint && onHint(`Deine Hand: ${total(gs.hands[me][gs.hand].cards)} – ziehen oder stehen?`);
+    },
+    target() { return toScreen(svg, 500, 810); },
+    metrics() {
+      const scale = svg.getScreenCTM().a;
+      return { minTargetPx: 150 * scale, boardPx: SIZE * scale };
+    },
+    destroy() { svg.remove(); }
+  };
+}

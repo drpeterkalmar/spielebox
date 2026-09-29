@@ -7,7 +7,7 @@ import { roomIdFor } from './net/crypto.js';
 import { parseWords, randomWords, formatWords, findWord } from './words.js';
 import * as store from './store.js';
 import { chooseBotMove, quickMove } from './botclient.js';
-import { gameOf, GAME_LIST, LIVE } from './games/registry.js';
+import { gameOf, GAME_LIST, LIVE, seatCount } from './games/registry.js';
 import { h, sheet } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
 import { BUILD } from './build.js';
@@ -94,13 +94,16 @@ async function openOnline({ words, want, create, resume = false }) {
 
 function onLocal(mode, game, opts, color, level = 2) {
   const m = me();
-  const hostSeat = mode === 'bot' ? hostSeatFor(color) : 0;
+  const two = seatCount(game, opts) === 2;
+  // Blackjack solo: Mensch auf den letzten Platz (Bank beginnt bei Platz 1, so spielt man gleich mit)
+  const hostSeat = mode === 'bot' && two ? hostSeatFor(color) : mode === 'bot' && gameOf(game).soloLast ? seatCount(game, opts) - 1 : 0;
   const table = newTable({ game, opts, host: m, hostSeat });
-  if (mode === 'bot') {
-    table.seats[1 - hostSeat] = { pid: 'bot', name: `Computer (${['', 'leicht', 'mittel', 'stark'][level] || 'mittel'})`, bot: level };
-  } else {
-    table.seats[0] = { pid: m.pid, name: m.name !== 'Gast' ? m.name : 'Spieler 1' };
-    table.seats[1] = { pid: m.pid + '#2', name: 'Spieler 2' };
+  const n = table.seats.length;
+  const lv = ['', 'leicht', 'mittel', 'stark'][level] || 'mittel';
+  for (let i = 0; i < n; i++) {
+    if (i === hostSeat && mode === 'bot') continue;
+    if (mode === 'bot') table.seats[i] = { pid: 'bot' + i, name: two ? `Computer (${lv})` : `Computer ${i}`, bot: level };
+    else table.seats[i] = { pid: i ? `${m.pid}#${i + 1}` : m.pid, name: i === 0 && m.name !== 'Gast' ? m.name : `Spieler ${i + 1}` };
   }
   table.status = 'play';
   store.saveLocal(mode, table);
@@ -147,7 +150,7 @@ function newLocal() {
   if (!s || s.mode === 'online') return;
   const t = s.table;
   const botSeat = t.seats.findIndex((x) => x && x.bot);
-  const color = botSeat === 1 ? 'weiss' : botSeat === 0 ? 'schwarz' : 'weiss';
+  const color = t.seats.length === 2 && botSeat === 0 ? 'schwarz' : 'weiss';
   onLocal(s.mode, t.game, t.opts, color, botSeat >= 0 ? t.seats[botSeat].bot : 2);
 }
 

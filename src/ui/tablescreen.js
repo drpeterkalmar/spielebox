@@ -100,7 +100,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const viewer = () => (mode === 'hotseat' ? (hidden() ? unlocked : null) : session.mySeat);
   const bottomSeat = () => (mode === 'hotseat' ? (hidden() ? unlocked ?? 0 : 0) : session.mySeat ?? 0);
   // zu zweit am Gerät + verdeckte Karten: Hand erst zeigen, wenn der Richtige das Gerät hat
-  const locked = (t) => mode === 'hotseat' && hidden() && t.status === 'play' && turnOf(t) !== null && turnOf(t) !== unlocked &&
+  const locked = (t) => mode === 'hotseat' && hidden() && !gameUi(t.game).shared && t.status === 'play' && turnOf(t) !== null && turnOf(t) !== unlocked &&
     !(eng().phase && eng().phase(t.gs) === 'spielende');
   const shownOf = (t) => (hidden() ? { ...t, gs: eng().viewFor(t.gs, locked(t) ? null : viewer() ?? null) } : t);
 
@@ -157,8 +157,30 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       h('div', { class: 'pb-score', title: 'Punkte an diesem Tisch', text: fmtScore(score) }));
   }
 
+  // mehr als zwei Plätze: oben kompakte Liste aller anderen, unten der eigene Platz
+  function chip(t, seat) {
+    const s = t.seats[seat];
+    const active = t.status === 'play' && turnOf(t) === seat;
+    const here = mode !== 'online' || !s || s.bot || s.pid === session.me.pid || isHere(s.pid);
+    return h('div', { class: 'pchip' + (active ? ' active' : ''), data: { seat } },
+      gameUi(t.game).icon(seat),
+      h('div', { class: 'pb-text' },
+        h('div', { class: 'pb-name' }, seatLabel(t, seat), !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
+        h('div', { class: 'pb-sub', text: s || t.status !== 'wait' ? gameUi(t.game).sub(shownOf(t), seat, viewer()) : 'Platz frei' })));
+  }
+
   function renderPlayers(t) {
     const bs = bottomSeat();
+    if (t.seats.length > 2) {
+      for (const el of [pTop, pTop2]) {
+        clear(el);
+        el.className = 'pbar top multi';
+        for (let k = 1; k < t.seats.length; k++) el.append(chip(t, (bs + k) % t.seats.length));
+      }
+      playerBar(pBot, t, bs);
+      playerBar(pBot2, t, bs);
+      return;
+    }
     playerBar(pTop, t, 1 - bs);
     playerBar(pBot, t, bs);
     playerBar(pTop2, t, 1 - bs);
@@ -193,7 +215,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       return c && c.kind === 'dice' ? 'Es wird gewürfelt …' : 'Karten werden gemischt …';
     }
     if (mode === 'hotseat') return `${who.name} (${eng().PLAYERS[turn]}) ist am Zug`;
-    if (who && who.bot) return 'Der Computer denkt nach …';
+    if (who && who.bot) return t.seats.length > 2 ? `${who.name} ist dran …` : 'Der Computer denkt nach …';
     if (seat === turn) {
       const extra = gameUi(t.game).status && gameUi(t.game).status(t, seat);
       return extra || 'Du bist am Zug';

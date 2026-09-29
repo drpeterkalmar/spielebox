@@ -102,6 +102,7 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
   };
   const body = [];
   for (const o of g.options) {
+    if (opts[o.key] === undefined && o.dflt !== undefined) opts[o.key] = o.dflt;
     if (o.type === 'choice') {
       if (opts[o.key] === undefined) opts[o.key] = o.choices[0].value;
       body.push(segmented(o.label, o.choices.map((c) => ({ v: c.value, t: c.label, sub: c.sub })), opts[o.key], (v) => { opts[o.key] = v; }));
@@ -109,19 +110,19 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
       body.push(toggle(o.label, o.sub, !!opts[o.key], (v) => { opts[o.key] = v; }, o.key));
     }
   }
-  body.push(segmented('Du spielst', COLORS, color, (v) => { color = v; }));
+  if (g.colors) body.push(segmented('Du spielst', g.id === 'backgammon' ? COLORS : COLORS, color, (v) => { color = v; }));
   const sh = sheet(title || g.title, ...body);
   const go = (fn) => () => { remember(); sh.close(); fn(); };
   sh.body.append(
     h('button', { class: 'btn primary big', data: { act: 'online' }, on: { click: go(() => onOnline(gameId, g.engine.normalizeOptions(opts), color)) } },
-      h('span', { text: onlineLabel || 'Online-Tisch aufmachen' }), h('small', { text: onlyOnline ? 'am selben Tisch, gleiche Wörter' : 'Du bekommst 3 Wörter für deinen Mitspieler' }))
+      h('span', { text: onlineLabel || 'Online-Tisch aufmachen' }), h('small', { text: onlyOnline ? 'am selben Tisch, gleiche Wörter' : typeof g.seats === 'function' ? 'Du bekommst 3 Wörter für die Mitspieler' : 'Du bekommst 3 Wörter für deinen Mitspieler' }))
   );
   if (!onlyOnline) {
     sh.body.append(
       h('div', { class: 'bot-row' },
-        segmented('Gegen den Computer', LEVELS, level, (v) => { level = v; }),
+        segmented(typeof g.seats === 'function' ? 'Mit Computer-Spielern' : 'Gegen den Computer', LEVELS, level, (v) => { level = v; }),
         h('button', { class: 'btn', data: { act: 'bot' }, on: { click: go(() => onLocal('bot', gameId, g.engine.normalizeOptions(opts), color, level)) } }, 'Spielen')),
-      h('button', { class: 'btn', data: { act: 'hotseat' }, on: { click: go(() => onLocal('hotseat', gameId, g.engine.normalizeOptions(opts), 'weiss')) } }, 'Zu zweit an diesem Gerät'),
+      h('button', { class: 'btn', data: { act: 'hotseat' }, on: { click: go(() => onLocal('hotseat', gameId, g.engine.normalizeOptions(opts), 'weiss')) } }, typeof g.seats === 'function' ? 'Alle an diesem Gerät' : 'Zu zweit an diesem Gerät'),
       h('button', { class: 'btn link', on: { click: () => sheet('Regeln', RULES[gameId]()) } }, 'Regeln lesen')
     );
   }

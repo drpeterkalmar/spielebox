@@ -334,3 +334,37 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .tb-title { min-width: 0; overflow: hidden; }
 .tb-game { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tbar .pill { max-width: 48%; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+
+/* mehr als zwei Plätze: kompakte Spielerliste */
+.pbar.multi { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; min-height: 0; background: none; border: none; }
+.pchip { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 12px; background: rgba(0,0,0,.18); min-height: 48px; border: 2px solid transparent; min-width: 0; }
+.pchip.active { background: rgba(228,165,60,.22); border-color: rgba(240,190,90,.85); }
+.pchip .pb-name { font-size: 14.5px; }
+.pchip .pb-sub { font-size: 12.5px; }
+.pchip .stone-ico { width: 22px; height: 22px; }
+@media (orientation: landscape) { .side-players .pbar.multi { grid-template-columns: 1fr; } }
+
+/* Blackjack */
+.board .bj-arc { fill: none; stroke: rgba(255, 230, 170, .35); stroke-width: 3; }
+.board .bj-rule { font: 700 21px system-ui, sans-serif; fill: rgba(255, 230, 170, .55); text-anchor: middle; letter-spacing: 1px; }
+.board .bj-label { font: 800 30px system-ui, sans-serif; fill: #fff6e0; text-anchor: middle; }
+.board .bj-sub { font: 600 25px system-ui, sans-serif; fill: rgba(255, 245, 225, .85); text-anchor: middle; }
+.board .bj-spot { fill: rgba(0,0,0,.18); stroke-width: 4; stroke-dasharray: 8 6; }
+.board .bj-bet { font: 800 30px system-ui, sans-serif; fill: #ffe7a8; text-anchor: middle; }
+.board .bj-active { fill: rgba(255, 210, 74, .18); stroke: #ffd24a; stroke-width: 5; }
+.board .bj-badge { stroke: rgba(0,0,0,.35); stroke-width: 2; }
+.board .bj-badge.plus { fill: #2e9e57; }
+.board .bj-badge.minus { fill: #b83a30; }
+.board .bj-badge.even { fill: #6d6252; }
+.board .bj-badge-t { font: 800 24px system-ui, sans-serif; fill: #fff; text-anchor: middle; }
+.bet-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; width: 100%; }
+.bet-row .btn { flex: 1 1 48px; min-width: 48px; max-width: 90px; padding: 6px 4px; }
+.bet-t { font-weight: 700; width: 100%; text-align: center; }
+@media (orientation: landscape) { .bet-t { text-align: left; } }
+@media (orientation: landscape) { .tmain .pbar.multi { display: none; } }
+@media (orientation: landscape) {
+  .side-players .pbar.multi { grid-template-columns: 1fr 1fr; }
+  .side-players .pchip { min-height: 40px; padding: 2px 6px; }
+  .side-players .pchip .pb-name { font-size: 13.5px; }
+  .side-players .pchip .pb-sub { font-size: 11.5px; }
+}

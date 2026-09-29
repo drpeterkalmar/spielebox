@@ -13,9 +13,11 @@ import { createBoard as backgammonBoard } from '../games/backgammon/view.js';
 import * as BG from '../games/backgammon/engine.js';
 import { rulesBackgammon } from './texts.js';
 
-// Farben je Sitz (auch farbenblind unterscheidbar: zusätzlich Symbol/Buchstabe)
-export const SEAT_COLORS = ['#d8453b', '#2f6fd6', '#2e9e57', '#e0b12c', '#8a4fc9', '#e07b27'];
-export const SEAT_SYMBOLS = ['●', '▲', '■', '◆', '★', '✚'];
+import { SEAT_COLORS, SEAT_SYMBOLS } from './seatcolors.js';
+import { createBoard as blackjackBoard } from '../games/blackjack/view.js';
+import * as BJ from '../games/blackjack/engine.js';
+import { rulesBlackjack } from './texts.js';
+export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -191,6 +193,44 @@ UI.backgammon = {
         out.push(Object.assign(b('Fertig', 'done', () => view.finish(), view.complete()), { disabled: !view.complete() }));
       }
     }
+    return out;
+  }
+};
+
+UI.blackjack = {
+  board: blackjackBoard,
+  icon: seatIcon,
+  rules: rulesBlackjack,
+  hidden: true,
+  shared: true,   // alle sehen dasselbe (Spielerkarten liegen offen) → kein Sichtschutz nötig
+  sub(t, seat) {
+    const gs = t.gs;
+    const parts = [`${BJ.fmtBeans(gs.beans[seat])} Bohnen`];
+    if (seat === gs.bank) parts.push(`Bank (noch ${Math.max(1, BJ.ROUNDS_PER_BANK - gs.bankRounds)} ${BJ.ROUNDS_PER_BANK - gs.bankRounds === 1 ? 'Runde' : 'Runden'})`);
+    else if (gs.bets[seat]) parts.push(`setzt ${BJ.fmtBeans(gs.bets[seat])}`);
+    return parts.join(' · ');
+  },
+  status(t, seat) {
+    const gs = t.gs;
+    if (gs.phase === 'bet') return 'Setz deinen Einsatz';
+    return null;
+  },
+  actions(t, legal, submit) {
+    const gs = t.gs;
+    const b = (label, act, m, primary) => h('button', { class: 'btn' + (primary ? ' primary' : ''), data: { act }, on: { click: () => submit(m) } }, label);
+    const out = [];
+    const bets = legal.filter((m) => m.type === 'bet');
+    if (bets.length) {
+      const max = Math.max(...bets.map((m) => m.amount));
+      const picks = [...new Set([1, 2, 5, 10, 20, 50].filter((x) => x <= max).concat([max]))].slice(-6);
+      for (const a of picks) out.push(b(a === max && max !== 50 && ![1, 2, 5, 10, 20].includes(a) ? `${a} (alles)` : String(a), 'bet-' + a, { type: 'bet', amount: a }, a === 5));
+      return [h('div', { class: 'bet-row' }, h('span', { class: 'bet-t', text: 'Einsatz:' }), ...out)];
+    }
+    const has = (type) => legal.find((m) => m.type === type);
+    if (has('hit')) out.push(b('Ziehen', 'hit', has('hit'), true));
+    if (has('stand')) out.push(b('Stehen', 'stand', has('stand')));
+    if (has('double')) out.push(b('Verdoppeln', 'double', has('double')));
+    if (has('split')) out.push(b('Teilen', 'split', has('split')));
     return out;
   }
 };
