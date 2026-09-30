@@ -1,0 +1,98 @@
+// Spielereignisse eines Zugs für das Banner am Brett und die Ereignis-Liste („Was ist passiert?“).
+// Nur öffentliche Dinge (was alle am Tisch sehen), nie verdeckte Karten. Ohne DOM → läuft in Node-Tests.
+// big = wichtig genug für das Banner (gezeigt, wenn es jemand anderes war; siehe tablescreen.js).
+import { SUIT_NAMES as SN_SUITS } from './games/schnapsen/engine.js';
+import { inCheck } from './games/schach/engine.js';
+import { applySteps } from './games/backgammon/engine.js';
+import { bankReveal } from './tempo.js';
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const DE_NAMES = { A: 'Daus', Z: 'Zehner', K: 'König', O: 'Ober', U: 'Unter' };
+const deCardName = (c) => (c ? `${SN_SUITS[c[0]]}-${DE_NAMES[c[1]]}` : '?');
+
+// ctx: { game, move, by, prevGs, gs, d (Zugtext), name(seat), you(seat) → true, wenn der Spieler an diesem Gerät }
+export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `Spieler ${s + 1}`, you = () => false }) {
+  if (!move || !gs) return [];
+  const out = [];
+  // er = 3. Person („Computer sagt 40 an“), du = 2. Person („Du sagst 40 an“)
+  const ev = (seat, er, du, big = true) => out.push({ seat, big, text: you(seat) ? `Du ${du}` : `${name(seat)} ${er}` });
+  const note = (seat, text, big = false) => out.push({ seat, big, text });
+  try {
+    switch (game) {
+      case 'schnapsen': {
+        if (move.type === 'ansagen') {
+          const pts = move.suit === gs.atout ? 40 : 20;
+          ev(by, `sagt ${pts} an (${SN_SUITS[move.suit]})`, `sagst ${pts} an (${SN_SUITS[move.suit]})`);
+        } else if (move.type === 'tauschen') ev(by, 'tauscht den Atout-Unter', 'tauschst den Atout-Unter');
+        else if (move.type === 'zudrehen') ev(by, 'dreht zu', 'drehst zu');
+        else if (move.type === 'ausmelden') ev(by, 'meldet sich aus', 'meldest dich aus');
+        else if (move.type === 'play' && prevGs && prevGs.trick && prevGs.trick.length === 1 && gs.lastTrick) {
+          const w = gs.lastTrick.winner;
+          const cards = gs.lastTrick.cards.map((x) => deCardName(x.card)).join(', ');
+          note(w, you(w) ? `Dein Stich (${cards})` : `Stich für ${name(w)} (${cards})`);
+        }
+        if (gs.spiel && prevGs && prevGs.phase === 'play' && gs.phase !== 'play') {
+          const sp = gs.spiel;
+          const pts = plural(sp.points, 'Punkt', 'Punkte');
+          note(sp.winner, you(sp.winner) ? `Du gewinnst das Spiel: ${pts} (${sp.reason})` : `${name(sp.winner)} gewinnt das Spiel: ${pts} (${sp.reason})`, true);
+        }
+        break;
+      }
+      case 'schach': {
+        if (/O-O/.test(d)) ev(by, 'macht die Rochade', 'machst die Rochade', false);
+        if (move.promo) ev(by, 'wandelt einen Bauern um', 'wandelst einen Bauern um');
+        if (/#/.test(d)) note(by, 'Schachmatt!', true);
+        else if (inCheck(gs)) note(by, you(1 - by) ? 'Schach! Dein König wird angegriffen' : 'Schach!', true);
+        else if (/x/.test(d)) ev(by, `schlägt (${d})`, `schlägst (${d})`, false);
+        break;
+      }
+      case 'muehle':
+        if (move.remove !== undefined) note(by, you(by) ? 'Mühle – du nimmst einen Stein' : `Mühle – ${name(by)} nimmt einen Stein`, true);
+        break;
+      case 'dame': {
+        if (move.puste !== undefined) { ev(by, 'pustet einen Stein weg', 'pustest einen Stein weg'); break; }
+        const n = (move.cap || []).length;
+        if (n) ev(by, `schlägt ${plural(n, 'Stein', 'Steine')}`, `schlägst ${plural(n, 'Stein', 'Steine')}`, true);
+        const to = move.path && move.path[move.path.length - 1];
+        if (prevGs && to !== undefined && Math.abs(prevGs.board[move.from]) === 1 && Math.abs(gs.board[to]) === 2) ev(by, 'bekommt eine Dame', 'bekommst eine Dame');
+        break;
+      }
+      case 'backgammon': {
+        if (move.type === 'roll' && gs.dice) {
+          const [a, b] = gs.dice;
+          if (a === b) note(by, you(by) ? `Pasch! Du würfelst ${a} × ${a}` : `Pasch! ${name(by)} würfelt ${a} × ${a}`, true);
+          else ev(by, `würfelt ${a} und ${b}`, `würfelst ${a} und ${b}`, false);
+        } else if (move.type === 'double') ev(by, `verdoppelt auf ${prevGs ? prevGs.cube.value * 2 : '?'}`, `verdoppelst auf ${prevGs ? prevGs.cube.value * 2 : '?'}`);
+        else if (move.type === 'take') ev(by, 'nimmt an', 'nimmst an');
+        else if (move.type === 'drop') ev(by, 'gibt auf', 'gibst auf');
+        else if (move.type === 'play') {
+          if (!move.steps.length) ev(by, 'kann nicht ziehen', 'kannst nicht ziehen');
+          else if (prevGs && prevGs.phase === 'move') {
+            const hits = applySteps(prevGs, move.steps).hits || 0;
+            if (hits) ev(by, `schlägt ${hits === 1 ? 'einen Stein' : hits + ' Steine'} auf die Bar`, `schlägst ${hits === 1 ? 'einen Stein' : hits + ' Steine'} auf die Bar`);
+          }
+        }
+        break;
+      }
+      case 'blackjack': {
+        if (bankReveal(prevGs, gs, move)) {
+          const lr = gs.lastRound;
+          const bank = lr.bankBJ ? 'Bank hat Black Jack' : `Bank hat ${lr.bankTotal}${lr.bankBust ? ' – überkauft' : ''}`;
+          const mine = [];
+          for (let p = 0; p < (lr.hands || []).length; p++) {
+            if (!you(p) || !lr.hands[p].length) continue;
+            const w = lr.delta ? lr.delta[p] : 0;
+            mine.push(`du ${w > 0 ? 'gewinnst' : w < 0 ? 'verlierst' : 'spielst unentschieden'}${w ? ` ${String(Math.abs(w)).replace('.', ',')}` : ''}`);
+          }
+          note(lr.bank, mine.length ? `${bank} – ${mine.join(', ')}` : bank, true);
+        } else if (move.type === 'double') ev(by, 'verdoppelt', 'verdoppelst', false);
+        else if (move.type === 'split') ev(by, 'teilt', 'teilst', false);
+        break;
+      }
+      case 'halma':
+        if (move.path && move.path.length >= 3) ev(by, `springt ${move.path.length}-mal`, `springst ${move.path.length}-mal`, false);
+        break;
+    }
+  } catch { /* Ereignisse sind nur Zugabe – nie das Spiel stören */ }
+  return out;
+}

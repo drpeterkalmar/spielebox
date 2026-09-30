@@ -9,6 +9,7 @@ import { rulesMuehle, rulesDame, rulesSchach, rulesSchnapsen, rulesBackgammon, r
 const RULES = { muehle: rulesMuehle, dame: rulesDame, schach: rulesSchach, schnapsen: rulesSchnapsen, backgammon: rulesBackgammon, blackjack: rulesBlackjack, halma: rulesHalma };
 const liveGames = () => GAME_LIST.filter((g) => LIVE.has(g.id) || /[?&]alle/.test(location.search));
 import { BUILD } from '../build.js';
+import { openSettings } from './settings.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
 const COLORS = [{ v: 'weiss', t: 'Weiß' }, { v: 'schwarz', t: 'Schwarz' }, { v: 'zufall', t: 'Zufall' }];
@@ -289,6 +290,7 @@ export function renderLobby(root, handlers) {
       h('button', { class: 'btn link', on: { click: () => sheet('So geht’s', helpNet()) } }, 'So geht’s'),
       h('button', { class: 'btn link', on: { click: () => sheet('Regeln', ...liveGames().map((g) => RULES[g.id]())) } }, 'Regeln'),
       h('button', { class: 'btn link', on: { click: () => sheet('Credits', credits()) } }, 'Credits'),
+      h('button', { class: 'btn link', data: { act: 'settings' }, on: { click: () => openSettings() } }, 'Einstellungen'),
       h('span', { class: 'version', text: 'Version ' + BUILD })));
 
   clear(root).appendChild(screen);

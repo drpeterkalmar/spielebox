@@ -2,7 +2,8 @@
 // erlaubte Züge beim Antippen (auch Rochade: König auf g1/c1 bzw. auf den Turm tippen, en passant),
 // Umwandlungsauswahl direkt auf dem Brett, Zug-Animation, Brett für Schwarz gedreht.
 import { board as boardOf, inCheck, kingSquare } from './engine.js';
-import { s, ensureDefs, place, animatePath, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, animateSteps, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { OWN } from '../../tempo.js';
 
 const Q = 100;
 const F = 12;   // schmaler Rahmen: Touch-Ziele ≥ 48 px (Koordinaten stehen in den Feldern)
@@ -24,7 +25,7 @@ export function createBoard(host, { onMove, onHint }) {
   const gPieces = s('g', { class: 'pieces' });
   const gFx = s('g', { class: 'fx' });
   const gHints = s('g', { class: 'hints' });
-  svg.append(gBoard, gLast, gPieces, gFx, gHints);
+  svg.append(gBoard, gLast, gFx, gPieces, gHints);
   host.appendChild(svg);
 
   let flip = null, table = null, legal = null, sel = null, promo = null, hint = '', grid = null;
@@ -185,9 +186,10 @@ export function createBoard(host, { onMove, onHint }) {
       renderPieces();
       renderLast();
       if (info.kind === 'move' && info.move && info.prevGs) {
+        const a = ctx.anim || OWN;
         const m = info.move;
         const el = pieceAt(m.to);
-        if (el) animatePath(el, [center(m.from), center(m.to)], 240);
+        if (el) animateSteps(el, [center(m.from), center(m.to)], { hop: a.slide });
         // Rochade: Turm mitbewegen
         const prev = boardOf(info.prevGs);
         const [fr, fc] = rc(m.from);
@@ -196,7 +198,7 @@ export function createBoard(host, { onMove, onHint }) {
           const rank = m.from[1];
           const [rf, rt] = m.to[0] === 'g' ? ['h', 'f'] : ['a', 'd'];
           const rook = pieceAt(rt + rank);
-          if (rook) animatePath(rook, [center(rf + rank), center(rt + rank)], 240);
+          if (rook) animateSteps(rook, [center(rf + rank), center(rt + rank)], { hop: a.slide });
         }
         // geschlagene Figur ausblenden (auch en passant)
         const [tr, tc] = rc(m.to);
@@ -209,7 +211,7 @@ export function createBoard(host, { onMove, onHint }) {
             const [x, y] = center(capSq);
             const ghost = place(pieceImg(cp.color, cp.type), x, y);
             gFx.append(ghost);
-            fadeOut(ghost, 160);
+            fadeOut(ghost, a.slide * 0.6, a.fade);
           }
         }
       }

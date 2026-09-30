@@ -73,7 +73,8 @@ export function rulesSchnapsen(o = {}) {
       'Ausmelden ab 66 Augen: 3 Punkte, wenn der Gegner stichlos ist, 2 bei höchstens 32 Augen des Gegners, sonst 1. Wer sich irrtümlich ausmeldet, verliert das Spiel; der Gegner bekommt die Punkte, die man selbst bekommen hätte (so im Wikipedia-Artikel). Der Knopf „Ausmelden“ erscheint deshalb nur ab 66.',
       'Meldet sich niemand aus, gewinnt der letzte Stich (nicht nach Zudrehen) – gewertet nach den Augen des Gegners.',
       'Bummerl: Wer zuerst 7 Punkte hat, gewinnt ein Bummerl. Schalter „Schneider-Bummerl doppelt“: 7:0 zählt zwei Bummerl. Die Partie geht auf 2 oder 3 Bummerl.',
-      'Wie am echten Tisch siehst du nur deine eigenen Augen; vom Gegner nur, ob er schon einen Stich hat.'
+      'Eigene Stiche ansehen (Schalter, Standard an): Tipp auf deinen Stichstapel rechts zeigt deine gewonnenen Stiche mit beiden Karten, wer ausgespielt hat, und deine Ansagen. Aus = Turnierregel. Vom Gegner siehst du nur die Anzahl seiner Stiche.',
+      'Augen-Hilfe (Schalter, Standard aus): zeigt die Summe deiner Augen in der Leiste und im Stich-Blatt. Ohne sie zählst du selbst mit – wie am Wirtshaustisch.'
     ));
 }
 

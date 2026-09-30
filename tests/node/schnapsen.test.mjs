@@ -59,8 +59,11 @@ test('Karten: 20 verschiedene, 120 Augen, Namen', () => {
   assert.equal(S.cardName('HA'), 'Herz-Daus');
   assert.equal(S.cardName('EU'), 'Eichel-Unter');
   assert.equal(S.cardName('SZ'), 'Schellen-Zehner');
-  assert.deepEqual(S.normalizeOptions({ bummerl: 7, hart: 'ja' }), { hart: false, schneider: false, bummerl: 2 });
-  assert.deepEqual(S.normalizeOptions({ bummerl: 3, hart: true, schneider: true }), { hart: true, schneider: true, bummerl: 3 });
+  assert.deepEqual(S.normalizeOptions({ bummerl: 7, hart: 'ja' }), { hart: false, schneider: false, bummerl: 2, stiche: true, augenHilfe: false });
+  assert.deepEqual(S.normalizeOptions({ bummerl: 3, hart: true, schneider: true }), { hart: true, schneider: true, bummerl: 3, stiche: true, augenHilfe: false });
+  // n3: eigene Stiche ansehen (Standard an), Augen-Hilfe (Standard aus)
+  assert.deepEqual(S.normalizeOptions({ stiche: false, augenHilfe: true }), { hart: false, schneider: false, bummerl: 2, stiche: false, augenHilfe: true });
+  assert.equal(S.normalizeOptions({ augenHilfe: 'ja' }).augenHilfe, false);
 });
 
 test('Teilen: 3 Vorhand, 3 Teiler, Atout, 2 Vorhand, 2 Teiler, Rest Talon (bekannte Permutation)', () => {
@@ -581,6 +584,90 @@ test('Bot Stufe 3: hält timeMs ungefähr ein', () => {
   assert.ok(S.isLegal(s, m));
   assert.ok(dt >= 90 && dt < 250, `${dt.toFixed(0)} ms`);
   return `${dt.toFixed(0)} ms`;
+});
+
+// ---------- n3: Stich-Blatt ----------
+
+// Zufallspartie Spiel für Spiel; ruft check(state) nach jedem Zug. lead wird mitgeschrieben (wer spielte aus).
+function randomSpiele(seed, n, check) {
+  const rng = mulberry32(seed);
+  let s = S.initialState();
+  let games = 0, states = 0;
+  const leads = [[], []];
+  while (games < n) {
+    if (S.chance(s)) { const perm = S.DECK.map((_, i) => i); for (let i = 19; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; } s = S.applyChance(s, perm); leads[0] = []; leads[1] = []; continue; }
+    if (s.phase === 'over') { s = S.initialState(); continue; }
+    const ms = S.legalMoves(s);
+    const plays = ms.filter(m => m.type === 'play');
+    // meist Karten spielen, manchmal ansagen/tauschen/zudrehen (Ausmelden nur mit 66)
+    let m = ms.find(x => x.type === 'weiter') || (rng() < 0.25 && ms.find(x => ['ansagen', 'tauschen', 'zudrehen'].includes(x.type))) || plays[Math.floor(rng() * plays.length)] || ms[0];
+    if (S.canDeclare(s) && rng() < 0.7) m = { type: 'ausmelden' };
+    const leadSeat = s.trick.length === 0 ? s.turn : s.trick[0].seat;
+    const before = s;
+    s = S.applyMove(s, m);
+    if (m.type === 'play' && before.trick.length === 1) leads[s.lastTrick.winner].push(leadSeat);
+    if (m.type === 'weiter') games++;
+    states++;
+    check(s, leads);
+  }
+  return states;
+}
+
+test('Stich-Blatt: zeigt genau won[ich] (Stich für Stich, wer ausspielte), nie Karten des Gegners (Sicht je Sitz)', () => {
+  let n = 0;
+  const states = randomSpiele(7, 120, (s, leads) => {
+    if (s.phase !== 'play' && s.phase !== 'spielende') return;
+    for (const seat of [0, 1]) {
+      const v = S.viewFor(s, seat);
+      const own = S.ownTricks(v, seat);
+      assert.ok(own, 'eigene Stiche aus der eigenen Sicht lesbar');
+      const shown = own.tricks.flatMap(t => t.cards);
+      assert.deepEqual(shown, s.won[seat], 'genau die eigenen gewonnenen Karten in Reihenfolge');
+      assert.equal(own.tricks.length, s.tricks[seat]);
+      assert.deepEqual(own.tricks.map(t => t.lead), leads[seat], 'wer ausgespielt hat');
+      for (const t of own.tricks) {
+        assert.equal(t.augen, S.VALUE[t.cards[0][1]] + S.VALUE[t.cards[1][1]]);
+        assert.ok(!s.won[1 - seat].includes(t.cards[0]) && !s.won[1 - seat].includes(t.cards[1]), 'keine fremde Stichkarte');
+        assert.ok(!s.hands[1 - seat].includes(t.cards[0]) && !s.hands[1 - seat].includes(t.cards[1]), 'keine fremde Handkarte');
+      }
+      assert.equal(own.augen, s.augen[seat]);
+      assert.equal(own.total + own.pending, s.augen[seat] + s.ansagen.filter(a => a.seat === seat).reduce((x, a) => x + a.points, 0));
+      if (s.tricks[seat]) assert.equal(own.total, S.cardPoints(s, seat));
+      assert.deepEqual(own.ansagen, s.ansagen.filter(a => a.seat === seat).map(a => ({ suit: a.suit, points: a.points })));
+      // in der Sicht stehen die fremden Stiche nie offen (auch nicht im Stich-Protokoll)
+      if (s.phase === 'play') {
+        assert.ok(v.won[1 - seat].every(c => c === null) && v.wonTricks[1 - seat].every(x => x === null));
+        const other = S.ownTricks(v, 1 - seat);
+        if (s.tricks[1 - seat]) assert.equal(other, null, 'fremde Stiche aus meiner Sicht: nichts');
+        else assert.equal(other.tricks.length, 0);
+      }
+      n++;
+    }
+    // Zuschauer bzw. Sichtschutz (zu zweit am Gerät, Gerät noch nicht übergeben): keine Stiche
+    if (s.phase === 'play' && (s.tricks[0] || s.tricks[1])) {
+      const z = S.viewFor(s, null);
+      assert.equal(S.ownTricks(z, s.tricks[0] ? 0 : 1), null);
+      assert.equal(S.ownTricks(z, null), null);
+    }
+  });
+  return `${states} Züge, ${n} Sichten`;
+});
+
+test('Stich-Protokoll: wonTricks passt zu won/tricks, neues Spiel beginnt leer, alter Stand ohne wonTricks geht', () => {
+  randomSpiele(11, 40, (s) => {
+    for (const q of [0, 1]) assert.equal(s.wonTricks[q].length, s.tricks[q]);
+    if (s.phase === 'deal') assert.deepEqual(s.wonTricks, [[], []]);
+  });
+  // gespeicherter Stand von vor n3 (ohne wonTricks): Stiche ohne „wer spielte aus“
+  let s = STD();
+  s = run(s, P('SA'), P('SZ'));
+  const old = { ...s };
+  delete old.wonTricks;
+  const own = S.ownTricks(S.viewFor(old, 0), 0);
+  assert.deepEqual(own.tricks.map(t => t.cards), [['SA', 'SZ']]);
+  assert.equal(own.tricks[0].lead, null);
+  const next = S.applyMove(old, P('HK'));
+  assert.ok(Array.isArray(next.wonTricks));
 });
 
 const secs = ((performance.now() - t0) / 1000).toFixed(2);

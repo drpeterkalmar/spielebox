@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '4caaed8f30';
+const VERSION = '6e84868b8c';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -105,6 +105,7 @@ const ASSETS = [
   'src/botworker.js',
   'src/build.js',
   'src/evalpos.js',
+  'src/events.js',
   'src/games/backgammon/bot.js',
   'src/games/backgammon/engine.js',
   'src/games/backgammon/view.js',
@@ -135,14 +136,17 @@ const ASSETS = [
   'src/net/table.js',
   'src/rng.js',
   'src/store.js',
+  'src/tempo.js',
   'src/ui/cards.js',
   'src/ui/dom.js',
   'src/ui/gameui.js',
   'src/ui/lobby.js',
   'src/ui/seatcolors.js',
+  'src/ui/settings.js',
   'src/ui/svg.js',
   'src/ui/tablescreen.js',
   'src/ui/texts.js',
+  'src/ui/toastqueue.js',
   'src/words.js'
 ];
 self.addEventListener('install', (e) => {

@@ -1,8 +1,10 @@
 // Schnapsen-Tisch als SVG: Gegner-Hand (Rücken) oben, Talon mit quer liegendem Atout links, Stich in der Mitte,
 // eigene Hand unten groß (5 Karten nebeneinander, Tipp = anheben, zweiter Tipp = ausspielen).
 // Die Knöpfe (Ansagen, Austauschen, Zudrehen, Ausmelden) kommen aus gameui.js in die Aktionsleiste.
+// Rechts die Stichstapel: eigener unten (verdeckt gefächert, Anzahl, antippen = Stich-Blatt), gegnerischer oben (nur Anzahl).
 import { SUIT_NAMES, canDeclare, cardName } from './engine.js';
-import { s, ensureDefs, place, animatePath, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { OWN } from '../../tempo.js';
 import { deCard, backCard, ensureCardDefs, CARD_W, CARD_H } from '../../ui/cards.js';
 
 const SIZE = 1000;
@@ -10,8 +12,9 @@ const HAND_Y = 812, HAND_W = 182, HAND_GAP = 196;
 const OPP_Y = 118, OPP_W = 118, OPP_GAP = 92;
 const TALON = [150, 440], TRICK = [610, 430];
 const RATIO = CARD_H / CARD_W;
+const PILE_W = 78, PILE_ME = [902, 590], PILE_OPP = [902, 128];   // Stichstapel rechts (eigener unten)
 
-export function createBoard(host, { onMove, onHint }) {
+export function createBoard(host, { onMove, onHint, onStiche }) {
   ensureDefs();
   ensureCardDefs();
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-cards board-schnapsen', role: 'img', 'aria-label': 'Schnapsen-Tisch' });
@@ -24,10 +27,11 @@ export function createBoard(host, { onMove, onHint }) {
   const gOpp = s('g', { class: 'opp' });
   const gHand = s('g', { class: 'hand' });
   const gInfo = s('g', { class: 'info' });
-  svg.append(felt, gTalon, gOpp, gTrick, gHand, gInfo);
+  const gPiles = s('g', { class: 'piles' });
+  svg.append(felt, gTalon, gOpp, gPiles, gTrick, gHand, gInfo);
   host.appendChild(svg);
 
-  let table = null, gs = null, me = 0, legal = null, sel = null, hint = '';
+  let table = null, gs = null, me = 0, legal = null, sel = null, hint = '', seated = true;
   let handPos = [];   // [{card, x, y}]
 
   const setHint = (t) => { if (t !== hint) { hint = t; onHint && onHint(t); } };
@@ -94,6 +98,44 @@ export function createBoard(host, { onMove, onHint }) {
     }
   }
 
+  // Stichstapel: nur verdeckte Rücken und die Anzahl – nie Kartenwerte im Bild oder in Attributen
+  function drawPiles() {
+    gPiles.textContent = '';
+    if (!gs || (gs.phase !== 'play' && gs.phase !== 'spielende')) return;
+    const pile = ([x, y], n, mine) => {
+      const h = PILE_W * RATIO;
+      const g = s('g', { class: 'pile' + (mine ? ' pile-me' : ' pile-opp'), 'data-pile': mine ? 'me' : 'opp' });
+      if (!n) g.append(s('rect', { x: x - PILE_W / 2, y: y - h / 2, width: PILE_W, height: h, rx: 8, class: 'pile-empty' }));
+      const k = Math.min(n, 5);
+      for (let i = 0; i < k; i++) {
+        const c = place(backCard(PILE_W), x + (i - (k - 1) / 2) * 7, y - i * 2);
+        c.style.transform += ` rotate(${(i - (k - 1) / 2) * 9}deg)`;
+        g.append(c);
+      }
+      const label = n ? `${n} ${n === 1 ? 'Stich' : 'Stiche'}` : 'kein Stich';
+      g.append(s('text', { x, y: mine ? y - h / 2 - 16 : y + h / 2 + 36, class: 'pile-label', text: label }));
+      if (mine && n && onStiche) g.append(s('text', { x, y: y + 12, class: 'pile-tap', text: '👁' }));
+      return g;
+    };
+    gPiles.append(pile(PILE_OPP, gs.tricks[1 - me], false));
+    if (seated) gPiles.append(pile(PILE_ME, gs.tricks[me], true));
+    else gPiles.append(pile(PILE_ME, gs.tricks[me], false));
+  }
+
+  function hitPile(x, y) {
+    const h = PILE_W * RATIO;
+    return seated && Math.abs(x - PILE_ME[0]) <= PILE_W / 2 + 34 && y >= PILE_ME[1] - h / 2 - 44 && y <= PILE_ME[1] + h / 2 - 4;
+  }
+
+  function hitHand(x, y) {
+    for (const p of handPos) {
+      const lift = sel === p.card ? -46 : 0;
+      const h = HAND_W * RATIO;
+      if (Math.abs(x - p.x) <= Math.min(HAND_GAP, HAND_W) / 2 + 4 && y >= p.y + lift - h / 2 - 10 && y <= p.y + h / 2 + 20) return p.card;
+    }
+    return null;
+  }
+
   function drawHand() {
     gHand.textContent = '';
     const hand = gs.hands[me].filter(Boolean);
@@ -130,6 +172,7 @@ export function createBoard(host, { onMove, onHint }) {
   function render() {
     drawTalon();
     drawOpp();
+    drawPiles();
     drawTrick();
     drawHand();
     drawInfo();
@@ -166,7 +209,10 @@ export function createBoard(host, { onMove, onHint }) {
 
   onTap(svg, (cx, cy) => {
     const p = toBoard(svg, cx, cy);
-    if (p) tap(p[0], p[1]);
+    if (!p) return;
+    // eigener Stichstapel → Stich-Blatt (außer der Tipp trifft eine angehobene Handkarte)
+    if (hitPile(p[0], p[1]) && !(sel && hitHand(p[0], p[1]))) { if (onStiche) onStiche(); return; }
+    tap(p[0], p[1]);
   });
 
   return {
@@ -176,21 +222,24 @@ export function createBoard(host, { onMove, onHint }) {
       table = t;
       gs = t.gs;
       me = ctx.viewer === 1 ? 1 : 0;
+      seated = ctx.seated !== false;
       legal = ctx.legal && ctx.legal.length ? ctx.legal : null;
       if (!legal || legal !== prevLegal) sel = null;
       render();
-      // Animation: gespielte Karte fliegt aus der Hand in die Mitte
+      // Animation: gespielte Karte fliegt aus der Hand in die Mitte (Gegner: langsam von seiner Hand)
       if (info.kind === 'move' && info.move && info.move.type === 'play') {
+        const a = ctx.anim || OWN;
         const el = gTrick.querySelector(`[data-trick="${info.move.card}"]`);
         if (el) {
           const from = info.by === me ? [SIZE / 2, HAND_Y] : [SIZE / 2, OPP_Y];
-          animatePath(el, [from, [Number(el.dataset.x), Number(el.dataset.y)]], 260);
+          animateSteps(el, [from, [Number(el.dataset.x), Number(el.dataset.y)]], { hop: a.slide });
         }
       }
     },
-    // Bildschirmpunkt einer Handkarte bzw. der Stichmitte (Tests)
+    // Bildschirmpunkt einer Handkarte bzw. der Stichmitte / des eigenen Stichstapels (Tests)
     target(card) {
       if (card === 'trick') return toScreen(svg, TRICK[0], TRICK[1]);
+      if (card === 'pile') return toScreen(svg, PILE_ME[0], PILE_ME[1]);
       const p = handPos.find((q) => q.card === card);
       return p ? toScreen(svg, p.x, p.y + (sel === card ? -46 : 0)) : null;
     },

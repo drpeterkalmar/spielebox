@@ -126,7 +126,8 @@ UI.schnapsen = {
     const parts = [`${gs.points[seat]} Pkt · ${gs.bummerl[seat]} Bummerl`];
     if (gs.phase === 'play') {
       const a = SN.cardPoints(gs, seat);
-      if (seat === viewer && a !== null) {
+      // eigene Augen nur mit „Augen-Hilfe“ (sonst zählt man selbst mit, wie am Wirtshaustisch)
+      if (seat === viewer && a !== null && gs.opts && gs.opts.augenHilfe) {
         const pend = SN.pendingPoints(gs, seat);
         parts.push(`${a} Augen${pend ? ` (+${pend} schwebend)` : ''}`);
       } else parts.push(gs.tricks[seat] ? `${gs.tricks[seat]} ${gs.tricks[seat] === 1 ? 'Stich' : 'Stiche'}` : 'stichlos');
@@ -154,6 +155,28 @@ UI.schnapsen = {
   },
   menu(t, { item, sheet }) {
     return [item('Bummerl-Tafel', () => sheet('Bummerl-Tafel', bummerlTafel(t)), 'tafel')];
+  },
+  // Stich-Blatt: own = SN.ownTricks(Sicht, Sitz) – enthält nur die eigenen gewonnenen Karten
+  // (Bilder wie auf dem Tisch: am Handy @2x, die sind offline vorgeladen)
+  stichBlatt(own, { seat, augenHilfe, opp }) {
+    const card = (c, lead) => h('span', { class: 'sb-card' + (lead ? ' lead' : '') },
+      h('img', { src: `assets/cards/de/${c}${typeof devicePixelRatio === 'number' && devicePixelRatio >= 1.5 ? '@2x' : ''}.webp`, alt: SN.cardName(c), title: SN.cardName(c), width: 60, height: 96, data: { card: c } }),
+      lead ? h('span', { class: 'sb-lead', text: 'ausgespielt' }) : null);
+    const rows = own.tricks.map((tr) => h('li', { class: 'sb-trick', data: { trick: String(tr.nr) } },
+      h('span', { class: 'sb-nr', text: `${tr.nr}.` }),
+      h('span', { class: 'sb-cards' }, card(tr.cards[0], true), card(tr.cards[1], false)),
+      h('span', { class: 'sb-who' },
+        tr.lead === null ? '' : tr.lead === seat ? 'Du hast ausgespielt' : `${opp} hat ausgespielt`,
+        augenHilfe ? h('span', { class: 'sb-augen', text: `${tr.augen} Augen` }) : null)));
+    const ans = own.ansagen.map((a) => `${a.points} (${SN.SUIT_NAMES[a.suit]})`);
+    return h('div', { class: 'stichblatt' },
+      own.tricks.length ? h('ol', { class: 'sb-list' }, ...rows) : h('p', { class: 'muted', text: 'Noch kein Stich gewonnen.' }),
+      h('p', { class: 'sb-ansagen' }, h('strong', { text: 'Deine Ansagen: ' }), ans.length ? ans.join(', ') : 'keine'),
+      augenHilfe
+        ? h('p', { class: 'sb-sum' }, h('strong', { text: `Summe: ${own.total} Augen` }),
+          own.pending ? ` (+${own.pending} schwebend, zählen ab deinem ersten Stich)` : own.ansagen.length ? ` (Stiche ${own.augen} + Ansagen ${own.total - own.augen})` : '', own.total >= 66 ? ' – du kannst dich ausmelden!' : '')
+        : h('p', { class: 'muted small', text: 'Zähl selbst mit – wer 66 Augen hat, meldet sich aus. (Die Summe zeigt die „Augen-Hilfe“ in den Schnapsen-Optionen.)' }),
+      h('p', { class: 'muted small', text: 'Nur deine eigenen Stiche. Die Stiche des Gegners bleiben verdeckt.' }));
   }
 };
 

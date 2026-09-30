@@ -4,7 +4,8 @@
 // 121 Löcher sind am Handy eng (Lochabstand ≈ 28 px): Ein Tipp trifft deshalb immer den NÄCHSTEN sinnvollen
 // Kandidaten (eigener ziehbarer Stein bzw. erlaubtes Ziel), nicht das nächste Loch.
 import { HOLES, CAMP, CAMPS, CAMP_OF, OPPOSITE } from './engine.js';
-import { s, ensureDefs, place, animatePath, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { OWN } from '../../tempo.js';
 import { SEAT_COLORS, SEAT_SYMBOLS } from '../../ui/seatcolors.js';
 
 const U = 100;
@@ -170,7 +171,9 @@ export function createBoard(host, { onMove, onHint }) {
       if (info.kind === 'move' && info.move && info.move.path) {
         const m = info.move;
         const el = gPieces.querySelector(`[data-i="${m.path[m.path.length - 1]}"]`);
-        if (el) animatePath(el, [m.from, ...m.path].map(xy), 200);
+        const a = ctx.anim || OWN;
+        // Sprungkette Station für Station (mit Pause dazwischen)
+        if (el) animateSteps(el, [m.from, ...m.path].map(xy), { hop: m.path.length > 1 ? a.hop : a.slide, pause: a.pause, lift: m.path.length > 1 });
       }
       renderHints();
     },

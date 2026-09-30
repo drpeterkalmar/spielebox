@@ -11,6 +11,7 @@ import { gameOf, GAME_LIST, LIVE, seatCount } from './games/registry.js';
 import { h, sheet } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
 import { BUILD } from './build.js';
+import { botDelay, levelFrom } from './tempo.js';
 
 const params = new URLSearchParams(location.search);
 const RELAY_ONLY = params.get('relay') === '1';
@@ -118,7 +119,16 @@ async function openLocal(mode, table) {
   session.start();
 }
 
+// Denkzeit des Computers aus der Einstellung „Computer-Tempo“ (am Gastgeber-Gerät), plus Zeit zum Ausspielen des
+// vorigen Zugs; ein fertiger Stich bleibt liegen (tempo.js)
+function useTempo(session) {
+  session.botDelayFor = (t) => botDelay(t, levelFrom(store.settings().tempo), {
+    isLocal: (by) => session.mode === 'hotseat' || !!(t.seats[by] && !t.seats[by].bot && t.seats[by].pid === session.me.pid)
+  });
+}
+
 function mount(session, { words = null, roomId = null, link = null }) {
+  useTempo(session);
   document.body.dataset.screen = 'table';
   const screen = showTableScreen(root, {
     session, words,
@@ -241,6 +251,12 @@ window.__box = {
   setName(name) { const p = store.profile(); p.name = name; store.saveProfile(p); },
   me: () => store.profile(),
   target: (i) => cur.screen.view.target(i),
+  busy: () => !!(cur && cur.screen.busy()),
+  events: () => (cur ? cur.screen.events() : []),
+  banner: () => (cur ? cur.screen.banner() : null),
+  tempo(level) { const st = store.settings(); st.tempo = level; store.saveSettings(st); },
+  // Tests: nach Eingriff in den Stand (Stellung setzen) neu zeigen und ggf. den Computer anstoßen
+  poke() { const s = cur.session; s._changed({ kind: 'state' }); s._maybeBot(); },
   metrics: () => cur.screen.view.metrics(),
   reconnect: () => cur && cur.link && cur.link.reconnect(),
   relayStats: () => (cur && cur.link && cur.link.relay ? cur.link.relay.status() : null),

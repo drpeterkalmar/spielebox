@@ -3,7 +3,8 @@
 // Im Hochformat wird das Brett um 90° gedreht (Heimfeld unten), damit jeder Punkt ≥ 48 px breit bleibt.
 // Bedienung: Stein antippen → Ziele leuchten → Ziel antippen; „Zurück“/„Fertig“/„Abtragen“ kommen als Knöpfe.
 import { partialSteps, applySteps, isComplete } from './engine.js';
-import { s, ensureDefs, piece, place, animatePath, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, piece, place, animatePath, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { OWN } from '../../tempo.js';
 
 const W = 1000, H = 640, M = 10, BAR = 40;
 const PW = (W - 2 * M - BAR) / 12;
@@ -21,6 +22,10 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   host.appendChild(svg);
 
   let portrait = null, table = null, gs = null, shown = null, me = 0, legal = null, steps = [], sel = null, hint = '', lastDice = '';
+  let anim = OWN;          // Zeiten des gerade gezeigten Zugs (tempo.js)
+  let replay = null;       // Zug des anderen wird Teilzug für Teilzug gezeigt: { gs: Stand davor, steps: bisher gezeigte }
+  let timers = [];
+  const stopReplay = () => { for (const t of timers) clearTimeout(t); timers = []; replay = null; };
   const setHint = (t) => { if (t !== hint) { hint = t; onHint && onHint(t); } };
 
   // Punkt (absolut 1–24) → Anzeige-Spalte/Reihe aus Sicht von `me`
@@ -127,10 +132,11 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       g.append(s('rect', { x: -24, y: -24, width: 48, height: 48, rx: 7, class: 'cube-face' }), s('text', { y: 0, x: 0, class: 'cube-n', text: String(own === null ? 64 : gs.cube.value), transform: portrait ? 'rotate(-90)' : null }));
       gDice.append(g);
     }
-    if (!gs.dice || gs.phase === 'roll' || gs.phase === 'double') return;
-    const dice = gs.dice[0] === gs.dice[1] ? [gs.dice[0], gs.dice[0], gs.dice[0], gs.dice[0]] : gs.dice.slice();
+    const dg = replay ? replay.gs : gs;   // beim Nachspielen: Würfel des gezeigten Zugs
+    if (!dg.dice || dg.phase === 'roll' || dg.phase === 'double') return;
+    const dice = dg.dice[0] === dg.dice[1] ? [dg.dice[0], dg.dice[0], dg.dice[0], dg.dice[0]] : dg.dice.slice();
     const used = (shown.used || []).slice();
-    const mine = gs.turn === me;
+    const mine = dg.turn === me;
     const cx = mine ? M + 9 * PW + BAR : M + 3 * PW;
     const gap = dice.length > 2 ? 62 : 72;
     const grp = s('g', { class: 'dice-grp' });
@@ -141,10 +147,26 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       grp.append(die(cx + (i - (dice.length - 1) / 2) * gap, H / 2, v, isUsed));
     });
     gDice.append(grp);
-    const key = JSON.stringify([gs.ply, gs.dice]);
+    const key = JSON.stringify([dg.ply, dg.dice]);
     if (key !== lastDice) {
       lastDice = key;
-      if (grp.animate) grp.animate([{ transform: 'rotate(-25deg) scale(.6)', opacity: 0.2 }, { transform: 'rotate(10deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'rotate(0) scale(1)' }], { duration: 650, easing: 'ease-out' });
+      // Würfeln sichtbar: Würfel rollen herein, die Augen wechseln ein paar Mal, dann liegt der Wurf
+      const dur = anim.dice;
+      if (grp.animate && dur > 0) {
+        grp.animate([{ transform: 'rotate(-25deg) scale(.6)', opacity: 0.2 }, { transform: 'rotate(10deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'rotate(0) scale(1)' }], { duration: dur, easing: 'ease-out' });
+        const flicker = Math.max(0, Math.floor(dur / 220) - 1);
+        for (let k = 1; k <= flicker; k++) {
+          timers.push(setTimeout(() => {
+            if (!grp.isConnected) return;
+            [...grp.children].forEach((d, i) => {
+              const tr = d.getAttribute('transform');
+              const nd = die(0, 0, k === flicker ? dice[i] : 1 + ((dice[i] + k * (i + 2)) % 6), false);
+              nd.setAttribute('transform', tr);
+              d.replaceWith(nd);
+            });
+          }, (k * dur * 0.6) / flicker));
+        }
+      }
       grp.style.transformBox = 'fill-box';
       grp.style.transformOrigin = 'center';
     }
@@ -168,7 +190,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   function drawHints() {
     gHi.textContent = '';
     gTop.textContent = '';
-    if (!legal || gs.phase !== 'move') return;
+    if (replay || !legal || gs.phase !== 'move') return;
     const ns = nexts();
     if (!ns.length) {
       setHint(steps.length ? 'Zug vollständig – „Fertig“ tippen (oder „Zurück“).' : 'Kein Zug möglich.');
@@ -196,7 +218,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
 
   function render() {
     layout();
-    shown = steps.length ? applySteps(gs, steps) : gs;
+    shown = replay ? (replay.steps.length ? applySteps(replay.gs, replay.steps) : replay.gs) : steps.length ? applySteps(gs, steps) : gs;
     drawPieces();
     drawDice();
     drawHints();
@@ -257,16 +279,33 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       if (newMe !== me) { me = newMe; portrait = null; }
       legal = ctx.legal && ctx.legal.length ? ctx.legal : null;
       if (!legal || legal !== prevLegal) { steps = []; sel = null; }
-      render();
-      // Zug des anderen: bewegte Steine gleiten
-      if (info.kind === 'move' && info.move && info.move.type === 'play' && info.prevGs && info.move.steps.length) {
-        for (const st of info.move.steps) {
-          if (st.to === 'off') continue;
-          const el = [...gPieces.querySelectorAll(`[data-p="${st.to}"]`)].pop();
-          if (!el) continue;
-          const from = st.from === 'bar' ? barXY(info.by, 0, 1) : stackXY(st.from, 0, 1);
-          animatePath(el, [from, [Number(el.dataset.x), Number(el.dataset.y)]], 240);
-        }
+      stopReplay();
+      anim = ctx.anim || OWN;
+      const m = info.kind === 'move' ? info.move : null;
+      if (m && !anim.own && m.type === 'play' && info.prevGs && info.prevGs.phase === 'move' && m.steps.length) {
+        // Zug Teilzug für Teilzug zeigen: je Teilzug gleitet ein Stein, dazwischen eine Pause
+        const prev = info.prevGs;
+        replay = { gs: prev, steps: [] };
+        const stepMs = anim.slide + anim.pause;
+        m.steps.forEach((st, k) => {
+          const show = () => {
+            if (!replay) return;
+            const before = replay.steps.length ? applySteps(prev, replay.steps) : prev;
+            replay.steps = m.steps.slice(0, k + 1);
+            render();
+            if (st.to === 'off') return;
+            const el = [...gPieces.querySelectorAll(`[data-p="${st.to}"]`)].pop();
+            if (!el) return;
+            let from;
+            if (st.from === 'bar') from = barXY(prev.turn, Math.max(0, before.bar[prev.turn] - 1), before.bar[prev.turn]);
+            else { const n0 = Math.abs(before.points[st.from - 1]); from = stackXY(st.from, n0 - 1, n0); }
+            animateSteps(el, [from, [Number(el.dataset.x), Number(el.dataset.y)]], { hop: anim.slide });
+          };
+          if (k === 0 || stepMs <= 0) show(); else timers.push(setTimeout(show, k * stepMs));
+        });
+        timers.push(setTimeout(() => { replay = null; render(); }, m.steps.length * stepMs + 10));
+      } else {
+        render();
       }
     },
     // für die Knöpfe
@@ -290,7 +329,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       return { minTargetPx: PW * scale, boardPx: (portrait ? W : W) * scale };
     },
     tap,
-    destroy() { removeEventListener('resize', onResize); svg.remove(); }
+    destroy() { stopReplay(); removeEventListener('resize', onResize); svg.remove(); }
   };
   return api;
 }

@@ -2,7 +2,8 @@
 // (kleine Karten, Einsatz, Ergebnis), unten groß der eigene Platz. Nach der Runde bleiben die Karten mit
 // Ergebnis liegen, bis neu ausgeteilt wird. Knöpfe (Setzen, Ziehen, Stehen, Verdoppeln, Teilen) aus gameui.js.
 import { handValue, fmtBeans } from './engine.js';
-import { s, ensureDefs, place, animatePath, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, flyIn, fadeIn, toScreen, onTap } from '../../ui/svg.js';
+import { OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
 
@@ -24,9 +25,10 @@ export function createBoard(host, { onHint }) {
   host.appendChild(svg);
   onTap(svg, () => {});
 
-  let table = null, gs = null, me = 0, seen = new Set();
+  let table = null, gs = null, me = 0, seen = new Set(), anim = OWN, tempo = OWN;
 
-  function cardsRow(g, cards, cx, cy, w, { label, sub, dim, badge, active } = {}) {
+  // key: Runde (laufende = gs.round + 1, gezeigte letzte = lastRound.round) + Platz/Hand → Karten fliegen nur einmal herein
+  function cardsRow(g, cards, cx, cy, w, { key: rowKey = '', label, sub, dim, badge, active, bank } = {}) {
     const n = cards.length;
     const off = w * 0.42;
     const x0 = cx - ((n - 1) * off) / 2;
@@ -35,16 +37,17 @@ export function createBoard(host, { onHint }) {
     cards.forEach((c, i) => {
       const el = place(c ? frCard(c, w) : backCard(w, h), x0 + i * off, cy);
       if (dim) el.classList.add('done');
-      const key = `${gs.round}|${label}|${i}|${c}`;
-      if (!seen.has(key)) { seen.add(key); el.dataset.fresh = '1'; }
+      const key = `${rowKey}|${i}|${c}`;
+      if (!seen.has(key)) { seen.add(key); el.dataset.fresh = bank ? 'bank' : '1'; }
       g.append(el);
     });
     if (label) g.append(s('text', { x: cx, y: cy + h / 2 + 34, class: 'bj-label', text: label }));
-    if (sub) g.append(s('text', { x: cx, y: cy + h / 2 + 66, class: 'bj-sub', text: sub }));
+    if (sub) g.append(s('text', { x: cx, y: cy + h / 2 + 66, class: 'bj-sub', text: sub, 'data-after': bank ? 'bank' : null }));
     if (badge) {
       const bw = Math.max(120, badge.text.length * 17);
-      g.append(s('rect', { x: cx - bw / 2, y: cy - 24, width: bw, height: 44, rx: 22, class: 'bj-badge ' + badge.cls }),
-        s('text', { x: cx, y: cy + 7, class: 'bj-badge-t', text: badge.text }));
+      g.append(s('g', { 'data-after': 'bank' },
+        s('rect', { x: cx - bw / 2, y: cy - 24, width: bw, height: 44, rx: 22, class: 'bj-badge ' + badge.cls }),
+        s('text', { x: cx, y: cy + 7, class: 'bj-badge-t', text: badge.text })));
     }
   }
 
@@ -59,10 +62,10 @@ export function createBoard(host, { onHint }) {
   // was gezeigt wird: laufende Runde, sonst die letzte Runde mit Ergebnis
   function spot(seat) {
     const cur = gs.hands[seat] || [];
-    if (gs.phase === 'play' || cur.some((hd) => hd.cards.length)) return { hands: cur, done: false };
+    if (gs.phase === 'play' || cur.some((hd) => hd.cards.length)) return { hands: cur, done: false, round: gs.round + 1 };
     const lr = gs.lastRound;
-    if (lr && lr.hands[seat] && lr.hands[seat].length) return { hands: lr.hands[seat], done: true };
-    return { hands: [], done: false };
+    if (lr && lr.hands[seat] && lr.hands[seat].length) return { hands: lr.hands[seat], done: true, round: lr.round };
+    return { hands: [], done: false, round: gs.round + 1 };
   }
 
   function drawBank() {
@@ -72,7 +75,8 @@ export function createBoard(host, { onHint }) {
     const cards = running && gs.bankCards.length ? gs.bankCards : lr ? lr.bankCards : [];
     const bankSeat = running || !lr ? gs.bank : lr.bank;
     const t = total(cards);
-    cardsRow(gBank, cards, 500, 150, 118, { label: `Bank: ${names()[bankSeat]}`, sub: t ? `${t}` : `${fmtBeans(gs.beans[gs.bank])} Bohnen` });
+    const rnd = running && gs.bankCards.length ? gs.round + 1 : lr ? lr.round : gs.round + 1;
+    cardsRow(gBank, cards, 500, 150, 118, { key: `${rnd}|bank`, bank: true, label: `Bank: ${names()[bankSeat]}`, sub: t ? `${t}` : `${fmtBeans(gs.beans[gs.bank])} Bohnen` });
   }
 
   function drawPlayers() {
@@ -115,7 +119,7 @@ export function createBoard(host, { onHint }) {
       const winTxt = `${hd.win > 0 ? '+' : hd.win < 0 ? '−' : '±'}${fmtBeans(Math.abs(hd.win || 0))}`;
       const res = sp.done && hd.result ? { text: small ? `${hd.result === 'bj' ? 'BJ ' : ''}${winTxt}` : `${RES[hd.result]} ${winTxt}`, cls: hd.win > 0 ? 'plus' : hd.win < 0 ? 'minus' : 'even' } : null;
       const mine = `${j === 0 ? 'Du · ' : ''}${total(hd.cards)}${hd.bet ? ` · Einsatz ${fmtBeans(hd.bet)}${hd.doubled ? ' ×2' : ''}` : ''}`;
-      cardsRow(g, hd.cards, hx, cy, w, { label: small ? (j === 0 ? name : '') : mine, sub: small ? total(hd.cards) : '', dim: sp.done, badge: res, active });
+      cardsRow(g, hd.cards, hx, cy, w, { key: `${sp.round}|${seat}|${j}`, label: small ? (j === 0 ? name : '') : mine, sub: small ? total(hd.cards) : '', dim: sp.done, badge: res, active });
     });
     if (small) g.append(s('text', { x: cx, y: cy + frHeight(w) / 2 + 98, class: 'bj-sub', text: `${fmtBeans(gs.beans[seat])} Bohnen` }));
   }
@@ -123,10 +127,21 @@ export function createBoard(host, { onHint }) {
   function render() {
     drawBank();
     drawPlayers();
-    // neue Karten fliegen vom Schuh (rechts oben) herein
+    // neue Karten fliegen vom Schuh (rechts oben) herein; Bank-Karten am Rundenende eine nach der anderen
+    // (Abstand bankGap), Summe und Ergebnisse erst danach
+    const bankNew = [...gBank.querySelectorAll('[data-fresh="bank"]')];
+    const reveal = gs.phase !== 'play' && gs.lastRound && bankNew.length ? bankNew.length : 0;
     for (const el of svg.querySelectorAll('[data-fresh="1"]')) {
       delete el.dataset.fresh;
-      animatePath(el, [[900, 60], [Number(el.dataset.x), Number(el.dataset.y)]], 280);
+      flyIn(el, [900, 60], anim.slide);
+    }
+    bankNew.forEach((el, k) => {
+      delete el.dataset.fresh;
+      flyIn(el, [900, 60], reveal ? tempo.slide : anim.slide, reveal ? k * tempo.bankGap : 0);
+    });
+    if (reveal) {
+      const after = (reveal - 1) * tempo.bankGap + tempo.slide;
+      for (const el of svg.querySelectorAll('[data-after="bank"]')) fadeIn(el, after, tempo.slide ? 300 : 0);
     }
   }
 
@@ -136,6 +151,8 @@ export function createBoard(host, { onHint }) {
       table = t;
       gs = t.gs;
       me = ctx.viewer === undefined ? null : ctx.viewer;
+      anim = info.kind === 'move' ? ctx.anim || OWN : OWN;
+      tempo = ctx.tempo || OWN;
       render();
       const legal = ctx.legal && ctx.legal.length ? ctx.legal : null;
       if (!legal) onHint && onHint('');

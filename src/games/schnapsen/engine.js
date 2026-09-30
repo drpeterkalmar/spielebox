@@ -13,14 +13,16 @@
 //   nach einer offenen Ansage nur, wenn damit wirklich ≥ 66 erreicht sind (Ansager hat schon einen Stich).
 //
 // Zustand (reines JSON):
-//   { opts: {hart, schneider, bummerl}, phase: 'deal'|'play'|'spielende'|'over',
+//   { opts: {hart, schneider, bummerl, stiche, augenHilfe}, phase: 'deal'|'play'|'spielende'|'over',
 //     dealer: Sitz des Teilers, spielNr, bummerlNr (laufendes Bummerl, ab 1),
 //     points: [a, b] Punkte im laufenden Bummerl, bummerl: [a, b] gewonnene Bummerl,
 //     games: [{ bummerl, spiel, winner, points, reason }] alle Spielergebnisse (Bummerl-Tafel),
 //     hands: [[Karten], [Karten]], talon: [verdeckte Karten, Index 0 = oben], atout: Farbe,
 //     atoutCard: offene Atoutkarte | null, turn: Sitz am Zug,
 //     trick: [{ seat, card }] laufender Stich, lastTrick: null | { cards: [{seat, card}×2], winner },
-//     won: [[Karten], [Karten]] gewonnene Karten, augen: [a, b] Stichaugen, tricks: [a, b] Anzahl Stiche,
+//     won: [[Karten], [Karten]] gewonnene Karten (je Stich: ausgespielte, dann zugegebene Karte),
+//     wonTricks: [[{ lead }], [{ lead }]] je gewonnenem Stich, wer ausgespielt hat (Reihenfolge wie won),
+//     augen: [a, b] Stichaugen, tricks: [a, b] Anzahl Stiche,
 //     ansagen: [{ seat, suit, points }], openAnsage: null | Farbe (muss jetzt König/Ober davon spielen),
 //     closed: null | { by, oppAugen, oppTricks } (Zudrehen; Augen/Stiche des Gegners beim Zudrehen),
 //     spiel: null | { winner, points, reason, augen: [a, b], stiche: [a, b], bummerl? } (Ergebnis des Spiels),
@@ -56,19 +58,23 @@ export function cardName(card) {
   return isCard(card) ? `${SUIT_NAMES[card[0]]}-${RANK_NAMES[card[1]]}` : '?';
 }
 
+// stiche: eigene gewonnene Stiche ansehen (Standard an; aus = klassische Turnierregel)
+// augenHilfe: eigene Augensumme anzeigen (Standard aus – Mitzählen bleibt Teil des Spiels)
 export function normalizeOptions(opts) {
   const o = opts && typeof opts === 'object' ? opts : {};
   return {
     hart: o.hart === true,
     schneider: o.schneider === true,
-    bummerl: o.bummerl === 3 || o.bummerl === '3' ? 3 : 2
+    bummerl: o.bummerl === 3 || o.bummerl === '3' ? 3 : 2,
+    stiche: o.stiche !== false,
+    augenHilfe: o.augenHilfe === true
   };
 }
 
 function emptyGame() {
   return {
     hands: [[], []], talon: [], atout: null, atoutCard: null, turn: 0, trick: [], lastTrick: null,
-    won: [[], []], augen: [0, 0], tricks: [0, 0], ansagen: [], openAnsage: null, closed: null, spiel: null
+    won: [[], []], wonTricks: [[], []], augen: [0, 0], tricks: [0, 0], ansagen: [], openAnsage: null, closed: null, spiel: null
   };
 }
 
@@ -84,7 +90,8 @@ function clone(s) {
   return {
     ...s, opts: { ...s.opts }, points: s.points.slice(), bummerl: s.bummerl.slice(), games: s.games.slice(),
     hands: s.hands.map(h => h.slice()), talon: s.talon.slice(), trick: s.trick.slice(),
-    won: s.won.map(w => w.slice()), augen: s.augen.slice(), tricks: s.tricks.slice(), ansagen: s.ansagen.slice()
+    won: s.won.map(w => w.slice()), wonTricks: (s.wonTricks || [[], []]).map(w => w.slice()),
+    augen: s.augen.slice(), tricks: s.tricks.slice(), ansagen: s.ansagen.slice()
   };
 }
 
@@ -359,6 +366,7 @@ export function applyMove(state, move) {
   const trick = [s.trick[0], { seat: p, card }];
   const w = trickWinner(trick, s.atout);
   s.won[w].push(trick[0].card, card);
+  s.wonTricks[w].push({ lead: trick[0].seat });
   s.augen[w] += val(trick[0].card) + val(card);
   s.tricks[w]++;
   s.lastTrick = { cards: trick, winner: w };
@@ -414,11 +422,29 @@ export function viewFor(state, seat) {
     if (!reveal) {
       s.augen[q] = null;
       s.won[q] = s.won[q].map(() => null);
+      s.wonTricks[q] = s.wonTricks[q].map(() => null);
     }
   }
   // Augen des Gegners beim Zudrehen kennt nur dieser selbst
   if (s.closed && !reveal && me !== 1 - s.closed.by) s.closed = { ...s.closed, oppAugen: null };
   return s;
+}
+
+// Stich-Blatt: die eigenen gewonnenen Stiche in Reihenfolge, je Stich beide Karten (ausgespielte zuerst) und wer
+// ausgespielt hat, dazu die eigenen Ansagen. Liest NUR won[seat]/wonTricks[seat] – nie Karten des Gegners.
+// null, wenn seat kein Spieler ist oder die Karten in dieser Sicht verdeckt sind (Sichtschutz, Zuschauer).
+export function ownTricks(state, seat) {
+  if (!state || (seat !== 0 && seat !== 1) || !Array.isArray(state.won)) return null;
+  const won = state.won[seat] || [];
+  if (!won.every(isCard)) return null;
+  const log = (state.wonTricks && state.wonTricks[seat]) || [];
+  const tricks = [];
+  for (let i = 0; i + 1 < won.length; i += 2) {
+    const e = log[i / 2];
+    tricks.push({ nr: i / 2 + 1, cards: [won[i], won[i + 1]], lead: e && (e.lead === 0 || e.lead === 1) ? e.lead : null, augen: val(won[i]) + val(won[i + 1]) });
+  }
+  const ansagen = (state.ansagen || []).filter(a => a.seat === seat).map(a => ({ suit: a.suit, points: a.points }));
+  return { tricks, ansagen, augen: sumCards(won), total: sumCards(won) + (tricks.length ? ansagen.reduce((x, a) => x + a.points, 0) : 0), pending: tricks.length ? 0 : ansagen.reduce((x, a) => x + a.points, 0) };
 }
 
 // ---------- Bewertung ----------

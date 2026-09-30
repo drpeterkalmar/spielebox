@@ -1,4 +1,6 @@
 // Kleine DOM-Helfer: Elemente bauen, Hinweise (Toasts), Blätter (Dialoge von unten).
+import { ToastQueue, TOAST_MS } from './toastqueue.js';
+
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -26,16 +28,35 @@ export function clear(el) {
 }
 
 let toastBox = null;
-// Standarddauer 5 s (bis 29.09.: 2600 ms; Peter 29.09.: „Meldungen länger anzeigen“)
-export function toast(text, ms = 5000) {
-  if (!toastBox) {
+let toastQ = null;
+const toastListeners = new Set();
+// Meldungen nacheinander aus einer Warteschlange, jede mindestens 5 s (bis 29.09.: 2600 ms, alle übereinander;
+// Peter 29.09.: „Meldungen länger anzeigen“), Antippen schließt. Siehe toastqueue.js.
+export function toast(text, ms = TOAST_MS) {
+  if (!toastQ) {
     toastBox = h('div', { class: 'toasts', 'aria-live': 'polite' });
     document.body.appendChild(toastBox);
+    toastQ = new ToastQueue({
+      show(item) {
+        item.el = h('button', { class: 'toast', text: item.text, title: 'Antippen schließt', on: { click: () => toastQ.close(item) } });
+        toastBox.appendChild(item.el);
+      },
+      hide(item) {
+        const el = item.el;
+        if (!el) return;
+        el.classList.add('out');
+        setTimeout(() => el.remove(), 380);
+      }
+    });
   }
-  const t = h('div', { class: 'toast', text });
-  toastBox.appendChild(t);
-  setTimeout(() => t.classList.add('out'), ms);
-  setTimeout(() => t.remove(), ms + 400);
+  for (const fn of toastListeners) { try { fn(text); } catch { /* egal */ } }
+  return toastQ.push(String(text), ms);
+}
+
+// Mitlesen (Ereignis-Liste am Tisch)
+export function onToast(fn) {
+  toastListeners.add(fn);
+  return () => toastListeners.delete(fn);
 }
 
 // Blatt von unten (Handy) bzw. mittig (quer/Desktop); schließt per Hintergrund, ✕ oder Zurück
@@ -51,7 +72,9 @@ export function sheet(title, ...content) {
       h('h2', { text: title }),
       h('button', { class: 'icon-btn', 'aria-label': 'Schließen', text: '✕', on: { click: close } })),
     h('div', { class: 'sheet-body' }, ...content));
-  const wrap = h('div', { class: 'sheet-wrap', on: { click: (e) => { if (e.target === wrap) close(); } } }, box);
+  // Hintergrund schließt – aber nicht der Klick des Tipps, der das Blatt gerade geöffnet hat (Tipp aufs Brett)
+  const born = Date.now();
+  const wrap = h('div', { class: 'sheet-wrap', on: { click: (e) => { if (e.target === wrap && Date.now() - born > 350) close(); } } }, box);
   document.body.appendChild(wrap);
   document.addEventListener('keydown', onKey);
   return { close, box, body: box.querySelector('.sheet-body') };

@@ -75,23 +75,60 @@ export function animatePath(el, pts, msPerStep = 230) {
   return el.animate(frames, { duration: msPerStep * (pts.length - 1) + 80, easing: 'cubic-bezier(.3,.7,.3,1)' });
 }
 
-export function animateDrop(el) {
-  if (!el.animate || reduced()) return null;
+// Station für Station: hop ms je Teilstrecke, an jeder Zwischenstation pause ms Halt, vorher delay ms warten
+// (bis dahin steht der Stein am Start). lift: Stein hebt sich bei jedem Sprung leicht an. Dauer 0 → keine Animation.
+export function animateSteps(el, pts, { hop = 230, pause = 0, delay = 0, lift = false, fromOpacity = null } = {}) {
+  if (!el || !el.animate || pts.length < 2 || reduced() || hop <= 0) return null;
+  const n = pts.length - 1;
+  const total = n * hop + (n - 1) * pause;
+  const tf = ([x, y], k = 1) => `translate(${x}px, ${y}px)${k !== 1 ? ` scale(${k})` : ''}`;
+  const frames = [{ transform: tf(pts[0]), offset: 0, ...(fromOpacity !== null ? { opacity: fromOpacity } : {}) }];
+  let t = 0;
+  for (let i = 1; i <= n; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+    if (lift) frames.push({ transform: tf([(ax + bx) / 2, (ay + by) / 2], 1.16), offset: (t + hop / 2) / total, easing: 'ease-in' });
+    t += hop;
+    frames.push({ transform: tf(pts[i]), offset: t / total, easing: 'ease-in-out', ...(fromOpacity !== null ? { opacity: 1 } : {}) });
+    if (i < n && pause > 0) { t += pause; frames.push({ transform: tf(pts[i]), offset: t / total, easing: 'ease-in-out' }); }
+  }
+  frames[frames.length - 1].offset = 1;
+  return el.animate(frames, { duration: total, delay, fill: delay > 0 ? 'backwards' : 'none', easing: 'linear' });
+}
+
+// Karte/Stein kommt von from herein (erst unsichtbar, dann eingeblendet), z. B. Karte vom Schuh
+export function flyIn(el, from, dur, delay = 0) {
+  if (!el || !el.animate || reduced() || dur <= 0) return null;
+  const [x, y] = [el.dataset.x, el.dataset.y];
+  return el.animate([
+    { transform: `translate(${from[0]}px, ${from[1]}px)`, opacity: 0 },
+    { transform: `translate(${from[0]}px, ${from[1]}px)`, opacity: 1, offset: 0.08 },
+    { transform: `translate(${x}px, ${y}px)`, opacity: 1 }
+  ], { duration: dur, delay, fill: 'backwards', easing: 'cubic-bezier(.3,.7,.3,1)' });
+}
+
+// Element (Text, Abzeichen) erst nach delay einblenden
+export function fadeIn(el, delay = 0, dur = 300) {
+  if (!el || !el.animate || reduced() || delay + dur <= 0) return null;
+  return el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur, delay, fill: 'backwards' });
+}
+
+export function animateDrop(el, dur = 260) {
+  if (!el.animate || reduced() || dur <= 0) return null;
   const [x, y] = [el.dataset.x, el.dataset.y];
   return el.animate([
     { transform: `translate(${x}px, ${y - 26}px) scale(1.18)`, opacity: 0 },
     { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 1 }
-  ], { duration: 260, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
+  ], { duration: dur, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
 }
 
 // geschlagenen Stein ausblenden (Geist wird danach entfernt)
-export function fadeOut(el, delay = 0) {
-  if (!el.animate || reduced()) { el.remove(); return; }
+export function fadeOut(el, delay = 0, dur = 320) {
+  if (!el.animate || reduced() || dur <= 0) { el.remove(); return; }
   const [x, y] = [el.dataset.x, el.dataset.y];
   const a = el.animate([
     { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 1 },
     { transform: `translate(${x}px, ${y}px) scale(0.6)`, opacity: 0 }
-  ], { duration: 320, delay, easing: 'ease-in', fill: 'forwards' });
+  ], { duration: dur, delay, easing: 'ease-in', fill: 'forwards' });
   a.onfinish = () => el.remove();
 }
 

@@ -1,7 +1,8 @@
 // Mühle-Brett als SVG: Holz, Linien, Steine mit Schatten, letzte Züge markiert, erlaubte Züge beim Antippen,
 // Zug-Animation. Tippen trifft immer den nächstgelegenen Punkt (große Touch-Ziele auch im Querformat).
 import { POINTS, MILLS } from './engine.js';
-import { s, ensureDefs, piece, place, animatePath, animateDrop, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, piece, place, animateSteps, animateDrop, flyIn, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { OWN } from '../../tempo.js';
 
 const U = 100;          // Rasterabstand
 const OFF = 52;         // Rand bis zum äußeren Ring (schmal: Touch-Ziele ≥ 48 px auch quer im Browser-Tab)
@@ -188,18 +189,21 @@ export function createBoard(host, { onMove, onHint }) {
       if (!legal || legal !== prevLegal) { sel = null; partial = null; }
       renderPieces(t.gs.board);
       renderLast();
+      // Zug ausspielen: erst Setzen/Ziehen (Stein gleitet bzw. kommt vom Rand), dann nach einer Pause das Schlagen
       if (info.kind === 'move' && info.move) {
+        const a = ctx.anim || OWN;
         const m = info.move;
         const el = pieceAt(m.to);
         if (el) {
-          if (m.from !== undefined) animatePath(el, [xy(m.from), xy(m.to)], 260);
+          if (m.from !== undefined) animateSteps(el, [xy(m.from), xy(m.to)], { hop: a.slide });
+          else if (!a.own && info.by !== ctx.viewer) flyIn(el, [SIZE / 2, -R], a.slide);
           else animateDrop(el);
         }
         if (m.remove !== undefined) {
           const [x, y] = xy(m.remove);
           const ghost = place(piece(1 - info.by, R), x, y);
           gFx.append(ghost);
-          fadeOut(ghost, 240);
+          fadeOut(ghost, a.slide + a.pause, a.fade);
         }
       }
       renderHints();

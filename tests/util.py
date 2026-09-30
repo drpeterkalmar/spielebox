@@ -70,6 +70,8 @@ class Page:
 
     def open(self, q='?nosw', hash_='', timeout=60000):
         t0 = time.time()
+        # Tests laufen ohne Denkzeit und Animationen (Computer-Tempo „test“), außer q setzt tempo= selbst
+        if 'tempo=' not in q: q = q + ('&' if '?' in q else '?') + 'tempo=test'
         self.pg.goto(self.base + 'index.html' + q + hash_)
         self.pg.wait_for_function("window.__box && window.__box.ready", timeout=timeout)
         self.boot_s = time.time() - t0

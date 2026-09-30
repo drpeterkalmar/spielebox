@@ -67,9 +67,11 @@ export const GAMES = {
       { key: 'bummerl', type: 'choice', label: 'Partie', choices: [
         { value: 2, label: 'Auf 2 Bummerl' }, { value: 3, label: 'Auf 3 Bummerl' }] },
       { key: 'hart', type: 'switch', label: 'Hart', sub: 'Bei nur einer Talonkarte auch kein Austauschen' },
-      { key: 'schneider', type: 'switch', label: 'Schneider-Bummerl doppelt', sub: '7:0 zählt zwei Bummerl' }
+      { key: 'schneider', type: 'switch', label: 'Schneider-Bummerl doppelt', sub: '7:0 zählt zwei Bummerl' },
+      { key: 'stiche', type: 'switch', label: 'Eigene Stiche ansehen', sub: 'Auf den eigenen Stichstapel tippen (aus = Turnierregel)', dflt: true },
+      { key: 'augenHilfe', type: 'switch', label: 'Augen-Hilfe', sub: 'Zeigt die Summe deiner Augen (sonst selbst mitzählen)' }
     ],
-    variantName: (o) => { const x = schnapsen.normalizeOptions(o); return [`${x.bummerl} Bummerl`, x.hart ? 'hart' : 'weich', x.schneider ? 'Schneider doppelt' : ''].filter(Boolean).join(' · '); }
+    variantName: (o) => { const x = schnapsen.normalizeOptions(o); return [`${x.bummerl} Bummerl`, x.hart ? 'hart' : 'weich', x.schneider ? 'Schneider doppelt' : '', x.stiche ? '' : 'Stiche verdeckt', x.augenHilfe ? 'Augen-Hilfe' : ''].filter(Boolean).join(' · '); }
   },
   backgammon: {
     id: 'backgammon',

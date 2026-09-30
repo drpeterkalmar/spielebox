@@ -1,6 +1,12 @@
 // Tisch-Ansicht: Kopfzeile mit Verbindungsstatus, Spielerleisten, Brett, Status/Hinweis, Aktionen,
 // Warte-Karte mit den 3 Wörtern (groß, zum Diktieren), Teilen-Link, Menü (Zugliste, Regeln, Verbindung).
-import { h, clear, sheet, toast } from './dom.js';
+// Anzeige-Warteschlange: Züge der anderen werden in Ruhe ausgespielt (Tempo aus src/tempo.js), wichtige Ereignisse
+// erscheinen als Banner über der gegnerischen Leiste, die letzten Ereignisse stehen hinter der Status-Zeile.
+import { h, clear, sheet, toast, onToast } from './dom.js';
+import { params as tempoParams, levelFrom, animMs, BANNER_MAX, LEVEL_NAMES } from '../tempo.js';
+import { moveEvents } from '../events.js';
+import { ownTricks } from '../games/schnapsen/engine.js';
+import { openSettings } from './settings.js';
 import { gameOf } from '../games/registry.js';
 import { turnOf } from '../net/table.js';
 import { displayWord, formatWords } from '../words.js';
@@ -67,7 +73,12 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const pTop2 = h('div', { class: 'pbar top' });
   const pBot2 = h('div', { class: 'pbar bottom' });
   const boardWrap = h('div', { class: 'board-wrap' });
-  const statusEl = h('div', { class: 'status', 'aria-live': 'polite' });
+  // Status-Zeile: antippen zeigt die letzten Ereignisse
+  const statusTextEl = h('span', { class: 'status-t' });
+  const statusEl = h('button', { class: 'status', 'aria-live': 'polite', title: 'Antippen: Was ist passiert?', data: { act: 'events' }, on: { click: () => openEvents() } },
+    statusTextEl, h('span', { class: 'status-i', 'aria-hidden': 'true', text: 'ⓘ' }));
+  // Banner am Brett (über der Leiste des Gegners): was der Computer bzw. Mitspieler gerade gemacht hat
+  const bannerEl = h('button', { class: 'banner hidden', 'aria-live': 'assertive', data: { banner: '' }, on: { click: () => nextBanner() } });
   const fairEl = h('button', { class: 'fair-badge hidden', data: { act: 'fair' }, on: { click: () => openFair() } });
   // „Wer gewinnt?“: Balken am Brettrand + Zahl (antippen: Einheit ↔ Prozent)
   const evalBar = h('div', { class: 'evalbar hidden', 'aria-hidden': 'true' }, h('div', { class: 'evalfill' }));
@@ -101,6 +112,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     bar,
     h('div', { class: 'tmain' }, pTop, boardWrap, pBot),
     h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), h('div', { class: 'status-row' }, statusEl, evalBtn), fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
+  screen.appendChild(bannerEl);
   clear(root).appendChild(screen);
 
   const eng = () => gameOf(session.table.game).engine;
@@ -112,6 +124,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const locked = (t) => mode === 'hotseat' && hidden() && !gameUi(t.game).shared && t.status === 'play' && turnOf(t) !== null && turnOf(t) !== unlocked &&
     !(eng().phase && eng().phase(t.gs) === 'spielende');
   const shownOf = (t) => (hidden() ? { ...t, gs: eng().viewFor(t.gs, locked(t) ? null : viewer() ?? null) } : t);
+  const level = () => levelFrom(store.settings().tempo);
+  // Zug auf diesem Gerät getippt? (zu zweit am Gerät: immer; sonst eigener Sitz)
+  const ownMove = (by) => mode === 'hotseat' || (by !== null && by !== undefined && by === session.mySeat);
 
   function ensureView(t) {
     if (view && viewGame === t.game) return;
@@ -120,17 +135,18 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     view = gameUi(t.game).board(boardWrap, {
       onMove: (m) => {
         const r = session.submitMove(m);
-        if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); }
+        if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); } else movedByMe();
       },
       onHint: (text) => { hintText = text; hintEl.textContent = text; },
-      onLocal: () => { if (session.table) renderActions(session.table); }
+      onLocal: () => { if (session.table) renderActions(session.table); },
+      onStiche: () => openStiche()
     });
     boardWrap.appendChild(overlay);
     boardWrap.appendChild(evalBar);
   }
 
   function legalFor(t) {
-    if (!t || t.status !== 'play' || session.pendingMove || locked(t)) return null;
+    if (!t || t.status !== 'play' || session.pendingMove || locked(t) || animating) return null;
     const seat = session.mySeat;
     if (seat === null || turnOf(t) !== seat) return null;
     if (t.seats[seat] && t.seats[seat].bot) return null;
@@ -139,7 +155,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
 
   function submit(m) {
     const r = session.submitMove(m);
-    if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); }
+    if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); } else movedByMe();
   }
 
   function seatLabel(t, seat) {
@@ -336,18 +352,64 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     netEl.classList.toggle('hidden', !(mode === 'online' && st.mode === 'getrennt'));
   }
 
+  // ---------- Anzeige-Warteschlange ----------
+  // Jeder neue Stand kommt in die Schlange und wird der Reihe nach gezeigt. Ein Zug wird erst zu Ende ausgespielt
+  // (Dauer aus tempo.js), bevor der nächste Stand erscheint; solange gibt es keine erlaubten Züge (kein Fehltipp),
+  // danach wird der Stand noch einmal mit den erlaubten Zügen gezeigt.
+  const queue = [];
+  let busyUntil = 0, qTimer = null, shownStatus = null, animating = false, animBy = null, animVerb = 'zieht';
+  const snap = (t) => (t ? { ...t, seats: t.seats.slice(), hist: t.hist.slice(), score: { ...t.score } } : null);
+
   function render(info = {}) {
-    const t = session.table;
+    queue.push({ t: snap(session.table), info });
+    pump();
+  }
+
+  function pump() {
+    clearTimeout(qTimer);
+    qTimer = null;
+    const wait = busyUntil - Date.now();
+    if (wait > 0) { qTimer = setTimeout(pump, wait); return; }
+    if (!queue.length) return;
+    if (queue.length > 6) queue.splice(0, queue.length - 6);   // z. B. nach langer Pause im Hintergrund
+    const it = queue.shift();
+    const dur = draw(it.t, it.info);
+    if (dur > 0) {
+      busyUntil = Date.now() + dur;
+      qTimer = setTimeout(() => {
+        if (!queue.length) queue.push({ t: snap(session.table), info: { kind: 'settle' } });
+        pump();
+      }, dur);
+    } else if (queue.length) pump();
+  }
+
+  function draw(t, info = {}) {
     renderStatusPill();
-    if (!t) { renderOverlay(null); statusEl.textContent = 'Verbinde …'; return; }
+    if (!t) { renderOverlay(null); statusTextEl.textContent = 'Verbinde …'; return 0; }
     ensureView(t);
     const g = gameOf(t.game);
     clear(title).append(...[h('span', { class: 'tb-game', text: g.title }), g.id === 'dame' ? h('span', { class: 'tb-var', text: g.variantName(t.opts) }) : null].filter(Boolean));
     renderPlayers(t);
     const bs = bottomSeat();
+    // Zug ausspielen: fremde Züge im eingestellten Tempo, eigene kurz
+    const lv = level();
+    let dur = 0, anim = null;
+    if (info.kind === 'move' && info.move) {
+      anim = tempoParams(lv, ownMove(info.by));
+      dur = animMs(t.game, info.move, info.prevGs, t.gs, anim);
+      noteMove(t, info, dur);
+    }
+    animating = dur > 0 || queue.length > 0;
+    animBy = dur > 0 && !anim.own ? info.by : null;
+    animVerb = info.move && info.move.type === 'roll' ? 'würfelt' : t.game === 'schnapsen' || t.game === 'blackjack' ? 'spielt' : 'zieht';
     const legal = legalFor(t);
-    view.update(shownOf(t), info, { legal, flip: !!gameUi(t.game).flip && bs === 1, viewer: viewer() ?? bs });
-    statusEl.textContent = statusText(t);
+    if (stichSheet && (locked(t) || t.game !== 'schnapsen')) { stichSheet.close(); stichSheet = null; }
+    view.update(shownOf(t), info, { legal, flip: !!gameUi(t.game).flip && bs === 1, viewer: viewer() ?? bs, seated: viewer() !== null && viewer() !== undefined, anim, tempo: tempoParams(lv) });
+    // solange der Zug eines anderen ausgespielt wird: „Computer zieht …“ statt schon „Du bist am Zug“
+    const st = animBy !== null && animBy !== undefined && t.status === 'play' ? `${nameOf(t, animBy)} ${animVerb} …` : statusText(t);
+    statusTextEl.textContent = st;
+    if (t.status === 'over' && shownStatus !== 'over') addEvent(st);
+    shownStatus = t.status;
     renderFair(t);
     requestEval(t);
     statusEl.dataset.state = t.status;
@@ -358,6 +420,113 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     screen.dataset.status = t.status;
     screen.dataset.game = t.game;
     lastTable = t;
+    return dur;
+  }
+
+  // ---------- Ereignisse: Liste und Banner ----------
+  const events = [];         // { at, text } – die letzten Ereignisse (Liste zeigt 5)
+  let banner = null, bannerTimer = null, stichSheet = null;
+  const bannerQ = [];
+
+  function addEvent(text) {
+    if (!text) return;
+    const last = events[events.length - 1];
+    if (last && last.text === text && Date.now() - last.at < 3000) return;
+    events.push({ at: Date.now(), text });
+    if (events.length > 20) events.shift();
+  }
+
+  const nameOf = (t, seat) => {
+    const s = t.seats[seat];
+    if (!s) return eng().PLAYERS[seat] || `Spieler ${seat + 1}`;
+    return s.bot && t.seats.length === 2 ? 'Computer' : s.name;
+  };
+
+  // Ereignisse eines Zugs: erst wenn er fertig ausgespielt ist (z. B. „Bank hat 22“ nach der letzten Bank-Karte)
+  let noteTimers = [];
+  function noteMove(t, info, delay = 0) {
+    const you = (seat) => mode !== 'hotseat' && seat === session.mySeat;
+    const d = t.last && t.last.d;
+    const list = moveEvents({ game: t.game, move: info.move, by: info.by, prevGs: info.prevGs, gs: t.gs, d, name: (s) => nameOf(t, s), you });
+    if (!list.length) return;
+    if (delay > 0) { noteTimers.push(setTimeout(() => showEvents(list, you), delay)); return; }
+    showEvents(list, you);
+  }
+
+  function showEvents(list, you) {
+    for (const e of list) {
+      addEvent(e.text);
+      // Banner: was die anderen (vor allem der Computer) gemacht haben; zu zweit am Gerät alles Wichtige
+      if (e.big && (mode === 'hotseat' || !you(e.seat) || /^Pasch|^Schach/.test(e.text))) pushBanner(e.text);
+    }
+  }
+
+  function pushBanner(text) {
+    if (banner && banner.text === text) return;
+    bannerQ.push(text);
+    if (bannerQ.length > 3) bannerQ.shift();
+    if (!banner || Date.now() - banner.since >= tempoParams(level()).banner) nextBanner();
+  }
+
+  // nächstes Banner zeigen (bzw. ausblenden); Antippen = weiter
+  function nextBanner() {
+    clearTimeout(bannerTimer);
+    const text = bannerQ.shift();
+    if (!text) { banner = null; bannerEl.classList.add('hidden'); return; }
+    banner = { text, since: Date.now(), moved: false };
+    bannerEl.textContent = text;
+    placeBanner();
+    bannerEl.classList.remove('hidden');
+    bannerEl.classList.remove('pop');
+    void bannerEl.offsetWidth;
+    bannerEl.classList.add('pop');
+    bannerTimer = setTimeout(checkBanner, tempoParams(level()).banner);
+  }
+
+  // Banner bleibt mindestens `banner` ms und bis zum nächsten eigenen Zug (höchstens BANNER_MAX)
+  function checkBanner() {
+    clearTimeout(bannerTimer);
+    if (!banner) return;
+    const age = Date.now() - banner.since, min = tempoParams(level()).banner;
+    if (age < min) { bannerTimer = setTimeout(checkBanner, min - age); return; }
+    if (bannerQ.length || banner.moved || age >= BANNER_MAX) { nextBanner(); return; }
+    bannerTimer = setTimeout(checkBanner, 500);
+  }
+
+  function movedByMe() {
+    if (banner) { banner.moved = true; checkBanner(); }
+  }
+
+  // über der sichtbaren Leiste des Gegners (hoch: über dem Brett, quer: oben in der Seitenspalte)
+  function placeBanner() {
+    const anchor = [pTop, pTop2].find((el) => el.getClientRects().length && el.getBoundingClientRect().height > 0);
+    const r = anchor ? anchor.getBoundingClientRect() : boardWrap.getBoundingClientRect();
+    Object.assign(bannerEl.style, { left: `${Math.round(r.left)}px`, top: `${Math.round(r.top)}px`, width: `${Math.round(r.width)}px`, minHeight: `${Math.round(Math.max(48, anchor ? r.height : 56))}px` });
+  }
+  const onResize = () => { if (banner) placeBanner(); };
+  addEventListener('resize', onResize);
+
+  function openEvents() {
+    const list = events.slice(-5).reverse();
+    const ago = (ms) => { const s = Math.max(0, Math.round((Date.now() - ms) / 1000)); return s < 60 ? `vor ${s} s` : `vor ${Math.round(s / 60)} min`; };
+    sheet('Was ist passiert?',
+      list.length ? h('ol', { class: 'eventlist', data: { events: '' } }, ...list.map((e) => h('li', {}, h('span', { class: 'ev-t', text: e.text }), h('span', { class: 'ev-ago', text: ago(e.at) })))) : h('p', { class: 'muted', text: 'Noch nichts passiert.' }),
+      h('p', { class: 'muted small', text: `Die letzten 5 Ereignisse. Computer-Tempo: ${LEVEL_NAMES[level()]} (Menü → Computer-Tempo).` }));
+  }
+
+  // Schnapsen: eigene Stiche ansehen (nur die eigenen, erst hinter dem Sichtschutz)
+  function openStiche() {
+    const t = session.table;
+    if (!t || t.game !== 'schnapsen' || locked(t)) return;
+    const seat = viewer();
+    if (seat === null || seat === undefined) return;
+    const gs = shownOf(t).gs;
+    if (gs.opts && gs.opts.stiche === false) { toast('„Eigene Stiche ansehen“ ist aus (Turnierregel)'); return; }
+    const own = ownTricks(gs, seat);
+    if (!own) return;
+    if (stichSheet) stichSheet.close();
+    stichSheet = sheet('Deine Stiche', gameUi('schnapsen').stichBlatt(own, { seat, augenHilfe: !!(gs.opts && gs.opts.augenHilfe), atout: gs.atout, opp: nameOf(t, 1 - seat) }));
+    stichSheet.box.dataset.sheet = 'stiche';
   }
 
   function showWords() {
@@ -449,6 +618,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       const st = store.settings(); st.evalOn = !evalOn(); store.saveSettings(st); evalKey = ''; render({ kind: 'state' });
     }, 'eval-toggle'));
     if (t) items.push(item('Regeln', () => sheet('Regeln', gameUi(t.game).rules(t.opts)), 'rules'));
+    items.push(item('Was ist passiert? (letzte Ereignisse)', openEvents, 'events'));
+    items.push(item(`Computer-Tempo: ${LEVEL_NAMES[level()]}`, () => openSettings(), 'tempo'));
+    if (t && t.game === 'schnapsen' && viewer() !== null && viewer() !== undefined && !locked(t)) items.push(item('Deine Stiche ansehen', openStiche, 'stiche'));
     if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(shownOf(t), { item, share: shareText, sheet }));
     if (t && t.status === 'play' && session.mySeat !== null && gameUi(t.game).actions && (gameUi(t.game).hidden || !gameOf(t.game).draws)) {
       items.push(item(t.seats.length > 2 ? 'Platz dem Computer überlassen' : 'Aufgeben', () => confirmAct('Aufgeben', t.seats.length > 2 ? 'Der Computer spielt für dich weiter. Sicher?' : 'Wirklich aufgeben?', 'resign'), 'resign'));
@@ -461,12 +633,20 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const offChange = session.on('change', (t, info) => render(info));
   const offNet = session.on('net', () => { renderStatusPill(); if (session.table && lastTable) renderPlayers(session.table); if (!session.table) renderOverlay(null); });
   const offToast = session.on('toast', (text) => toast(text));
+  const offToastLog = onToast((text) => addEvent(text));
   render({ kind: 'start' });
 
   return {
     get view() { return view; },
     render,
     showWords,
-    destroy() { clearTimeout(reconnectTimer); offChange(); offNet(); offToast(); if (view) view.destroy(); }
+    // Tests: läuft gerade eine Zug-Animation bzw. wartet ein Stand?
+    busy: () => busyUntil > Date.now() || queue.length > 0,
+    events: () => events.slice(),
+    banner: () => (banner ? banner.text : null),
+    destroy() {
+      clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); removeEventListener('resize', onResize);
+      offChange(); offNet(); offToast(); offToastLog(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
+    }
   };
 }

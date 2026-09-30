@@ -2,7 +2,8 @@
 // erlaubte Züge beim Antippen, Schlagfolgen Sprung für Sprung, Pusten, Zug-Animation.
 // Tippen trifft das nächstgelegene dunkle Feld (Voronoi-Zelle ≈ 1,4 Felder breit → große Touch-Ziele auch auf 10×10).
 import { squareName } from './engine.js';
-import { s, ensureDefs, piece, place, animatePath, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, piece, place, animateSteps, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { OWN } from '../../tempo.js';
 
 const Q = 100;   // Feldgröße
 const R = 38;    // Steinradius
@@ -15,7 +16,7 @@ export function createBoard(host, { onMove, onHint }) {
   const gPieces = s('g', { class: 'pieces' });
   const gFx = s('g', { class: 'fx' });
   const gHints = s('g', { class: 'hints' });
-  svg.append(gBoard, gLast, gPieces, gFx, gHints);
+  svg.append(gBoard, gLast, gFx, gPieces, gHints);
   host.appendChild(svg);
 
   let n = 0, flip = false, table = null, legal = null, sel = null, prefix = [], hint = '';
@@ -199,7 +200,9 @@ export function createBoard(host, { onMove, onHint }) {
       if (!legal || legal !== prevLegal) { sel = null; prefix = []; }
       renderPieces(t.gs.board);
       renderLast();
+      // Zug ausspielen: Sprungkette Station für Station (mit Pause), geschlagene Steine verschwinden beim Überspringen
       if (info.kind === 'move' && info.move) {
+        const a = ctx.anim || OWN;
         const m = info.move;
         const prev = info.prevGs;
         if (m.puste !== undefined) {
@@ -207,11 +210,12 @@ export function createBoard(host, { onMove, onHint }) {
             const [x, y] = center(m.puste);
             const ghost = place(piece(prev.board[m.puste] > 0 ? 0 : 1, R, { king: Math.abs(prev.board[m.puste]) === 2 }), x, y);
             gFx.append(ghost);
-            fadeOut(ghost, 60);
+            fadeOut(ghost, 60, a.fade);
           }
         } else {
+          const hop = m.path.length > 1 ? a.hop : a.slide;
           const el = pieceAt(m.path[m.path.length - 1]);
-          if (el) animatePath(el, [m.from, ...m.path].map(center), m.cap.length ? 260 : 220);
+          if (el) animateSteps(el, [m.from, ...m.path].map(center), { hop, pause: a.pause, lift: m.cap.length > 0 });
           if (prev) {
             m.cap.forEach((c, k) => {
               const v = prev.board[c];
@@ -219,7 +223,7 @@ export function createBoard(host, { onMove, onHint }) {
               const [x, y] = center(c);
               const ghost = place(piece(v > 0 ? 0 : 1, R, { king: Math.abs(v) === 2 }), x, y);
               gFx.append(ghost);
-              fadeOut(ghost, 150 + k * 260);
+              fadeOut(ghost, k * (hop + a.pause) + hop / 2, a.fade);
             });
           }
         }

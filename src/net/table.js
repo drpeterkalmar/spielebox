@@ -16,8 +16,9 @@ export const TIMING = {
   heartbeat: 4000,   // Host meldet sich regelmäßig (Stand seq/epoch, Anwesenheit)
   hostGone: 45000,   // so lange kein Host → sitzender Spieler mit Zustand übernimmt (> 3 Relay-Herzschläge)
   moveRetry: 5000,   // unbestätigten Zug erneut senden
-  // Mindest-Denkzeit des Computers. Peter 29.09. abends: „Computer langsamere Zuggeschwindigkeit“ → 1500 ms
-  // (bis 29.09.: 450). A/B: ?botms=450. Tempo-Stufen (gemütlich/normal/flott) baut Job spielebox-n3.
+  // Mindest-Denkzeit des Computers, wenn kein botDelayFor gesetzt ist (Node-Tests: 0). Peter 29.09. abends:
+  // „Computer langsamere Zuggeschwindigkeit“ → 1500 ms (bis 29.09.: 450). A/B: ?botms=450.
+  // In der App setzt app.js session.botDelayFor aus der Einstellung „Computer-Tempo“ (src/tempo.js).
   botDelay: (() => { try { const v = parseInt(new URLSearchParams(globalThis.location?.search || '').get('botms'), 10); return v >= 0 ? v : 1500; } catch { return 1500; } })(),
   relayAfter: 12000, // wie NetLink: so lange ohne Direktweg zur wichtigen Gegenstelle → Relay zuschalten
   fairWait: 12000    // so lange auf Kettenglieder/Commits der Mitspieler warten, dann Host-Zufall (als ungeprüft markiert)

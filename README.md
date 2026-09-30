@@ -8,6 +8,12 @@ Handy zuerst (Hoch- und Querformat), als App installierbar (PWA), offline gegen 
 Jedes Spiel online über die drei Wörter, gegen den Computer (3 Stufen) oder an einem Gerät. Freie Plätze an Mehr-Personen-Tischen
 füllt der Computer. Unter dem Brett steht auf Wunsch „Wer gewinnt?“ (Zahl in der Einheit des Spiels ↔ Gewinnchance in %).
 
+**Gemütlich für Kinder:** Einstellungen → *Computer-Tempo* gemütlich (Standard, ~1,5–2 s Denkzeit), normal (~0,9 s) oder
+flott (0,45 s). Züge des Computers gleiten sichtbar, Sprungketten, Würfelzüge und die Blackjack-Bank laufen Schritt für
+Schritt, ein fertiger Schnapsen-Stich bleibt 2 s liegen. Wichtiges („Computer sagt 40 an“, „Schach!“, „Mühle – Computer
+nimmt einen Stein“, „Pasch!“) steht als Banner über der Gegnerleiste; die letzten 5 Ereignisse zeigt ein Tipp auf die
+Status-Zeile. Meldungen kommen nacheinander, stehen je mindestens 5 s, Antippen schließt. Alle Zeiten: `src/tempo.js`.
+
 ## Idee
 - **Tisch aufmachen:** Spiel wählen → die App zeigt drei Wörter, z. B. *Baum · Ball · Wolke*.
 - **Beitreten:** Der Mitspieler tippt die drei Wörter ein (Autovervollständigung, Reihenfolge egal, Tippfehler und
@@ -66,7 +72,9 @@ automatisches Remis (Patt, zu wenig Material, 50 Züge, dreifache Wiederholung),
 
 **Schnapsen** (österreichische Standardregel, de.wikipedia): 20 Blatt doppeldeutsch, Talon mit Atout, Ansagen 20/40,
 Austauschen, Zudrehen, Ausmelden ab 66 (1/2/3 Punkte), Bummerl bis 7, Bummerl-Tafel. Schalter: *weich/hart*
-(hart: bei einer Talonkarte kein Austauschen), *Schneider-Bummerl doppelt*, Partie auf *2 oder 3 Bummerl*.
+(hart: bei einer Talonkarte kein Austauschen), *Schneider-Bummerl doppelt*, Partie auf *2 oder 3 Bummerl*,
+*Eigene Stiche ansehen* (Standard an; Tipp auf den eigenen Stichstapel zeigt die eigenen Stiche mit Ausspieler und Ansagen,
+aus = Turnierregel) und *Augen-Hilfe* (Standard aus; Augensumme in Leiste und Stich-Blatt). Fremde Stiche bleiben verdeckt.
 
 **Backgammon:** Standardregeln inkl. Pflicht, beide Würfel zu nutzen (geht nur einer, der höhere), Pasch = 4 Züge,
 Bar zuerst, Abtragen erst mit allen Steinen im Heimfeld; Verdopplungswürfel (abschaltbar), Gammon ×2, Backgammon ×3.
@@ -86,7 +94,12 @@ strategy-games.de (deutsche Dame), FMJD (international), FIDE (Schach).
 Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm run build:lib`).
 - `npm test` – Node: Wortliste, Krypto, Relay-Kanal, Regelfälle aller Spiele, Tisch-Protokoll (auch verdeckte Karten,
   faire Würfel/Mischung, Mehr-Sitz-Tisch), Fair Play, evaluate, Zufalls-Schwarm mit Invarianten (Mühle/Dame/Schnapsen/
-  Backgammon/Blackjack 10 000 Partien, Halma 2 460, Schach 150 + Bot-Stufen); `npm test -- --schnell` ohne Schwarm.
+  Backgammon/Blackjack 10 000 Partien, Halma 2 460, Schach 150 + Bot-Stufen), Computer-Tempo und Ereignisse, Meldungs-
+  Warteschlange, Stich-Blatt; `npm test -- --schnell` ohne Schwarm.
+- `python3 tests/smoke_n3.py` – Browser (hoch/quer): Computer-Tempo „gemütlich“ (Dame-Kette Station für Station, Backgammon
+  Wurf + Teilzüge, Blackjack-Bank Karte für Karte, Denkzeit), Banner, Ereignis-Liste, Meldungs-Warteschlange, Einstellungen,
+  Stich-Blatt (genau die eigenen Karten, keine fremde im DOM/SVG), zu zweit mit Sichtschutz. Screenshots `tests/shots/n3/`.
+- Tests laufen ohne Denkzeit/Animation: `?tempo=test` (setzt `tests/util.py` automatisch), `?botms=450` = nur Denkzeit (A/B).
 - `python3 tests/smoke_n2.py` – Browser: neue Spiele per echtem Tipp (Pixel 7 hoch/quer, Desktop), Zoom-Schutz, „Wer gewinnt?“.
 - `python3 tests/e2e_n2.py [--relay]` – Netz-E2E: Schnapsen (Gast/Zuschauer sehen die Host-Karten nie), Backgammon (faire Würfel),
   Blackjack mit 3 Kontexten über die 3 Wörter.
