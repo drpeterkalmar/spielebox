@@ -102,6 +102,18 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
         }
         break;
       }
+      case 'schiffe': {
+        if (move.type === 'place') { ev(by, 'hat die Flotte aufgestellt', 'hast deine Flotte aufgestellt', false); break; }
+        const l = gs.last;
+        if (move.type !== 'shot' || !l || l.i !== move.i) break;
+        const cell = 'ABCDEFGHIJ'[Math.floor(move.i / 10)] + (move.i % 10 + 1);
+        const opp = 1 - by;
+        if (l.sunk !== null && l.sunk !== undefined) {
+          note(by, you(by) ? `Versenkt! (${cell})` : you(opp) ? `${name(by)} versenkt dein Schiff (${cell})!` : `${name(by)} versenkt ein Schiff (${cell})`, true);
+        } else if (l.hit) note(by, you(by) ? `Treffer auf ${cell}!` : you(opp) ? `${name(by)} trifft dein Schiff auf ${cell}!` : `${name(by)} trifft auf ${cell}`, true);
+        else note(by, you(by) ? `${cell}: Wasser` : `${name(by)} schießt auf ${cell} – Wasser`, false);
+        break;
+      }
       case 'halma':
         if (move.path && move.path.length >= 3) ev(by, `springt ${move.path.length}-mal`, `springst ${move.path.length}-mal`, false);
         break;

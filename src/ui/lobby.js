@@ -12,6 +12,8 @@ import { BUILD } from '../build.js';
 import { RULES as LUDO_RULES } from '../games/ludo/rules.js';
 import { rulesFromData } from './texts.js';
 RULES.ludo = () => rulesFromData(LUDO_RULES);
+import { RULES as SCHIFFE_RULES } from '../games/schiffe/rules.js';
+RULES.schiffe = () => rulesFromData(SCHIFFE_RULES);
 import { openSettings } from './settings.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -59,6 +61,13 @@ export function miniBoard(game) {
     d += '<path d="M42 8H58V42H92V58H58V92H42V58H8V42H42Z" fill="#f4e9d2" stroke="#5a3a1a" stroke-width="2"/>';
     corners.forEach(([x, y], k) => { d += `<circle cx="${x + 15}" cy="${y + 15}" r="8" fill="${col[k]}" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>`; });
     svg.innerHTML = d + '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/>';
+  } else if (game === 'schiffe') {
+    let d = '<rect width="100" height="100" rx="12" fill="#1e5d8c"/>';
+    for (let k = 1; k < 6; k++) d += `<path d="M${k * 16.6} 6V94M6 ${k * 16.6}H94" stroke="rgba(255,255,255,.25)" stroke-width="1.2"/>`;
+    d += '<rect x="12" y="20" width="44" height="13" rx="6.5" fill="#cfd6dc" stroke="#53606a" stroke-width="1.5"/>';
+    d += '<rect x="68" y="44" width="13" height="40" rx="6.5" fill="#cfd6dc" stroke="#53606a" stroke-width="1.5"/>';
+    d += '<circle cx="42" cy="26.5" r="6" fill="#e5483b"/><path d="M38 23l8 7M46 23l-8 7" stroke="#fff" stroke-width="2"/><circle cx="28" cy="66" r="3" fill="#fff"/><circle cx="50" cy="80" r="3" fill="#fff"/>';
+    svg.innerHTML = d;
   } else if (game === 'schach') {
     let sq = '';
     for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;

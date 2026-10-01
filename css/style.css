@@ -507,3 +507,44 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
   .wg-sheet { flex: 1; }
   .wg-cat { min-height: 48px; font-size: 13.5px; }
 }
+
+/* ---------- n4: Schiffe versenken ---------- */
+.table-screen[data-game='schiffe'] .board-wrap { aspect-ratio: 1000 / 1300; }
+@media (orientation: landscape) {
+  .table-screen[data-game='schiffe'] .tmain { width: min((100dvh - var(--safe-t) - var(--safe-b)) * 1.5, 70vw); }
+  .table-screen[data-game='schiffe'] .board-wrap { aspect-ratio: auto; }
+}
+@media (orientation: portrait) {
+  .table-screen[data-game='schiffe'] .tmain .pbar { min-height: 44px; padding: 2px 10px; margin: 2px; }
+  .table-screen[data-game='schiffe'] .hint { min-height: 0; font-size: 13.5px; }
+}
+.board .sv-frame { fill: #5d2a18; }
+.board .sv-sea { fill: #2a6f9e; }
+.board .sv-line { stroke: rgba(255,255,255,.28); stroke-width: 2; }
+.board .sv-lab { font: 700 30px system-ui, sans-serif; fill: rgba(255, 245, 225, .85); text-anchor: middle; }
+.board .sv-ship { stroke-width: 3; }
+.board .sv-ship.own { fill: #c9d1d8; stroke: #46525c; }
+.board .sv-ship.sunk { fill: #5b4a44; stroke: #e5483b; stroke-width: 5; }
+.board .sv-ship.pick { fill: #ffe9a8; stroke: #d39b12; stroke-width: 6; }
+.board .sv-ship.bad { fill: #f2a097; stroke: #b8261a; stroke-width: 5; }
+.board .sv-hit { fill: #e5483b; stroke: #fff3c4; stroke-width: 3; }
+.board .sv-hit.sunk { fill: #8a2018; }
+.board .sv-x { stroke: #fff; stroke-width: 5; stroke-linecap: round; }
+.board .sv-miss { fill: #f3f7fa; }
+.board .sv-water { fill: rgba(255,255,255,.45); }
+.board .sv-last { fill: none; stroke: #ffd24a; stroke-width: 5; }
+.board .sv-aim circle { fill: rgba(255, 210, 74, .25); stroke: #ffd24a; stroke-width: 6; }
+.board .sv-aim path { stroke: #ffd24a; stroke-width: 6; stroke-linecap: round; }
+.board .sv-boom { fill: rgba(255, 170, 40, .7); }
+.board .sv-splash { fill: none; stroke: #fff; stroke-width: 6; }
+.board .sv-word { font: 900 120px system-ui, sans-serif; fill: #fff; text-anchor: middle; paint-order: stroke; stroke: rgba(10, 30, 60, .7); stroke-width: 10; pointer-events: none; }
+.board .sv-word.hit { fill: #ffd24a; }
+.board .sv-word.small { font-size: 64px; stroke-width: 6; }
+.board .sv-title { font: 800 30px system-ui, sans-serif; fill: #fbf3e4; }
+.board .sv-title.mid, .board .sv-sub.mid { text-anchor: middle; }
+.board .sv-sub { font: 600 26px system-ui, sans-serif; fill: rgba(251,243,228,.8); }
+.board .sv-ico { fill: #c9d1d8; stroke: #46525c; stroke-width: 2; }
+.board .sv-ico.gone { fill: #8a2018; stroke: #e5483b; opacity: .7; }
+.handoff-note { font-weight: 750; color: #7a3a10; }
+/* Hochformat: Spalte nie breiter als der Bildschirm (hohe Bretter wie Schiffe versenken schoben sie sonst auf) */
+@media (orientation: portrait) { .table-screen { grid-template-columns: minmax(0, 1fr); } }

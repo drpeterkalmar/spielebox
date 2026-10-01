@@ -317,6 +317,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       const name = t.seats[turn] ? t.seats[turn].name : `Spieler ${turn + 1}`;
       overlay.append(h('div', { class: 'ov-card', data: { overlay: 'handoff' } },
         h('h2', { text: `Gerät an ${name} weitergeben` }),
+        gameUi(t.game).handoff && gameUi(t.game).handoff(t) ? h('p', { class: 'handoff-note', text: gameUi(t.game).handoff(t) }) : null,
         h('p', { text: 'Die Karten bleiben verdeckt, bis du bereit bist.' }),
         h('button', { class: 'btn primary big', data: { act: 'unlock' }, on: { click: () => { unlocked = turn; render({ kind: 'state' }); } } }, `Ich bin ${name} – Karten zeigen`)));
     } else if (!t) {

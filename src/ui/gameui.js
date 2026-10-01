@@ -23,6 +23,9 @@ import { rulesFromData } from './texts.js';
 import { createBoard as ludoBoard } from '../games/ludo/view.js';
 import * as LD from '../games/ludo/engine.js';
 import { RULES as LUDO_RULES } from '../games/ludo/rules.js';
+import { createBoard as schiffeBoard } from '../games/schiffe/view.js';
+import * as SV from '../games/schiffe/engine.js';
+import { RULES as SCHIFFE_RULES } from '../games/schiffe/rules.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -321,6 +324,52 @@ UI.ludo = {
   actions(t, legal, submit) {
     const roll = legal.find((m) => m.type === 'roll');
     return roll ? [h('button', { class: 'btn primary', data: { act: 'roll' }, on: { click: () => submit(roll) } }, 'Würfeln')] : [];
+  }
+};
+
+function shipIcon(seat) {
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('class', 'stone-ico');
+  svg.innerHTML = `<circle cx="10" cy="10" r="9" fill="${seat ? '#c8582f' : '#2f6fd6'}" stroke="rgba(0,0,0,.5)"/><path d="M4 11h12l-2 4H6z M9 5v6 M9 5l4 4H9" fill="#fff" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>`;
+  return svg;
+}
+
+UI.schiffe = {
+  board: schiffeBoard,
+  icon: shipIcon,
+  rules: (o) => rulesFromData(SCHIFFE_RULES, o),
+  hidden: true,
+  sub(t, seat) {
+    const gs = t.gs;
+    if (gs.phase === 'place') return gs.turn > seat ? 'Flotte steht' : gs.turn === seat ? 'stellt die Flotte auf' : 'wartet';
+    const all = SV.fleetOf(gs.opts).length;
+    const left = all - (gs.sunk[1 - seat] || []).length;
+    return `${left} von ${all} Schiffen · ${SV.remaining(gs, seat)} Felder heil`;
+  },
+  status(t, seat) {
+    const gs = t.gs;
+    if (gs.phase === 'place' && gs.turn === seat) return 'Stell deine Flotte auf';
+    if (gs.phase === 'shoot' && gs.turn === seat) return gs.last && gs.last.seat === seat && gs.last.hit ? 'Treffer – du darfst nochmal!' : 'Du bist dran: schießen';
+    return null;
+  },
+  // Sichtschutz zu zweit: was zuletzt passiert ist (der Schütze sieht sein Ergebnis sonst nicht mehr)
+  handoff(t) {
+    const l = t.last;
+    return l && l.m && l.m.type === 'shot' && l.d ? `${t.seats[l.by] ? t.seats[l.by].name : 'Spieler ' + (l.by + 1)}: ${l.d}` : null;
+  },
+  actions(t, legal, submit, view) {
+    if (!view) return [];
+    const b = (label, act, fn, primary, disabled) => Object.assign(h('button', { class: 'btn' + (primary ? ' primary' : ''), data: { act }, on: { click: fn } }, label), { disabled: !!disabled });
+    if (view.placing()) {
+      const out = [b('Neu mischen', 'shuffle', () => view.shuffle())];
+      if (view.picked() !== null) out.push(b('Drehen', 'rotate', () => view.rotate()));
+      out.push(b('Fertig', 'place', () => view.done(), true, !view.fleetOk()));
+      return out;
+    }
+    const a = view.aim();
+    if (a !== null) return [b(`Feuer auf ${SV.cellName(a)}!`, 'fire', () => view.fire(), true)];
+    return [];
   }
 };
 

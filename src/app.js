@@ -251,6 +251,7 @@ window.__box = {
   setName(name) { const p = store.profile(); p.name = name; store.saveProfile(p); },
   me: () => store.profile(),
   target: (i) => cur.screen.view.target(i),
+  view: () => cur.screen.view,
   busy: () => !!(cur && cur.screen.busy()),
   events: () => (cur ? cur.screen.events() : []),
   banner: () => (cur ? cur.screen.banner() : null),

@@ -130,7 +130,7 @@ export function helpNet() {
       'Der Gastgeber ist Schiedsrichter: Sein Gerät prüft jeden Zug. Fällt er aus, übernimmt der Mitspieler.',
       'Tab zu, Akku leer, neu geladen? Einfach dieselben drei Wörter eingeben (oder unter „Weiterspielen“ antippen) – die Partie geht weiter.',
       'Wer keinen Platz mehr bekommt, schaut zu. Freie Plätze kann der Gastgeber mit dem Computer füllen.',
-      'Kartenspiele: Jeder bekommt nur seine eigenen Karten geschickt, Zuschauer sehen keine Hand. Ehrliche Grenze: Der Browser des Gastgebers kennt alle Karten (wer technisch versiert ist, könnte sie dort auslesen); läuft die Verbindung über ein Relay, sind die Nachrichten mit einem gemeinsamen Schlüssel aus den 3 Wörtern verschlüsselt. Gedacht für Familie und Freunde.',
+      'Kartenspiele und Schiffe versenken: Jeder bekommt nur seine eigenen Karten bzw. seine eigene Flotte geschickt (fremde Schiffe erst, wenn sie versenkt sind), Zuschauer sehen keine Hand und keine Flotte. Ehrliche Grenze: Der Browser des Gastgebers kennt alle Karten (wer technisch versiert ist, könnte sie dort auslesen); läuft die Verbindung über ein Relay, sind die Nachrichten mit einem gemeinsamen Schlüssel aus den 3 Wörtern verschlüsselt. Gedacht für Familie und Freunde.',
       'Fair gemischt und gewürfelt: Jeder Spieler legt sich zu Beginn auf eine geheime Zahlenkette fest. Karten und Würfel ergeben sich aus den Beiträgen aller – niemand, auch nicht der Gastgeber, kann sie steuern. Nach jedem Spiel prüft jedes Gerät das nach (Anzeige „✓ fair gemischt“).'
     ));
 }

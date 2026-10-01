@@ -497,5 +497,47 @@ await ok('Ludo online: 4 Sitze, 2 Gäste + Computer, ein fairer Würfel je Wurf,
   h.close(); a.close(); b.close();
 });
 
+await ok('Schiffe versenken online: Gast sieht die Flotte des Hosts nie (Zustand, letzter Zug, Verlauf), bis sie versenkt ist', async () => {
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'schiffe', host: { pid: 'H', name: 'Peter' } }) });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play', 3000, 'Start');
+  const sv = gameOf('schiffe').engine;
+  const rng = mulberry32(11);
+  const hostFleet = sv.randomFleet(h.table.opts, rng);
+  assert.ok(h.submitMove({ type: 'place', ships: hostFleet }).ok);
+  await until(() => g.table.nmoves === 1, 3000, 'Host hat gesetzt');
+  const hostCells = new Set(hostFleet.flatMap((x) => sv.cells(x)));
+  const leak = () => {
+    const t = g.table;
+    if (t.gs.fleets[0] !== null && t.gs.phase !== 'over') return 'Flotte im Zustand';
+    for (const e of [t.last, ...t.hist]) if (e && e.m && e.m.ships && e.by === 0) return 'Flotte im Verlauf';
+    // offen dürfen nur versenkte Schiffe sein
+    const shown = new Set((t.gs.revealed ? t.gs.revealed[0] : []).flatMap((x) => sv.cells(x)));
+    const hits = new Set(t.gs.shots[1].filter((x) => x.hit).map((x) => x.i));
+    for (const i of shown) if (!hits.has(i)) return 'versenktes Schiff ohne Treffer';
+    return null;
+  };
+  assert.equal(leak(), null);
+  assert.ok(g.submitMove({ type: 'place', ships: sv.randomFleet(g.table.opts, rng) }).ok);
+  await until(() => h.table.gs.phase === 'shoot', 3000, 'beide gesetzt');
+  let shots = 0;
+  for (let i = 0; i < 400 && h.table.status === 'play'; i++) {
+    const turn = sv.currentPlayer(h.table.gs);
+    const who = turn === 0 ? h : g;
+    if (who.pendingMove || who.table.seq !== h.table.seq) { await sleep(3); i--; continue; }
+    const m = pick(rng, sv.legalMoves(who.table.gs));
+    const n = h.table.nmoves;
+    assert.ok(who.submitMove(m).ok);
+    await until(() => h.table.nmoves === n + 1 && g.table.seq === h.table.seq, 3000, 'Schuss verteilt');
+    if (h.table.status === 'play') assert.equal(leak(), null, 'nach Schuss ' + shots);
+    shots++;
+  }
+  assert.equal(h.table.status, 'over');
+  assert.ok(g.table.gs.fleets[0], 'nach dem Ende sind beide Flotten offen');
+  console.log(`   ${shots} Schüsse, ${h.table.result.reason}; Gast sah bis zum Ende nur versenkte Schiffe (${hostCells.size} Felder verdeckt)`);
+  h.close(); g.close();
+});
+
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
 process.exit(fails ? 1 : 0);

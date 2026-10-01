@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = 'b2e3a910a0';
+const VERSION = 'a4eaa4b1b9';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -141,6 +141,10 @@ const ASSETS = [
   'src/games/schach/bot.js',
   'src/games/schach/engine.js',
   'src/games/schach/view.js',
+  'src/games/schiffe/bot.js',
+  'src/games/schiffe/engine.js',
+  'src/games/schiffe/rules.js',
+  'src/games/schiffe/view.js',
   'src/games/schnapsen/bot.js',
   'src/games/schnapsen/engine.js',
   'src/games/schnapsen/view.js',

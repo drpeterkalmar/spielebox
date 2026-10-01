@@ -86,6 +86,8 @@ export function animMs(game, move, prevGs, gs, a) {
       // eigene Teilzüge sind beim Tippen schon geglitten → nicht noch einmal
       if (move.type === 'play' && move.steps && move.steps.length && !a.own) return move.steps.length * a.slide + (move.steps.length - 1) * a.pause;
       return 0;
+    case 'schiffe':
+      return move.type === 'shot' && a.slide > 0 ? a.slide + 700 : 0;
     case 'reversi':
       return Number.isInteger(move.i) ? reversiMs(a, gs, move) : 0;
     case 'vier': {

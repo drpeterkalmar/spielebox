@@ -99,6 +99,73 @@ def ludo(P, form):
     P.shot(f'ludo_zuzweit_{form}', 'n4')
 
 
+def schiffe(P, form):
+    P.ev("__box.local('bot', 'schiffe', {}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'schiffe' and my_turn(P), 15, 'Schiffe: aufstellen')
+    time.sleep(0.3)
+    check_screen(P, f'{form} Schiffe aufstellen', target=False)
+    m = P.metrics()
+    print(f'    Feld {m["cellPx"]:.1f} px (Schuss mit Fadenkreuz + zweitem Tipp)')
+    P.tap('[data-act="shuffle"]')
+    # ein Schiff verschieben: Schiff antippen, freies Feld antippen (eins, wo es passt)
+    fl = P.ev("__box.view().fleet()")
+    sh = fl[-1]
+    occ = set()
+    for x in fl:
+        for j in range(x['len']):
+            r, c0 = (x['r'] + j, x['c']) if x['dir'] == 'v' else (x['r'], x['c'] + j)
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1): occ.add((r + dr) * 10 + c0 + dc)
+    free = next(i for i in range(100) if all(((i // 10) + (j if sh['dir'] == 'v' else 0)) * 10 + (i % 10) + (j if sh['dir'] == 'h' else 0) not in occ and (i % 10) + (j if sh['dir'] == 'h' else 0) < 10 and (i // 10) + (j if sh['dir'] == 'v' else 0) < 10 for j in range(sh['len'])))
+    tap_target(P, sh['r'] * 10 + sh['c'])
+    tap_target(P, free)
+    nf = P.ev("__box.view().fleet()")[-1]
+    c.ok(nf['r'] * 10 + nf['c'] == free and P.ev("__box.view().fleetOk()"), f'{form}: Schiff per Tipp verschoben ({sh["r"]},{sh["c"]} → {nf["r"]},{nf["c"]}), Flotte gültig')
+    P.tap('[data-act="rotate"]')
+    rot = P.ev("__box.view().fleet()")[-1]['dir']
+    c.ok(rot != sh['dir'], f'{form}: „Drehen“ dreht das gewählte Schiff ({sh["dir"]} → {rot})')
+    if not P.ev("__box.view().fleetOk()"): P.tap('[data-act="shuffle"]')
+    # ein Schiff verschieben: Schiff antippen, leeres Feld antippen
+    P.shot(f'schiffe_aufstellen_{form}', 'n4')
+    P.tap('[data-act="place"]')
+    wait(lambda: P.ev("__box.table().gs.phase") == 'shoot' and my_turn(P), 15, 'Computer hat aufgestellt, ich schieße')
+    dom = P.ev("document.querySelectorAll('.board-schiffe .sv-ship').length")
+    c.ok(dom == 5, f'{form}: eigene Flotte gesetzt, im Bild nur die eigenen 5 Schiffe ({dom})')
+    time.sleep(0.2)
+    check_screen(P, f'{form} Schiffe schießen', target=False)
+    for k, i in enumerate([44, 45, 54, 55, 22, 77]):
+        wait(lambda: my_turn(P) or tbl(P)['status'] != 'play', 20, 'wieder dran')
+        if tbl(P)['status'] != 'play': break
+        n = len(gs(P)['shots'][0])
+        tap_target(P, i)
+        if k == 0:
+            acts = P.ev("[...document.querySelectorAll('.actions [data-act]')].map(e => e.dataset.act)")
+            c.ok('fire' in acts, f'{form}: Fadenkreuz gesetzt, Knopf „Feuer“ ({acts})')
+            P.tap('[data-act="fire"]')
+        else:
+            tap_target(P, i)
+        wait(lambda: len(gs(P)['shots'][0]) > n, 5, 'Schuss')
+    c.ok(len(gs(P)['shots'][0]) >= 4, f'{form}: {len(gs(P)["shots"][0])} Schüsse per Tipp, Computer schießt zurück ({len(gs(P)["shots"][1])})')
+    time.sleep(0.4)
+    P.shot(f'schiffe_{form}', 'n4')
+    # zu zweit an einem Gerät: Sichtschutz zwischen den Zügen
+    P.ev("__box.local('hotseat', 'schiffe', {})")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'schiffe' and P.ev("!!document.querySelector('[data-act=unlock]')"), 10, 'Sichtschutz')
+    for k in range(2):
+        P.tap('[data-act="unlock"]')
+        wait(lambda: P.ev("!!document.querySelector('[data-act=place]')"), 5, 'aufstellen')
+        P.tap('[data-act="place"]')
+        time.sleep(0.3)
+    wait(lambda: P.ev("!!document.querySelector('[data-act=unlock]')"), 5, 'Sichtschutz vor dem Schießen')
+    P.tap('[data-act="unlock"]')
+    time.sleep(0.2)
+    tap_target(P, 33); tap_target(P, 33)
+    wait(lambda: P.ev("!!document.querySelector('.handoff-note')"), 5, 'Sichtschutz mit Ergebnis')
+    note = P.ev("document.querySelector('.handoff-note').textContent")
+    c.ok('D4' in note, f'{form}: zu zweit – Sichtschutz zeigt das Ergebnis „{note}“')
+    P.shot(f'schiffe_zuzweit_{form}', 'n4')
+
+
 with Server() as srv, sync_playwright() as pw:
     b = launch(pw)
     for form in forms:
