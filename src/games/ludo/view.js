@@ -116,8 +116,11 @@ export function createBoard(host, { onMove, onHint }) {
     if (!value) grp.append(s('text', { x, y: y + 14, class: 'ld-die-q', text: canRoll ? 'Tipp' : '?' }));
     if (gs.phase === 'roll' && gs.tries > 0 && mayRollThrice(gs)) grp.append(s('text', { x, y: y + 100, class: 'ld-tries', text: `Versuch ${gs.tries + 1} von 3` }));
     gDie.append(grp);
-    const key = JSON.stringify([gs.ply, lr && lr.seat, lr && lr.value, gs.phase]);
-    if (value && key !== lastDieKey && anim.dice > 0 && grp.animate) {
+    // nur ein frischer Wurf wird animiert – nicht das Ziehen danach (lastRoll.moved) und nicht der alte Wert,
+    // der während 'rolling' noch stehen bleibt. Schlüssel = Wurf (ply des Wurfs + Sitz + Augen).
+    const fresh = !!(lr && !lr.moved && gs.phase !== 'rolling');
+    const key = fresh ? JSON.stringify([gs.ply, lr.seat, lr.value]) : lastDieKey;
+    if (fresh && value && key !== lastDieKey && anim.dice > 0 && grp.animate) {
       grp.style.transformBox = 'fill-box';
       grp.style.transformOrigin = 'center';
       grp.animate([{ transform: 'rotate(-30deg) scale(.6)', opacity: 0.2 }, { transform: 'rotate(12deg) scale(1.1)', opacity: 1, offset: 0.7 }, { transform: 'none' }], { duration: anim.dice, easing: 'ease-out' });
