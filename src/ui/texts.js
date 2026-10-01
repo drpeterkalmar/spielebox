@@ -150,3 +150,18 @@ export function credits() {
     ),
     h('p', {}, 'Alle Details stehen in ', h('a', { href: 'LICENSES.md', target: '_blank', rel: 'noopener', text: 'LICENSES.md' }), '.'));
 }
+
+// Regeln der n4-Spiele aus den Daten in src/games/<id>/rules.js ({ title, source, items, options })
+export function rulesFromData(R, opts = null) {
+  if (!R) return h('div', { class: 'rules' });
+  const optItems = Object.entries(R.options || {}).map(([k, t]) => {
+    const on = opts && typeof opts[k] === 'boolean' ? (opts[k] ? ' (an)' : ' (aus)') : '';
+    return `${t}${on}`;
+  });
+  return h('div', { class: 'rules' },
+    h('h3', { text: R.title }),
+    ul(...R.items),
+    optItems.length ? h('h4', { text: 'Schalter (Hausregeln)' }) : null,
+    optItems.length ? ul(...optItems) : null,
+    R.source ? h('p', { class: 'muted small', text: `Quelle: ${R.source}` }) : null);
+}

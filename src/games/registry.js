@@ -7,6 +7,7 @@ import * as schnapsen from './schnapsen/engine.js';
 import * as backgammon from './backgammon/engine.js';
 import * as blackjack from './blackjack/engine.js';
 import * as halma from './halma/engine.js';
+import * as ludo from './ludo/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -109,12 +110,27 @@ export const GAMES = {
       { key: 'players', type: 'choice', label: 'Spieler', choices: [2, 3, 4, 6].map((n) => ({ value: n, label: String(n) })), dflt: 2 }
     ],
     variantName: (o) => `${halma.normalizeOptions(o).players} Spieler`
+  },
+  ludo: {
+    id: 'ludo',
+    title: 'Ludo',
+    engine: ludo,
+    blurb: '2–4 Spieler, mit 6 raus, rauswerfen',
+    seats: (o) => o.players,
+    options: [
+      { key: 'players', type: 'choice', label: 'Spieler', choices: [2, 3, 4].map((n) => ({ value: n, label: String(n) })), dflt: 4 },
+      { key: 'dreimal', type: 'switch', label: '3× würfeln', sub: 'Keine Figur auf der Bahn: dreimal würfeln für eine 6', dflt: true },
+      { key: 'schlagpflicht', type: 'switch', label: 'Schlagpflicht', sub: 'Wer schlagen kann, muss schlagen' },
+      { key: 'startfigur', type: 'switch', label: 'Eine Figur startet draußen', sub: 'Wie in der Anleitung: eine Figur steht schon auf dem Startfeld', dflt: true },
+      { key: 'zielspringen', type: 'switch', label: 'Im Ziel überspringen', sub: 'Aus: Im Ziel darf keine Figur übersprungen werden', dflt: true }
+    ],
+    variantName: (o) => { const x = ludo.normalizeOptions(o); return [`${x.players} Spieler`, x.dreimal ? '3× würfeln' : '', x.schlagpflicht ? 'Schlagpflicht' : ''].filter(Boolean).join(' · '); }
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo];
 // in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
-export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma']);
+export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo']);
 
 // Sitzanzahl eines Spiels (fest oder aus den Optionen, z. B. Blackjack 2–6)
 export function seatCount(g, opts) {

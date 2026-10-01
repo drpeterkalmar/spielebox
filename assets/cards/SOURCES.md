@@ -1,6 +1,6 @@
 # Quellen und Lizenzen der Spielkarten-Grafiken
 
-## `de/` – Doppeldeutsche Karten (tschechisches Bild, 20 Schnapskarten)
+## `de/` – Doppeldeutsche Karten (tschechisches Bild, 32 Karten)
 
 Ausgeschnitten, entzerrt und farbkorrigiert aus vier Fotos auf Wikimedia Commons
 (Skript: `tools/cards/crop_de.py`, Ecken: `tools/cards/corners.json`):
@@ -21,7 +21,12 @@ für alle vier Dateien identisch:
 - DateTimeOriginal: 2011-11-20
 
 Dateischema: `de/<Farbe><Rang>.webp` (240 px breit) und `de/<Farbe><Rang>@2x.webp` (480 px),
-Farbe H/S/L/E, Rang A (Daus), Z (Zehner), K (König), O (Ober), U (Unter).
+Farbe H/S/L/E, Rang A (Daus), Z (Zehner), K (König), O (Ober), U (Unter),
+9 (Neuner), 8 (Achter), 7 (Siebener).
+
+Die 20 Schnapskarten (A, Z, K, O, U) stammen aus der ersten Abnahme (2026-09-29);
+Neuner, Achter und Siebener (12 Karten, z. B. für Mau-Mau) wurden 2026-10-01 aus
+denselben vier Fotos nachgerüstet (`crop_de.py --only 9,8,7`, gleiche Quelle und Lizenz).
 
 ## `fr/` – Französische Karten (52 Karten, Blackjack)
 

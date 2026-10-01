@@ -6,10 +6,11 @@ import { chooseMove as schnapsen } from './games/schnapsen/bot.js';
 import { chooseMove as backgammon } from './games/backgammon/bot.js';
 import { chooseMove as blackjack } from './games/blackjack/bot.js';
 import { chooseMove as halma } from './games/halma/bot.js';
+import { chooseMove as ludo } from './games/ludo/bot.js';
 
 import { evalPosition } from './evalpos.js';
 
-const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma };
+const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma, ludo };
 const TIME = { 1: 150, 2: 400, 3: 1200 };
 
 self.onmessage = (e) => {

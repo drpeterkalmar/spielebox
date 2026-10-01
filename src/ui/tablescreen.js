@@ -176,7 +176,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     el.className = `pbar ${el.classList.contains('top') ? 'top' : 'bottom'}${active ? ' active' : ''}`;
     el.dataset.seat = seat;
     el.append(
-      gameUi(t.game).icon(seat),
+      gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
         h('div', { class: 'pb-name' }, seatLabel(t, seat), !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
         h('div', { class: 'pb-sub', text: sub })),
@@ -189,7 +189,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const active = t.status === 'play' && turnOf(t) === seat;
     const here = mode !== 'online' || !s || s.bot || s.pid === session.me.pid || isHere(s.pid);
     return h('div', { class: 'pchip' + (active ? ' active' : ''), data: { seat } },
-      gameUi(t.game).icon(seat),
+      gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
         h('div', { class: 'pb-name' }, seatLabel(t, seat), !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
         h('div', { class: 'pb-sub', text: s || t.status !== 'wait' ? gameUi(t.game).sub(shownOf(t), seat, viewer()) : 'Platz frei' })));
@@ -302,7 +302,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     clear(movesEl);
     const first = t.nmoves - t.hist.length;
     t.hist.forEach((e, k) => {
-      movesEl.appendChild(h('li', { class: 'mv mv-' + e.by, value: first + k + 1 }, gameUi(t.game).icon(e.by), e.d));
+      movesEl.appendChild(h('li', { class: 'mv mv-' + e.by, value: first + k + 1 }, gameUi(t.game).icon(e.by, t), e.d));
     });
     movesEl.scrollTop = movesEl.scrollHeight;
   }
@@ -568,7 +568,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const p = Math.max(0, Math.min(1, evalRes.p));
     evalBar.firstChild.style.height = `${(p * 100).toFixed(1)}%`;
     const x = evalRes.x;
-    const num = Math.abs(x) >= 99 ? (x > 0 ? 'Matt in Sicht' : 'Matt droht') : `${x > 0 ? '+' : x < 0 ? '−' : '±'}${Math.abs(x).toFixed(cfg.digits).replace('.', ',')} ${cfg.unit}`;
+    const ax = Math.abs(x).toFixed(cfg.digits), zero = Number(ax) === 0;   // −0,3 → „±0“, nicht „−0“
+    const num = Math.abs(x) >= 99 ? (cfg.win ? (x > 0 ? cfg.win[0] : cfg.win[1]) : x > 0 ? 'Matt in Sicht' : 'Matt droht') : `${zero ? '±' : x > 0 ? '+' : '−'}${ax.replace('.', ',')} ${cfg.unit}`;
     const pct = `${Math.round(p * 100)} % Gewinnchance`;
     evalBtn.textContent = `Wer gewinnt? ${store.settings().evalMode === 'pct' ? pct : num}`;
     evalBtn.title = 'Antippen: Zahl ↔ Prozent';

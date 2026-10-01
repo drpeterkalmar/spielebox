@@ -9,6 +9,9 @@ import { rulesMuehle, rulesDame, rulesSchach, rulesSchnapsen, rulesBackgammon, r
 const RULES = { muehle: rulesMuehle, dame: rulesDame, schach: rulesSchach, schnapsen: rulesSchnapsen, backgammon: rulesBackgammon, blackjack: rulesBlackjack, halma: rulesHalma };
 const liveGames = () => GAME_LIST.filter((g) => LIVE.has(g.id) || /[?&]alle/.test(location.search));
 import { BUILD } from '../build.js';
+import { RULES as LUDO_RULES } from '../games/ludo/rules.js';
+import { rulesFromData } from './texts.js';
+RULES.ludo = () => rulesFromData(LUDO_RULES);
 import { openSettings } from './settings.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -48,6 +51,14 @@ export function miniBoard(game) {
       for (let j = 0; j < 3; j++) dots += `<circle cx="${50 + Math.cos(a) * (28 + j * 6)}" cy="${50 + Math.sin(a) * (28 + j * 6)}" r="4" fill="${col[k]}"/>`;
     }
     svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/><path d="M50 6 L62 30 L88 30 L74 50 L88 70 L62 70 L50 94 L38 70 L12 70 L26 50 L12 30 L38 30Z" fill="rgba(90,55,25,.25)" stroke="#5a3a1a" stroke-width="1.5"/>' + dots;
+  } else if (game === 'ludo') {
+    const col = ['#d8453b', '#2f6fd6', '#2e9e57', '#e0b12c'];
+    let d = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>';
+    const corners = [[8, 62], [8, 8], [62, 8], [62, 62]];
+    corners.forEach(([x, y], k) => { d += `<rect x="${x}" y="${y}" width="30" height="30" rx="7" fill="${col[k]}" opacity=".35"/>`; });
+    d += '<path d="M42 8H58V42H92V58H58V92H42V58H8V42H42Z" fill="#f4e9d2" stroke="#5a3a1a" stroke-width="2"/>';
+    corners.forEach(([x, y], k) => { d += `<circle cx="${x + 15}" cy="${y + 15}" r="8" fill="${col[k]}" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>`; });
+    svg.innerHTML = d + '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/>';
   } else if (game === 'schach') {
     let sq = '';
     for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;
@@ -111,7 +122,9 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
       body.push(toggle(o.label, o.sub, !!opts[o.key], (v) => { opts[o.key] = v; }, o.key));
     }
   }
-  if (g.colors) body.push(segmented('Du spielst', g.id === 'backgammon' ? COLORS : COLORS, color, (v) => { color = v; }));
+  // Farbnamen je Spiel (Vier in einer Reihe: Rot/Gelb, Reversi: Schwarz/Weiß) – Wert bleibt Sitz 0 / Sitz 1
+  const colorItems = g.colorNames ? [{ v: 'weiss', t: g.colorNames[0] }, { v: 'schwarz', t: g.colorNames[1] }, COLORS[2]] : COLORS;
+  if (g.colors) body.push(segmented('Du spielst', colorItems, color, (v) => { color = v; }));
   const sh = sheet(title || g.title, ...body);
   const go = (fn) => () => { remember(); sh.close(); fn(); };
   sh.body.append(

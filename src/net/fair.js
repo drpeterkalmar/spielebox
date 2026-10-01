@@ -101,9 +101,10 @@ function uniform(next, n) {
   }
 }
 
-export function diceFrom(h) {
+// n Würfel (Standard 2 wie Backgammon; Ludo 1, Würfelglück bis 5)
+export function diceFrom(h, n = 2) {
   const next = byteStream(h);
-  return [uniform(next, 6) + 1, uniform(next, 6) + 1];
+  return Array.from({ length: n }, () => uniform(next, 6) + 1);
 }
 
 export function permFrom(h, n) {
@@ -118,7 +119,7 @@ export function permFrom(h, n) {
 
 // Wert eines Zufallsereignisses aus dem Mix-Hash
 export function valueFor(chance, h) {
-  if (chance.kind === 'dice') return diceFrom(h);
+  if (chance.kind === 'dice') return diceFrom(h, chance.n || 2);
   if (chance.kind === 'shuffle') return permFrom(h, chance.n);
   throw new Error('Unbekanntes Zufallsereignis ' + chance.kind);
 }

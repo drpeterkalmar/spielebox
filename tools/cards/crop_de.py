@@ -13,7 +13,10 @@ Ablauf (reproduzierbar):
      Rahmenlinie sauber in Papierfarbe, runde Ecken als Alpha.
   4. Export WebP 240 px und @2x 480 px nach assets/cards/de/, Kontaktbogen.
 
-Aufruf:  tools/cards/.venv/bin/python tools/cards/crop_de.py [--redetect]
+Aufruf:  tools/cards/.venv/bin/python tools/cards/crop_de.py [--redetect] [--only 9,8,7]
+  --only R,R,..  schreibt nur die WebP-Dateien dieser Raenge (Kontaktbogen
+                 enthaelt trotzdem alle 32 Karten). Damit bleiben bereits
+                 abgenommene Karten bytegleich.
 """
 import json, sys, os, urllib.parse, urllib.request
 from pathlib import Path
@@ -37,33 +40,51 @@ FILES = {  # Farbe -> Commons-Dateiname
 
 # Grobe Ecken der Rahmenlinie (TL, TR, BR, BL) in Vorschau-Koordinaten
 # (Vorschau = Foto auf 1400 px Breite skaliert). Anordnung in allen vier
-# Fotos: obere Reihe Daus, Koenig, Ober, Unter; unten links der Zehner.
+# Fotos: obere Reihe Daus, Koenig, Ober, Unter; untere Reihe Zehner, Neuner,
+# Achter, Siebener.
 ROUGH = {
     "H": {"A": [(260, 55), (465, 55), (452, 393), (232, 388)],
           "K": [(488, 56), (718, 60), (712, 398), (480, 396)],
           "O": [(742, 55), (950, 55), (972, 392), (742, 390)],
           "U": [(980, 60), (1195, 62), (1215, 402), (1000, 402)],
-          "Z": [(222, 430), (446, 432), (440, 812), (212, 810)]},
+          "Z": [(222, 430), (446, 432), (440, 812), (212, 810)],
+          "9": [(488, 445), (712, 447), (712, 825), (480, 822)],
+          "8": [(750, 442), (978, 442), (985, 825), (752, 825)],
+          "7": [(1012, 445), (1228, 450), (1240, 830), (1012, 830)]},
     "S": {"A": [(218, 48), (462, 50), (452, 428), (208, 425)],
           "K": [(490, 45), (730, 45), (730, 430), (482, 428)],
           "O": [(758, 40), (998, 45), (1008, 420), (760, 420)],
           "U": [(1028, 48), (1255, 48), (1275, 428), (1045, 432)],
-          "Z": [(205, 465), (440, 465), (445, 875), (200, 875)]},
+          "Z": [(205, 465), (440, 465), (445, 875), (200, 875)],
+          "9": [(485, 465), (730, 465), (735, 875), (485, 878)],
+          "8": [(765, 462), (1010, 462), (1015, 875), (768, 878)],
+          "7": [(1050, 462), (1290, 462), (1295, 880), (1055, 882)]},
     "L": {"A": [(145, 38), (388, 35), (382, 418), (140, 418)],
           "K": [(418, 32), (662, 32), (660, 418), (415, 420)],
           "O": [(692, 32), (938, 32), (945, 420), (695, 422)],
           "U": [(968, 40), (1215, 40), (1220, 432), (978, 432)],
-          "Z": [(130, 455), (372, 455), (368, 862), (118, 862)]},
+          "Z": [(130, 455), (372, 455), (368, 862), (118, 862)],
+          "9": [(418, 455), (678, 455), (680, 870), (420, 872)],
+          "8": [(698, 462), (950, 462), (950, 882), (700, 882)],
+          "7": [(985, 462), (1232, 465), (1232, 885), (985, 885)]},
     "E": {"A": [(40, 28), (338, 28), (338, 518), (35, 518)],
           "K": [(378, 28), (688, 30), (688, 520), (370, 515)],
           "O": [(722, 30), (1030, 32), (1035, 522), (728, 522)],
           "U": [(1070, 38), (1360, 38), (1365, 528), (1075, 528)],
-          "Z": [(30, 555), (335, 555), (338, 1045), (30, 1045)]},
+          "Z": [(30, 555), (335, 555), (338, 1045), (30, 1045)],
+          "9": [(368, 570), (695, 575), (690, 1065), (355, 1060)],
+          "8": [(712, 568), (1045, 568), (1050, 1068), (722, 1070)],
+          "7": [(1060, 560), (1362, 568), (1365, 1060), (1072, 1065)]},
 }
 SUITS = "HSLE"
-RANKS = "AZKOU"
+RANKS = "AZKOU987"
+# Raenge, aus denen das einheitliche Rahmen-Seitenverhaeltnis bestimmt wird.
+# Bewusst nur die 20 Schnapskarten (erste Abnahme), damit die Kartengroesse
+# und die bereits exportierten Dateien beim Nachruesten gleich bleiben.
+RATIO_RANKS = "AZKOU"
 SUIT_NAME = {"H": "Herz", "S": "Schellen", "L": "Laub", "E": "Eichel"}
-RANK_NAME = {"A": "Daus", "Z": "Zehner", "K": "König", "O": "Ober", "U": "Unter"}
+RANK_NAME = {"A": "Daus", "Z": "Zehner", "K": "König", "O": "Ober", "U": "Unter",
+             "9": "Neuner", "8": "Achter", "7": "Siebener"}
 
 # Zielgeometrie (bei 480 px Breite): Rahmenlinie + Rand
 W2 = 480
@@ -211,9 +232,15 @@ def main():
                 changed = True
     if changed:
         CORNERS.write_text(json.dumps({k: data[k] for k in sorted(data)}, indent=1))
+    only = None
+    if "--only" in sys.argv:
+        only = set(sys.argv[sys.argv.index("--only") + 1].split(","))
     # einheitliches Rahmen-Seitenverhaeltnis = Median der gemessenen Rahmen
+    # (nur RATIO_RANKS, siehe oben)
     ratios = []
     for key, q in data.items():
+        if key[1] not in RATIO_RANKS:
+            continue
         q = np.float32(q)
         wdt = (np.linalg.norm(q[1] - q[0]) + np.linalg.norm(q[2] - q[3])) / 2
         hgt = (np.linalg.norm(q[3] - q[0]) + np.linalg.norm(q[2] - q[1])) / 2
@@ -228,6 +255,8 @@ def main():
             key = s + r
             im = render(imgs[s], data[key], fw, fh, 0.92 if s == "E" else 1.04)  # Eichel-Foto ist schon uebersaettigt
             cards[key] = im
+            if only is not None and r not in only:
+                continue
             q2 = save_webp(im, OUT / f"{key}@2x.webp", 110)
             im1 = im.resize((240, round(im.height * 240 / W2)), Image.LANCZOS)
             q1 = save_webp(im1, OUT / f"{key}.webp", 35)

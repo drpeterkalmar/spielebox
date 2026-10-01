@@ -63,6 +63,12 @@ export function tableFor(table, seat) {
   const eng = gameOf(table.game).engine;
   const { fairPriv, ...pub } = table;
   if (eng.HIDDEN) pub.gs = eng.viewFor(table.gs, seat === undefined ? null : seat);
+  // Züge mit geheimem Inhalt (Schiffe versenken: Flotte setzen) nur ohne Geheimnis in Verlauf und letztem Zug
+  if (eng.publicMove) {
+    const pm = (e) => (e && e.by !== seat ? { ...e, m: eng.publicMove(e.m) } : e);
+    pub.last = pm(table.last);
+    pub.hist = table.hist.map(pm);
+  }
   return pub;
 }
 
@@ -294,10 +300,12 @@ export class TableSession {
     t.drawOffer = null;
     this._publishFair(true);
     const two = t.seats.length === 2;
+    // Spiele, deren points nur Auskunft sind (Würfelglück: Endsumme, Mau-Mau: Restkarten), zählen 1 je Sieg
+    const one = gameOf(t.game).winPoints === 1;
     for (let s = 0; s < t.seats.length; s++) {
       const p = t.seats[s];
       if (!p) continue;
-      const pts = winner === null ? (two ? 0.5 : 0) : winner === s ? points || 1 : 0;
+      const pts = winner === null ? (two ? 0.5 : 0) : winner === s ? (one ? 1 : points || 1) : 0;
       t.score[p.pid] = (t.score[p.pid] || 0) + pts;
     }
   }

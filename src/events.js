@@ -89,6 +89,19 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
         else if (move.type === 'split') ev(by, 'teilt', 'teilst', false);
         break;
       }
+      case 'ludo': {
+        if (move.type === 'roll' && gs.lastRoll && gs.lastRoll.seat === by) {
+          const v = gs.lastRoll.value, why = gs.lastRoll.reason;
+          if (why) ev(by, `würfelt ${v} – ${why}`, `würfelst ${v} – ${why}`, false);
+          else ev(by, v === 6 ? 'würfelt eine 6' : `würfelt ${v}`, v === 6 ? 'würfelst eine 6' : `würfelst ${v}`, false);
+        } else if (move.type === 'move' && gs.last) {
+          const l = gs.last, c = l.capture;
+          if (c) note(by, you(c.seat) ? `${name(by)} schlägt deine Figur!` : you(by) ? `Du schlägst ${name(c.seat)}!` : `${name(by)} schlägt ${name(c.seat)}!`, true);
+          if (l.from < 0) ev(by, 'kommt raus', 'kommst raus', false);
+          else if (l.to >= 40 && l.from < 40) ev(by, 'bringt eine Figur ins Ziel', 'bringst eine Figur ins Ziel', false);
+        }
+        break;
+      }
       case 'halma':
         if (move.path && move.path.length >= 3) ev(by, `springt ${move.path.length}-mal`, `springst ${move.path.length}-mal`, false);
         break;

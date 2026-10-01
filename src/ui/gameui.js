@@ -19,6 +19,10 @@ import * as BJ from '../games/blackjack/engine.js';
 import { rulesBlackjack, rulesHalma } from './texts.js';
 import { createBoard as halmaBoard } from '../games/halma/view.js';
 import * as HM from '../games/halma/engine.js';
+import { rulesFromData } from './texts.js';
+import { createBoard as ludoBoard } from '../games/ludo/view.js';
+import * as LD from '../games/ludo/engine.js';
+import { RULES as LUDO_RULES } from '../games/ludo/rules.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -290,6 +294,33 @@ UI.halma = {
     } } }, on ? 'Lupe aus' : 'Lupe (größer)')];
     if (legal.length === 1 && legal[0].pass) out.push(h('button', { class: 'btn primary', data: { act: 'pass' }, on: { click: () => submit(legal[0]) } }, 'Aussetzen'));
     return out;
+  }
+};
+
+// Ludo: Farbe je Sitz kommt aus dem Zustand (zu zweit Rot gegen Grün)
+function ludoIcon(seat, t) {
+  const c = t && t.gs && t.gs.colors ? t.gs.colors[seat] : seat;
+  return halmaIcon(c ?? seat);
+}
+
+UI.ludo = {
+  board: ludoBoard,
+  icon: ludoIcon,
+  rules: (o) => rulesFromData(LUDO_RULES, o),
+  sub(t, seat) {
+    const ps = t.gs.pieces[seat] || [];
+    const goal = ps.filter((p) => p >= 40).length, out = ps.filter((p) => p >= 0 && p < 40).length;
+    return `${LD.PLAYERS[LD.colorOf(t.gs, seat)]} · ${goal}/4 im Ziel`;
+  },
+  status(t, seat) {
+    const gs = t.gs;
+    if (gs.phase === 'roll') return gs.tries > 0 && LD.mayRollThrice(gs) ? `Nochmal würfeln (Versuch ${gs.tries + 1} von 3)` : gs.lastRoll && gs.lastRoll.seat === seat && gs.lastRoll.value === 6 && gs.lastRoll.moved ? 'Eine 6 – nochmal würfeln!' : 'Du bist dran: würfeln';
+    if (gs.phase === 'move') return `Du hast eine ${gs.die} – welche Figur?`;
+    return null;
+  },
+  actions(t, legal, submit) {
+    const roll = legal.find((m) => m.type === 'roll');
+    return roll ? [h('button', { class: 'btn primary', data: { act: 'roll' }, on: { click: () => submit(roll) } }, 'Würfeln')] : [];
   }
 };
 

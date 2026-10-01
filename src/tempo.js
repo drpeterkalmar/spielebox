@@ -86,6 +86,18 @@ export function animMs(game, move, prevGs, gs, a) {
       // eigene Teilzüge sind beim Tippen schon geglitten → nicht noch einmal
       if (move.type === 'play' && move.steps && move.steps.length && !a.own) return move.steps.length * a.slide + (move.steps.length - 1) * a.pause;
       return 0;
+    case 'reversi':
+      return Number.isInteger(move.i) ? reversiMs(a, gs, move) : 0;
+    case 'vier': {
+      const col = gs && gs.cols && Number.isInteger(move.col) ? gs.cols[move.col] : null;
+      return vierFall(a, col ? 6 - (col.length - 1) : 6);
+    }
+    case 'ludo': {
+      if (move.type === 'roll') return a.dice + (gs && gs.phase === 'roll' && gs.lastRoll && !gs.lastRoll.moved ? a.pause : 0);
+      if (move.type !== 'move') return 0;
+      const n = ludoSteps(prevGs, gs, move);
+      return n * ludoStep(a, n) + (gs && gs.last && gs.last.capture && a.slide > 0 ? Math.max(200, a.slide) : 0);
+    }
     case 'blackjack': {
       const n = bankReveal(prevGs, gs, move);
       return a.slide + (n ? n * a.bankGap + a.pause : 0);
@@ -93,6 +105,27 @@ export function animMs(game, move, prevGs, gs, a) {
   }
   return 0;
 }
+
+// Vier in einer Reihe: Stein fällt dist Reihen tief (immer sichtbar, auch eigene Züge; Test: 0)
+export const vierFall = (a, dist) => (a.slide <= 0 ? 0 : Math.round(Math.max(a.slide, 420) * Math.sqrt(Math.max(1, dist) / 6) + 140));
+
+// Reversi: Stein setzen, dann kippen die Steine ringweise nach außen (stagger je Ring)
+export const reversiTimes = (a) => ({ place: Math.round(a.slide * 0.5), flip: a.slide, stagger: a.slide > 0 ? Math.round(a.slide * 0.3) : 0 });
+function reversiMs(a, gs, move) {
+  if (a.slide <= 0 || !gs || !gs.last || gs.last.i !== move.i) return 0;
+  const t = reversiTimes(a), i = move.i;
+  let ring = 1;
+  for (const f of gs.last.flipped || []) ring = Math.max(ring, Math.abs((f % 8) - (i % 8)), Math.abs(Math.floor(f / 8) - Math.floor(i / 8)));
+  return t.place + (ring - 1) * t.stagger + t.flip;
+}
+
+// Ludo: Dauer je Feld, wenn eine Figur n Felder läuft (lange Wege etwas schneller je Feld)
+export const ludoStep = (a, n) => (a.slide <= 0 ? 0 : n <= 1 ? a.slide : Math.max(140, Math.min(a.hop, (a.slide * 2.4) / n)));
+const ludoSteps = (prevGs, gs, move) => {
+  const l = gs && gs.last;
+  if (l && l.piece === move.piece) return l.from < 0 ? 1 : l.to - l.from;
+  return 6;
+};
 
 // Hat dieser Zug einen Stich vollendet (Schnapsen)? Dann bleibt er trickHold lang liegen.
 export function trickDone(game, move, gs) {

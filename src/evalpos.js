@@ -11,7 +11,8 @@ export const EVAL = {
   dame: { unit: 'Steine', digits: 0, pct: (x) => 1 / (1 + Math.exp(-0.55 * x)) },
   backgammon: { unit: 'Pips', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 14)) },
   halma: { unit: 'Felder', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 9)) },
-  schnapsen: { unit: 'Punkte', digits: 1, pct: (x) => 1 / (1 + Math.exp(-0.55 * x)) }
+  schnapsen: { unit: 'Punkte', digits: 1, pct: (x) => 1 / (1 + Math.exp(-0.55 * x)) },
+  ludo: { unit: 'Felder', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 14)) }
 };
 
 export function evalPosition(game, gs, seat) {

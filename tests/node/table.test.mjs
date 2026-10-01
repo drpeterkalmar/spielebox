@@ -7,7 +7,8 @@ import { gameOf } from '../../src/games/registry.js';
 import { mulberry32, pick } from '../../src/rng.js';
 import * as muehleBot from '../../src/games/muehle/bot.js';
 import * as bjBot from '../../src/games/blackjack/bot.js';
-const BOTS = { blackjack: bjBot.chooseMove, muehle: muehleBot.chooseMove };
+import * as ludoBot from '../../src/games/ludo/bot.js';
+const BOTS = { blackjack: bjBot.chooseMove, muehle: muehleBot.chooseMove, ludo: ludoBot.chooseMove };
 
 Object.assign(TIMING, { heartbeat: 40, hostGone: 400, moveRetry: 150, botDelay: 0, relayAfter: 120 });
 
@@ -460,6 +461,39 @@ await ok('Mehr-Sitz-Tisch: Blackjack 4 Sitze, 2 Gäste + Computer, alle sehen de
   assert.equal(JSON.stringify(a.table.gs.beans), JSON.stringify(h.table.gs.beans));
   assert.ok(!JSON.stringify(a.table.gs.shoe).match(/[AKQJT2-9][SHDC]/), 'Schuh beim Gast verdeckt');
   console.log(`   ${moves} Züge von Menschen, Runde ${h.table.gs.round}, Phase ${h.table.gs.phase}, am Zug ${bj.currentPlayer(h.table.gs)}, need ${JSON.stringify(h.table.fairNeed)}, status ${h.table.status}, seqs ${h.table.seq}/${a.table.seq}/${b.table.seq}`);
+  h.close(); a.close(); b.close();
+});
+
+await ok('Ludo online: 4 Sitze, 2 Gäste + Computer, ein fairer Würfel je Wurf, Gast prüft jeden Wurf', async () => {
+  const hub = new Hub();
+  const t0 = newTable({ game: 'ludo', opts: { players: 4 }, host: { pid: 'H', name: 'Peter' } });
+  const h = player(hub, 'H', 'Peter', { table: t0 });
+  const a = player(hub, 'A', 'Anna');
+  const b = player(hub, 'B', 'Berni');
+  await until(() => h.table.seats.filter(Boolean).length === 3, 3000, 'drei sitzen');
+  assert.ok(h.act('fill-bots').ok);
+  await until(() => a.table.status === 'play' && b.table.status === 'play', 3000, 'Start');
+  const ld = gameOf('ludo').engine;
+  const rng = mulberry32(5);
+  const byPid = { H: h, A: a, B: b };
+  let moves = 0;
+  for (let i = 0; i < 4000 && moves < 60 && h.table.status === 'play'; i++) {
+    const turn = ld.currentPlayer(h.table.gs);
+    const p = turn === null ? null : h.table.seats[turn];
+    if (!p || p.bot || byPid[p.pid].pendingMove || h.table.fairNeed) { await sleep(3); continue; }
+    const who = byPid[p.pid];
+    if (who.table.seq !== h.table.seq) { await sleep(3); continue; }
+    const m = pick(rng, ld.legalMoves(who.table.gs));
+    const n = h.table.nmoves;
+    assert.ok(who.submitMove(m).ok);
+    await until(() => h.table.nmoves > n && !h.table.fairNeed, 3000, 'Zug verteilt');
+    moves++;
+  }
+  const log = h.table.fair.log;
+  assert.ok(log.length >= 10 && log.every((e) => !e.fallback && e.n === 1 && e.value.length === 1), `${log.length} Würfe mit einem Würfel`);
+  await until(() => a.fairCheck && a.fairCheck.n === h.table.fair.log.length, 3000);
+  assert.ok(a.fairCheck.ok, JSON.stringify(a.fairCheck));
+  console.log(`   ${moves} Züge der Gäste, ${log.length} Würfe von Anna geprüft`);
   h.close(); a.close(); b.close();
 });
 
