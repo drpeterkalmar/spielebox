@@ -131,6 +131,72 @@ def vier(P, form):
     P.open('?nosw&alle')
 
 
+def mm_turn(P):
+    """ein eigener Mau-Mau-Zug per Tipp: passende Karte (zweimal), sonst ziehen, dann ggf. weiter"""
+    legal = P.ev("__box.legal()")
+    plays = [m for m in legal if m['type'] == 'play']
+    n = tbl(P)['nmoves']
+    if plays:
+        card = plays[0]['card']
+        tap_target(P, card); tap_target(P, card)
+        if P.ev("!!document.querySelector('[data-act^=wish-]')"):
+            P.tap('[data-act^="wish-"]')
+    elif any(m['type'] == 'draw' for m in legal):
+        tap_target(P, 'stock')
+    else:
+        P.tap('[data-act="pass"]')
+    wait(lambda: tbl(P)['nmoves'] > n, 5, 'Mau-Mau-Zug')
+    return plays[0]['card'] if plays else None
+
+
+def maumau(P, form):
+    P.ev("__box.local('bot', 'maumau', {players: 3}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'maumau' and my_turn(P), 15, 'Mau-Mau: ich bin dran')
+    time.sleep(0.3)
+    check_screen(P, f'{form} Mau-Mau', target=False)
+    m = P.metrics()
+    c.ok(m['cardW'] >= 48, f'{form}: Handkarten {m["cardW"]:.0f} px breit, Abstand {m["gapPx"]:.0f} px')
+    P.shot(f'maumau_start_{form}', 'n4')
+    played = 0
+    for k in range(6):
+        wait(lambda: my_turn(P) or tbl(P)['status'] != 'play', 30, 'wieder dran')
+        if tbl(P)['status'] != 'play': break
+        if mm_turn(P): played += 1
+        # verdeckt bleibt verdeckt: im Bild nur eigene Karten und die Ablage
+        g = gs(P)
+        me = P.state()['mySeat']
+        ok_cards = set(g['hands'][me]) | set(g['pile'])
+        shown = set(P.ev("[...document.querySelectorAll('.board-maumau [data-card]')].map(e => e.dataset.card)"))
+        hrefs = P.ev("[...document.querySelectorAll('.board-maumau image')].map(e => e.getAttribute('href'))")
+        bad = [x for x in shown if x not in ok_cards] + [h for h in hrefs if not any(cc in h for cc in ok_cards)]
+        if bad: c.ok(False, f'{form}: fremde Karte im Bild {bad[:3]}')
+    c.ok(True, f'{form}: Mau-Mau – {played} Karte(n) per Doppeltipp gelegt, sonst gezogen; nie eine fremde Karte im Bild')
+    P.shot(f'maumau_{form}', 'n4')
+    # „Mau“ sagen: Hand auf 2 passende Karten setzen
+    me = P.state()['mySeat']
+    wait(lambda: my_turn(P) or tbl(P)['status'] != 'play', 30, 'wieder dran')
+    if tbl(P)['status'] == 'play':
+        P.ev(f"(() => {{ const g = __box.table().gs; g.hands[{me}] = ['H9', 'HK']; g.pile.push('HA'); g.wish = null; g.penalty = 0; g.drawn = null; __box.poke(); }})()")
+        time.sleep(0.4)
+        has = P.ev("!!document.querySelector('[data-act=mau]')")
+        P.tap('[data-act="mau"]')
+        n = tbl(P)['nmoves']
+        tap_target(P, 'H9'); tap_target(P, 'H9')
+        wait(lambda: tbl(P)['nmoves'] > n, 5, 'gelegt')
+        mine = P.ev(f"__box.table().hist.filter(e => e.by === {me}).pop().m")
+        left = P.ev(f"__box.table().gs.hands[{me}].length")
+        c.ok(has and mine.get('mau') is True and left == 1, f'{form}: Knopf „Mau sagen“, Karte mit Mau gelegt ({mine}), keine Strafkarten ({left} Karte)')
+    # zu zweit: Sichtschutz
+    P.ev("__box.local('hotseat', 'maumau', {players: 2})")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'maumau' and P.ev("!!document.querySelector('[data-act=unlock]')"), 10, 'Sichtschutz')
+    shown = P.ev("document.querySelectorAll('.board-maumau .hand [data-card]').length")
+    c.ok(shown == 0, f'{form}: zu zweit – vor „Karten zeigen“ keine Handkarte im Bild')
+    P.tap('[data-act="unlock"]')
+    time.sleep(0.3)
+    c.ok(P.ev("document.querySelectorAll('.board-maumau .hand [data-card]').length") == 5, f'{form}: nach „Karten zeigen“ 5 eigene Karten')
+    P.shot(f'maumau_zuzweit_{form}', 'n4')
+
+
 def schiffe(P, form):
     P.ev("__box.local('bot', 'schiffe', {}, 'weiss', 1)")
     wait(lambda: tbl(P) and tbl(P)['game'] == 'schiffe' and my_turn(P), 15, 'Schiffe: aufstellen')

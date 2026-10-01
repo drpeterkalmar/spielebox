@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '891311ae79';
+const VERSION = 'a8731cdfff';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -134,6 +134,10 @@ const ASSETS = [
   'src/games/ludo/engine.js',
   'src/games/ludo/rules.js',
   'src/games/ludo/view.js',
+  'src/games/maumau/bot.js',
+  'src/games/maumau/engine.js',
+  'src/games/maumau/rules.js',
+  'src/games/maumau/view.js',
   'src/games/muehle/bot.js',
   'src/games/muehle/engine.js',
   'src/games/muehle/view.js',

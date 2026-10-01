@@ -102,6 +102,22 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
         }
         break;
       }
+      case 'maumau': {
+        const l = gs.last;
+        if (!l || l.seat !== by) break;
+        const SN = { H: 'Herz', S: 'Schellen', L: 'Laub', E: 'Eichel' };
+        if (l.type === 'play') {
+          if (l.wish) ev(by, `wünscht sich ${SN[l.wish]}`, `wünschst dir ${SN[l.wish]}`);
+          if (l.penalty) note(by, you(gs.turn) ? `${name(by)} legt eine 7 – du musst ${l.penalty} ziehen oder kontern!` : `${you(by) ? 'Du legst' : name(by) + ' legt'} eine 7 – ${name(gs.turn)} muss ${l.penalty} ziehen`, you(gs.turn));
+          if (l.skipped !== undefined) note(by, you(l.skipped) ? `${name(by)} legt ein Daus – du setzt aus` : `${name(l.skipped)} setzt aus`, you(l.skipped));
+          if (l.mau) ev(by, 'sagt „Mau!“', 'sagst „Mau!“');
+          if (l.mauMissed) note(by, you(by) ? 'Du hast „Mau“ vergessen – 2 Strafkarten' : `${name(by)} hat „Mau“ vergessen – 2 Strafkarten`, true);
+        } else if (l.type === 'draw') {
+          if (l.strafe) ev(by, `zieht ${l.n || l.strafe} Strafkarten`, `ziehst ${l.n || l.strafe} Strafkarten`, false);
+          else ev(by, 'zieht eine Karte', 'ziehst eine Karte', false);
+        }
+        break;
+      }
       case 'schiffe': {
         if (move.type === 'place') { ev(by, 'hat die Flotte aufgestellt', 'hast deine Flotte aufgestellt', false); break; }
         const l = gs.last;

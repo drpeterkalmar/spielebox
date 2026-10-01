@@ -10,6 +10,7 @@ import * as halma from './halma/engine.js';
 import * as ludo from './ludo/engine.js';
 import * as schiffe from './schiffe/engine.js';
 import * as vier from './vier/engine.js';
+import * as maumau from './maumau/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -153,12 +154,29 @@ export const GAMES = {
     seats: 2,
     options: [],
     variantName: () => 'Vier in einer Reihe'
+  },
+  maumau: {
+    id: 'maumau',
+    title: 'Mau-Mau',
+    engine: maumau,
+    blurb: '2–5 Spieler, 32 Blatt doppeldeutsch',
+    seats: (o) => o.players,
+    cards: true,
+    winPoints: 1,
+    options: [
+      { key: 'players', type: 'choice', label: 'Spieler', choices: [2, 3, 4, 5].map((n) => ({ value: n, label: String(n) })), dflt: 3 },
+      { key: 'sieben', type: 'switch', label: '7 = zwei ziehen', sub: 'Mit einer 7 kontern: dann vier usw.', dflt: true },
+      { key: 'unter', type: 'switch', label: 'Unter wünscht', sub: 'Unter auf jede Karte (nicht auf Unter), Farbe wünschen', dflt: true },
+      { key: 'ass', type: 'switch', label: 'Daus = Aussetzen', sub: 'Der Nächste muss aussetzen', dflt: true },
+      { key: 'mau', type: 'switch', label: '„Mau“ sagen', sub: 'Bei der vorletzten Karte – vergessen = 2 Strafkarten', dflt: true }
+    ],
+    variantName: (o) => { const x = maumau.normalizeOptions(o); return [`${x.players} Spieler`, ...['sieben', 'unter', 'ass', 'mau'].filter((k) => !x[k]).map((k) => `ohne ${{ sieben: '7er', unter: 'Unter', ass: 'Daus', mau: 'Mau' }[k]}`)].join(' · '); }
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier, GAMES.maumau];
 // in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
-export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier']);
+export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier', 'maumau']);
 
 // Sitzanzahl eines Spiels (fest oder aus den Optionen, z. B. Blackjack 2–6)
 export function seatCount(g, opts) {

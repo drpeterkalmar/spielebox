@@ -28,6 +28,9 @@ import * as SV from '../games/schiffe/engine.js';
 import { RULES as SCHIFFE_RULES } from '../games/schiffe/rules.js';
 import { createBoard as vierBoard } from '../games/vier/view.js';
 import { RULES as VIER_RULES } from '../games/vier/rules.js';
+import { createBoard as maumauBoard } from '../games/maumau/view.js';
+import * as MM from '../games/maumau/engine.js';
+import { RULES as MAUMAU_RULES } from '../games/maumau/rules.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -392,6 +395,38 @@ UI.vier = {
     return `${seat ? 'Gelb' : 'Rot'} · ${n} ${n === 1 ? 'Stein' : 'Steine'}`;
   },
   status(t, seat) { return t.gs.turn === seat ? 'Du bist dran: Spalte wählen' : null; }
+};
+
+UI.maumau = {
+  board: maumauBoard,
+  icon: (seat) => seatIcon(seat),
+  rules: (o) => rulesFromData(MAUMAU_RULES, o),
+  hidden: true,
+  sub(t, seat) {
+    const gs = t.gs, n = gs.hands[seat].length;
+    return `${n} ${n === 1 ? 'Karte' : 'Karten'}${gs.mau && gs.mau[seat] && n === 1 ? ' · Mau!' : ''}`;
+  },
+  status(t, seat) {
+    const gs = t.gs;
+    if (gs.turn !== seat || gs.phase !== 'play') return null;
+    if (gs.penalty > 0) return `Eine 7! Kontern oder ${gs.penalty} ziehen`;
+    if (gs.drawn) return 'Gezogen – legen oder weiter';
+    if (gs.wish) return `Du bist dran – gewünscht: ${MM.SUIT_NAMES[gs.wish]}`;
+    return null;
+  },
+  actions(t, legal, submit, view) {
+    const b = (label, act, fn, cls = '') => h('button', { class: 'btn' + cls, data: { act }, on: { click: fn } }, label);
+    const out = [];
+    if (view && view.needsWish()) {
+      for (const s2 of MM.SUITS) out.push(b(MM.SUIT_NAMES[s2], 'wish-' + s2, () => view.wish(s2), ' primary'));
+      return [h('div', { class: 'bet-row' }, h('span', { class: 'bet-t', text: 'Welche Farbe wünschst du dir?' }), ...out)];
+    }
+    if (view && view.canMau()) out.push(b(view.mauOn() ? 'Mau! ✓' : 'Mau sagen', 'mau', () => view.toggleMau(), view.mauOn() ? ' primary' : ''));
+    const d = legal.find((m) => m.type === 'draw'), p = legal.find((m) => m.type === 'pass');
+    if (d) out.push(b(t.gs.penalty > 0 ? `${t.gs.penalty} Karten ziehen` : 'Karte ziehen', 'draw', () => submit(d)));
+    if (p) out.push(b('Weiter', 'pass', () => submit(p), ' primary'));
+    return out;
+  }
 };
 
 export function gameUi(id) {

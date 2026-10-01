@@ -16,6 +16,8 @@ import { RULES as SCHIFFE_RULES } from '../games/schiffe/rules.js';
 RULES.schiffe = () => rulesFromData(SCHIFFE_RULES);
 import { RULES as VIER_RULES } from '../games/vier/rules.js';
 RULES.vier = () => rulesFromData(VIER_RULES);
+import { RULES as MAUMAU_RULES } from '../games/maumau/rules.js';
+RULES.maumau = () => rulesFromData(MAUMAU_RULES);
 import { openSettings } from './settings.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -32,9 +34,9 @@ export function miniBoard(game) {
       '<g fill="none" stroke="#3a2515" stroke-width="3.2"><rect x="12" y="12" width="76" height="76"/><rect x="25" y="25" width="50" height="50"/><rect x="38" y="38" width="24" height="24"/>' +
       '<path d="M50 12V38M50 62V88M12 50H38M62 50H88"/></g>' +
       '<circle cx="12" cy="12" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="50" cy="25" r="7.5" fill="url(#sb-st-b)"/><circle cx="88" cy="88" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="62" cy="62" r="7.5" fill="url(#sb-st-b)"/>';
-  } else if (game === 'schnapsen' || game === 'blackjack') {
-    const de = game === 'schnapsen';
-    const cards = de ? ['HA', 'LK', 'EO'] : ['AS', 'KH', 'TD'];
+  } else if (game === 'schnapsen' || game === 'blackjack' || game === 'maumau') {
+    const de = game !== 'blackjack';
+    const cards = game === 'maumau' ? ['H7', 'LU', 'S9'] : de ? ['HA', 'LK', 'EO'] : ['AS', 'KH', 'TD'];
     const dir = de ? 'de' : 'fr';
     svg.innerHTML = '<rect width="100" height="100" rx="12" fill="#1d5a3f"/>' + cards.map((c, i) =>
       `<g transform="translate(${30 + i * 20} ${56}) rotate(${(i - 1) * 14})"><image href="assets/cards/${dir}/${c}.webp" x="-17" y="-27" width="34" height="${de ? 54 : 49}"/></g>`).join('');

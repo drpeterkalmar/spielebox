@@ -548,3 +548,12 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .handoff-note { font-weight: 750; color: #7a3a10; }
 /* Hochformat: Spalte nie breiter als der Bildschirm (hohe Bretter wie Schiffe versenken schoben sie sonst auf) */
 @media (orientation: portrait) { .table-screen { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- n4: Mau-Mau ---------- */
+.board .mm-can { fill: rgba(255, 210, 74, .14); stroke: #ffd24a; stroke-width: 6; stroke-dasharray: 14 10; }
+.board .mm-count { font: 800 30px system-ui, sans-serif; fill: #fff6e0; text-anchor: middle; }
+.board .mm-mau { font: 900 34px system-ui, sans-serif; fill: #ffd24a; text-anchor: middle; paint-order: stroke; stroke: rgba(0,0,0,.5); stroke-width: 5; }
+.board .mm-badge { fill: #2b1c0d; stroke: #f0c04d; stroke-width: 4; }
+.board .mm-badge.pen { fill: #8a2018; }
+.board .mm-badge-t { font: 800 32px system-ui, sans-serif; fill: #fff6dd; text-anchor: middle; }
+.board-cards .card.drawn image { filter: drop-shadow(0 0 12px #6fe3a4); }

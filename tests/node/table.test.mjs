@@ -8,7 +8,8 @@ import { mulberry32, pick } from '../../src/rng.js';
 import * as muehleBot from '../../src/games/muehle/bot.js';
 import * as bjBot from '../../src/games/blackjack/bot.js';
 import * as ludoBot from '../../src/games/ludo/bot.js';
-const BOTS = { blackjack: bjBot.chooseMove, muehle: muehleBot.chooseMove, ludo: ludoBot.chooseMove };
+import * as mmBot from '../../src/games/maumau/bot.js';
+const BOTS = { blackjack: bjBot.chooseMove, muehle: muehleBot.chooseMove, ludo: ludoBot.chooseMove, maumau: mmBot.chooseMove };
 
 Object.assign(TIMING, { heartbeat: 40, hostGone: 400, moveRetry: 150, botDelay: 0, relayAfter: 120 });
 
@@ -537,6 +538,48 @@ await ok('Schiffe versenken online: Gast sieht die Flotte des Hosts nie (Zustand
   assert.ok(g.table.gs.fleets[0], 'nach dem Ende sind beide Flotten offen');
   console.log(`   ${shots} Schüsse, ${h.table.result.reason}; Gast sah bis zum Ende nur versenkte Schiffe (${hostCells.size} Felder verdeckt)`);
   h.close(); g.close();
+});
+
+await ok('Mau-Mau online: 3 Sitze (2 Gäste + Computer), keiner sieht fremde Karten, Mischungen erst nach dem Spiel offen und geprüft', async () => {
+  const hub = new Hub();
+  const t0 = newTable({ game: 'maumau', opts: { players: 3 }, host: { pid: 'H', name: 'Peter' } });
+  const h = player(hub, 'H', 'Peter', { table: t0 });
+  const a = player(hub, 'A', 'Anna');
+  await until(() => h.table.seats.filter(Boolean).length === 2, 3000, 'zwei sitzen');
+  assert.ok(h.act('fill-bots').ok);
+  await until(() => a.table.status === 'play' && a.table.gs.phase === 'play', 3000, 'ausgeteilt');
+  const mm = gameOf('maumau').engine;
+  const rng = mulberry32(21);
+  const byPid = { H: h, A: a };
+  let moves = 0, reshuffles = 0;
+  for (let i = 0; i < 20000 && h.table.status === 'play'; i++) {
+    const turn = mm.currentPlayer(h.table.gs);
+    const p = turn === null ? null : h.table.seats[turn];
+    if (!p || p.bot || byPid[p.pid].pendingMove || h.table.fairNeed) { await sleep(2); continue; }
+    const who = byPid[p.pid];
+    if (who.table.seq !== h.table.seq) { await sleep(2); continue; }
+    // Gast sieht nur die eigene Hand, nie den Stapel
+    const ag = a.table.gs, aSeat = seatOf(a.table, 'A');
+    ag.hands.forEach((hd, q) => { if (q !== aSeat) assert.ok(hd.every((c) => c === null), 'fremde Hand sichtbar'); });
+    assert.ok(ag.stock.every((c) => c === null), 'Stapel sichtbar');
+    // während des Spiels keine Mischung im öffentlichen Protokoll (sonst wären die Starthände berechenbar)
+    assert.ok(!(h.table.fair.log || []).some((e) => e.kind === 'shuffle'), 'Mischung vor Spielende veröffentlicht');
+    const legal = mm.legalMoves(who.table.gs);
+    const plays = legal.filter((m) => m.type === 'play');
+    const m = plays.length && rng() < 0.3 ? pick(rng, plays) : pick(rng, legal);   // oft ziehen → Nachmischen kommt vor
+    const n = h.table.nmoves, k = h.table.fair.k;
+    assert.ok(who.submitMove(m).ok, JSON.stringify(m));
+    await until(() => h.table.nmoves > n && !h.table.fairNeed, 3000, 'Zug verteilt');
+    if (h.table.fair.k > k) reshuffles++;
+    moves++;
+  }
+  assert.equal(h.table.status, 'over');
+  const log = h.table.fair.log;
+  assert.ok(log.length >= 1 && log.every((e) => e.kind === 'shuffle' && !e.fallback));
+  await until(() => a.fairCheck && a.fairCheck.n === log.length, 3000);
+  assert.ok(a.fairCheck.ok, JSON.stringify(a.fairCheck));
+  console.log(`   ${moves} Züge der Menschen, ${log.length} Mischung(en) (davon ${reshuffles} Nachmischen) nach dem Spiel von Anna geprüft, ${h.table.result.reason}`);
+  h.close(); a.close();
 });
 
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');

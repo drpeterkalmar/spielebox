@@ -9,10 +9,11 @@ import { chooseMove as halma } from './games/halma/bot.js';
 import { chooseMove as ludo } from './games/ludo/bot.js';
 import { chooseMove as schiffe } from './games/schiffe/bot.js';
 import { chooseMove as vier } from './games/vier/bot.js';
+import { chooseMove as maumau } from './games/maumau/bot.js';
 
 import { evalPosition } from './evalpos.js';
 
-const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma, ludo, schiffe, vier };
+const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma, ludo, schiffe, vier, maumau };
 const TIME = { 1: 150, 2: 400, 3: 1200 };
 
 self.onmessage = (e) => {
