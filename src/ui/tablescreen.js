@@ -326,8 +326,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       overlay.append(h('div', { class: 'ov-card', data: { overlay: 'handoff' } },
         h('h2', { text: `Gerät an ${name} weitergeben` }),
         gameUi(t.game).handoff && gameUi(t.game).handoff(t) ? h('p', { class: 'handoff-note', text: gameUi(t.game).handoff(t) }) : null,
-        h('p', { text: 'Die Karten bleiben verdeckt, bis du bereit bist.' }),
-        h('button', { class: 'btn primary big', data: { act: 'unlock' }, on: { click: () => { unlocked = turn; render({ kind: 'state' }); } } }, `Ich bin ${name} – Karten zeigen`)));
+        h('p', { text: gameUi(t.game).secret ? `Die ${gameUi(t.game).secret} bleibt verdeckt, bis du bereit bist.` : 'Die Karten bleiben verdeckt, bis du bereit bist.' }),
+        h('button', { class: 'btn primary big', data: { act: 'unlock' }, on: { click: () => { unlocked = turn; render({ kind: 'state' }); } } }, `Ich bin ${name} – ${gameUi(t.game).secret || 'Karten'} zeigen`)));
     } else if (!t) {
       show = true;
       overlay.append(h('div', { class: 'ov-card' },

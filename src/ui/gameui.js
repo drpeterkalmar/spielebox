@@ -351,6 +351,7 @@ UI.schiffe = {
   icon: shipIcon,
   rules: (o) => rulesFromData(SCHIFFE_RULES, o),
   hidden: true,
+  secret: 'Flotte',   // Sichtschutz: „Flotte zeigen“ statt „Karten zeigen“
   sub(t, seat) {
     const gs = t.gs;
     if (gs.phase === 'place') return gs.turn > seat ? 'Flotte steht' : gs.turn === seat ? 'stellt die Flotte auf' : 'wartet';
