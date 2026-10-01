@@ -99,6 +99,38 @@ def ludo(P, form):
     P.shot(f'ludo_zuzweit_{form}', 'n4')
 
 
+def vier(P, form):
+    P.ev("__box.local('bot', 'vier', {}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'vier' and my_turn(P), 15, 'Vier: ich bin dran')
+    time.sleep(0.3)
+    check_screen(P, f'{form} Vier')
+    labels = P.ev("[...document.querySelectorAll('.seg-btn .seg-t')].map(e => e.textContent)")
+    for k, col in enumerate([3, 3, 2, 4, 3, 1]):
+        wait(lambda: my_turn(P) or tbl(P)['status'] != 'play', 20, 'wieder dran')
+        if tbl(P)['status'] != 'play': break
+        g = gs(P)
+        if len(g['cols'][col]) >= 6: col = next(c for c in range(7) if len(g['cols'][c]) < 6)
+        n = tbl(P)['nmoves']
+        tap_target(P, col)
+        if k == 0:
+            hov = P.ev("document.querySelectorAll('.board-vier .v4-stone.hover').length")
+            c.ok(hov == 1 and tbl(P)['nmoves'] == n, f'{form}: erster Tipp hebt den Stein über die Spalte (noch kein Zug)')
+            P.shot(f'vier_wahl_{form}', 'n4')
+        tap_target(P, col)
+        wait(lambda: tbl(P)['nmoves'] > n, 5, 'eingeworfen')
+    c.ok(tbl(P)['nmoves'] >= 4, f'{form}: Vier – Steine per Doppeltipp eingeworfen, Computer antwortet ({tbl(P)["nmoves"]} Züge)')
+    P.shot(f'vier_{form}', 'n4')
+    # Tempo „normal“: Stein fällt sichtbar (Animation läuft)
+    P.open('?nosw&alle&tempo=normal')
+    P.ev("__box.local('hotseat', 'vier', {})")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'vier' and tbl(P)['nmoves'] == 0, 10, 'zu zweit')
+    time.sleep(0.3)
+    tap_target(P, 0); tap_target(P, 0)
+    anims = P.ev("document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('v4-stone')).length")
+    c.ok(anims >= 1, f'{form}: Stein fällt animiert ({anims} Animation)')
+    P.open('?nosw&alle')
+
+
 def schiffe(P, form):
     P.ev("__box.local('bot', 'schiffe', {}, 'weiss', 1)")
     wait(lambda: tbl(P) and tbl(P)['game'] == 'schiffe' and my_turn(P), 15, 'Schiffe: aufstellen')

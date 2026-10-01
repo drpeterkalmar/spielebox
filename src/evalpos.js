@@ -13,7 +13,8 @@ export const EVAL = {
   halma: { unit: 'Felder', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 9)) },
   schnapsen: { unit: 'Punkte', digits: 1, pct: (x) => 1 / (1 + Math.exp(-0.55 * x)) },
   ludo: { unit: 'Felder', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 14)) },
-  schiffe: { unit: 'Felder', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 3.5)) }
+  schiffe: { unit: 'Felder', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 3.5)) },
+  vier: { unit: 'Punkte', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 8)), win: ['Gewinn in Sicht', 'Verlust droht'] }
 };
 
 export function evalPosition(game, gs, seat) {

@@ -26,6 +26,8 @@ import { RULES as LUDO_RULES } from '../games/ludo/rules.js';
 import { createBoard as schiffeBoard } from '../games/schiffe/view.js';
 import * as SV from '../games/schiffe/engine.js';
 import { RULES as SCHIFFE_RULES } from '../games/schiffe/rules.js';
+import { createBoard as vierBoard } from '../games/vier/view.js';
+import { RULES as VIER_RULES } from '../games/vier/rules.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -371,6 +373,25 @@ UI.schiffe = {
     if (a !== null) return [b(`Feuer auf ${SV.cellName(a)}!`, 'fire', () => view.fire(), true)];
     return [];
   }
+};
+
+function discIcon(color) {
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('class', 'stone-ico');
+  svg.innerHTML = `<circle cx="10" cy="10" r="8.5" fill="${color}" stroke="rgba(0,0,0,.5)"/><circle cx="10" cy="10" r="5.5" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/>`;
+  return svg;
+}
+
+UI.vier = {
+  board: vierBoard,
+  icon: (seat) => discIcon(seat ? '#f2c230' : '#d8453b'),
+  rules: (o) => rulesFromData(VIER_RULES, o),
+  sub(t, seat) {
+    const n = t.gs.cols.reduce((a, c) => a + c.filter((x) => x === seat).length, 0);
+    return `${seat ? 'Gelb' : 'Rot'} · ${n} ${n === 1 ? 'Stein' : 'Steine'}`;
+  },
+  status(t, seat) { return t.gs.turn === seat ? 'Du bist dran: Spalte wählen' : null; }
 };
 
 export function gameUi(id) {

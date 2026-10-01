@@ -9,6 +9,7 @@ import * as blackjack from './blackjack/engine.js';
 import * as halma from './halma/engine.js';
 import * as ludo from './ludo/engine.js';
 import * as schiffe from './schiffe/engine.js';
+import * as vier from './vier/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -141,12 +142,23 @@ export const GAMES = {
       { key: 'nochmal', type: 'switch', label: 'Nach Treffer nochmal', sub: 'Wer trifft, schießt gleich noch einmal' }
     ],
     variantName: (o) => { const x = schiffe.normalizeOptions(o); return [x.flotte === 'gross' ? 'große Flotte' : 'kleine Flotte', x.beruehren ? 'berühren erlaubt' : '', x.nochmal ? 'nochmal nach Treffer' : ''].filter(Boolean).join(' · '); }
+  },
+  vier: {
+    id: 'vier',
+    colors: true,
+    colorNames: ['Rot (beginnt)', 'Gelb'],
+    title: 'Vier in einer Reihe',
+    engine: vier,
+    blurb: '7 × 6, Steine fallen, vier in einer Linie',
+    seats: 2,
+    options: [],
+    variantName: () => 'Vier in einer Reihe'
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier];
 // in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
-export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe']);
+export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier']);
 
 // Sitzanzahl eines Spiels (fest oder aus den Optionen, z. B. Blackjack 2–6)
 export function seatCount(g, opts) {

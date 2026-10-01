@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = 'a4eaa4b1b9';
+const VERSION = '891311ae79';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -148,6 +148,10 @@ const ASSETS = [
   'src/games/schnapsen/bot.js',
   'src/games/schnapsen/engine.js',
   'src/games/schnapsen/view.js',
+  'src/games/vier/bot.js',
+  'src/games/vier/engine.js',
+  'src/games/vier/rules.js',
+  'src/games/vier/view.js',
   'src/net/crypto.js',
   'src/net/fair.js',
   'src/net/netlink.js',
