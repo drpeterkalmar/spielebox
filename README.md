@@ -4,7 +4,8 @@ Brett- und Kartenspiele übers Netz – ohne Konto, ohne Server, Zutritt mit dre
 **Spielen:** https://drpeterkalmar.github.io/spielebox/
 
 Handy zuerst (Hoch- und Querformat), als App installierbar (PWA), offline gegen den Computer oder zu zweit an einem Gerät.
-**Spiele:** Mühle · Dame (Deutsch 8×8 / International 10×10) · Schach · Schnapsen · Backgammon · Blackjack (2–6) · Stern-Halma (2/3/4/6).
+**Spiele:** Mühle · Dame (Deutsch 8×8 / International 10×10) · Schach · Schnapsen · Backgammon · Blackjack (2–6) · Stern-Halma (2/3/4/6)
+· Ludo (2–4) · Schiffe versenken · Vier in einer Reihe · Mau-Mau (2–5) · Würfelglück (1–6) · Reversi · Paare finden (1–4).
 Jedes Spiel online über die drei Wörter, gegen den Computer (3 Stufen) oder an einem Gerät. Freie Plätze an Mehr-Personen-Tischen
 füllt der Computer. Unter dem Brett steht auf Wunsch „Wer gewinnt?“ (Zahl in der Einheit des Spiels ↔ Gewinnchance in %).
 
@@ -48,7 +49,13 @@ Wörter, nie die Wörter, Namen oder Züge im Klartext.
   Jeder Wurf bzw. jede Mischung ergibt sich aus den Kettengliedern aller Spieler – niemand, auch nicht der Gastgeber, kann
   sie steuern. Würfe prüft jedes Gerät sofort, Mischungen nach dem jeweiligen Spiel („✓ fair gemischt/gewürfelt“).
   Solo und an einem Gerät: normaler Zufall.
-- **Zu zweit an einem Gerät** (Schnapsen): Sichtschutz „Gerät an … weitergeben“ zwischen den Zügen.
+- **Schiffe versenken** nutzt denselben Weg wie die Kartenspiele: Jedes Gerät bekommt nur die eigene Flotte, fremde
+  Schiffe erst, wenn sie versenkt sind; das Aufstellen steht nie im Zugverlauf der anderen. Gleiche ehrliche Grenze:
+  Der Browser des Gastgebers kennt beide Flotten.
+- **Paare finden:** Die Bilder sind für alle verdeckt, der Gastgeber-Browser kennt sie (gleiche Grenze), fair gemischt.
+- **Würfel mit beliebig vielen Würfeln** (Ludo 1, Würfelglück nur die nicht gehaltenen) laufen über dieselben Hash-Ketten.
+- **Zu zweit an einem Gerät** (Schnapsen, Mau-Mau, Schiffe versenken): Sichtschutz „Gerät an … weitergeben“ zwischen den
+  Zügen; bei Schiffe versenken steht darauf das Ergebnis des letzten Schusses.
 
 ## Regeln und Schalter
 **Mühle:** 9 Steine, erst setzen, dann ziehen; Mühle schließen = gegnerischen Stein nehmen (nicht aus einer
@@ -87,6 +94,35 @@ einmal Teilen, keine Versicherung. Gespielt wird um Bohnen.
 Blockade-Regel: Ist die Zielzacke voll und steht mindestens ein eigener Stein darin, ist das ein Sieg. Zuglimit 200 Züge je
 Spieler (dann gewinnt der kürzeste Restweg). „Lupe“ vergrößert das Brett am Handy.
 
+**Ludo** (Schmidt-Spiele-Anleitung „Mensch ärgere Dich nicht“): 2–4 Spieler (zu zweit Rot gegen Grün), eine Figur
+startet auf dem Startfeld, mit 6 raus (Pflicht), Startfeld räumen, nach einer 6 nochmal, Rauswerfen, Ziel nur exakt.
+Schalter: *3× würfeln* (an), *Schlagpflicht*, *Eine Figur startet draußen* (an), *Im Ziel überspringen* (an).
+Ist kein Zug möglich, geht es von selbst weiter (kein „Passen“-Tippen).
+
+**Schiffe versenken** (de.wikipedia): 10×10, A–J/1–10, Schiffe gerade, berühren sich nicht (auch nicht über Eck).
+Schalter: *Flotte* klein (5 Schiffe, 17 Felder) oder groß (10 Schiffe wie in der Quelle), *Schiffe dürfen sich berühren*,
+*Nach Treffer nochmal*. Aufstellen: zufällig („Neu mischen“) oder selbst (Schiff antippen, Feld antippen, „Drehen“).
+Schießen: Feld antippen (Fadenkreuz), nochmal antippen oder „Feuer!“.
+
+**Vier in einer Reihe** (de.wikipedia „Vier gewinnt“): 7×6, Rot beginnt, vier in einer Linie gewinnt, volles Brett =
+Remis. Spalte antippen hebt den Stein über die Spalte, nochmal antippen wirft ein; der Stein fällt sichtbar.
+
+**Mau-Mau** (de.wikipedia): 32 Blatt doppeldeutsch (IX/VIII/VII aus derselben Fotoserie nachgeschnitten), 2–5 Spieler,
+je 5 Karten, Farbe oder Wert bedienen, sonst eine Karte ziehen (passt sie, sofort legen). Schalter (alle an):
+*7 = zwei ziehen* (mit 7 kontern), *Unter wünscht* (nicht auf Unter), *Daus = Aussetzen* (Hausregel; die Quelle nennt
+meist die 8), *„Mau“ sagen* (Knopf; vergessen = 2 Strafkarten). Die erste offene Karte ist wirkungslos.
+
+**Würfelglück** (Schmidt-Anleitung; ohne Markennamen): 5 Würfel, bis zu 3 Würfe, Würfel antippen = halten,
+13 Felder, Bonus 35 ab 63 oben, Full House 25, kleine/große Straße 30/40, Fünferpasch 50. Der Block zeigt bei jedem
+freien Feld, was es brächte, ★ = Vorschlag. Streichen nur, wenn nichts passt (Schalter *Frei streichen*).
+*Weiterer Fünferpasch*: Grundregel (+50, Feld frei wählen), Meisterschaftsregel oder aus. 1–6 Spieler, auch allein.
+
+**Reversi** (WOF-Regeln): 8×8, Schwarz beginnt, nur Züge, die umdrehen; Passen nur ohne Zug (Knopf), Ende, wenn
+keiner mehr kann; mehr Steine gewinnt.
+
+**Paare finden** (de.wikipedia „Memory (Spiel)“; ohne Markennamen): 8, 12 oder 18 Tierpaare, zwei Karten umdrehen,
+Paar = behalten und nochmal, sonst bleibt das falsche Paar offen, bis der Nächste dreht. 1–4 Spieler.
+
 Quellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“,
 strategy-games.de (deutsche Dame), FMJD (international), FIDE (Schach).
 
@@ -94,8 +130,14 @@ strategy-games.de (deutsche Dame), FMJD (international), FIDE (Schach).
 Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm run build:lib`).
 - `npm test` – Node: Wortliste, Krypto, Relay-Kanal, Regelfälle aller Spiele, Tisch-Protokoll (auch verdeckte Karten,
   faire Würfel/Mischung, Mehr-Sitz-Tisch), Fair Play, evaluate, Zufalls-Schwarm mit Invarianten (Mühle/Dame/Schnapsen/
-  Backgammon/Blackjack 10 000 Partien, Halma 2 460, Schach 150 + Bot-Stufen), Computer-Tempo und Ereignisse, Meldungs-
+  Backgammon/Blackjack/Ludo/Schiffe/Vier/Mau-Mau/Würfelglück/Reversi/Paare je 10 000 Partien, Halma 2 460, Schach 150 +
+  Bot-Stufen), Computer-Tempo und Ereignisse, Meldungs-
   Warteschlange, Stich-Blatt; `npm test -- --schnell` ohne Schwarm.
+- `python3 tests/smoke_n4.py [ludo] [vier] [maumau] [wuerfel] [schiffe] [reversi] [paare]` – Browser (Pixel 7 hoch/quer,
+  Desktop): die n4-Spiele mit echten Taps, Knöpfe ≥ 48 px, Brett im Bild, Halten/Vorschläge, Flotte setzen, Mau sagen,
+  Sichtschutz, nie eine fremde Karte/Flotte im DOM, Animationen (Steine fallen/kippen). Screenshots `tests/shots/n4/`.
+- `python3 tests/e2e_n4.py [--relay]` – Netz-E2E: Schiffe versenken und Mau-Mau (Gast sieht nie Fremdes, Zustand + Bild),
+  Ludo (faire Würfel, je Wurf geprüft).
 - `python3 tests/smoke_n3.py` – Browser (hoch/quer): Computer-Tempo „gemütlich“ (Dame-Kette Station für Station, Backgammon
   Wurf + Teilzüge, Blackjack-Bank Karte für Karte, Denkzeit), Banner, Ereignis-Liste, Meldungs-Warteschlange, Einstellungen,
   Stich-Blatt (genau die eigenen Karten, keine fremde im DOM/SVG), zu zweit mit Sichtschutz. Screenshots `tests/shots/n3/`.
@@ -117,6 +159,7 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
   „Dark Wood“ (Dario Barresi, Dimitrios Savva, Rico Cilliers).
 - Trystero (MIT, Dan Motzenbecker), @noble/secp256k1 (MIT, Paul Miller), chess.js (BSD-2, Jeff Hlywa).
 - Schachfiguren: Colin M. L. Burnett (cburnett), Wikimedia Commons, BSD-3-Clause.
-- Schnapskarten: Fotos von Zákupák (Wikimedia Commons, gemeinfrei), entzerrt mit `tools/cards/crop_de.py`.
+- Doppeldeutsche Karten (Schnapsen, Mau-Mau, 32 Blatt): Fotos von Zákupák (Wikimedia Commons, gemeinfrei), entzerrt mit `tools/cards/crop_de.py`.
+- Tierbilder bei Paare finden: Emoji der Systemschrift (keine Bilddateien im Repo).
 - Französische Karten: Byron Knoll, „Vector Playing Cards“ (gemeinfrei).
 - Alle Einzelheiten: [LICENSES.md](LICENSES.md); in der App unter „Credits“.

@@ -142,11 +142,12 @@ export function credits() {
       'Programm, Bretter, Steine, Icons und Wortliste: eigene Arbeit (MIT-Lizenz).',
       'Schachfiguren: Colin M. L. Burnett (cburnett), Wikimedia Commons, BSD-3-Clause.',
       'Schachregeln: chess.js 1.4.0 (BSD-2-Clause, Jeff Hlywa).',
-      'Schnapskarten: Fotos von Zákupák (Wikimedia Commons, gemeinfrei), von uns entzerrt und zugeschnitten.',
+      'Doppeldeutsche Karten (Schnapsen, Mau-Mau): Fotos von Zákupák (Wikimedia Commons, gemeinfrei), von uns entzerrt und zugeschnitten.',
       'Französische Karten: Byron Knoll, „Vector Playing Cards“ (gemeinfrei).',
       'Holztexturen: Poly Haven, CC0 – „Silver Oak Veneer 01“ und „Walnut Veneer“ (Jenelle van Heerden), „Dark Wood“ (Dario Barresi, Dimitrios Savva, Rico Cilliers).',
       'Netz: Trystero 0.25.4 (MIT, Dan Motzenbecker), @noble/secp256k1 (MIT, Paul Miller).',
-      'Regelquellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“, strategy-games.de (deutsche Dame), FMJD (internationale Dame), FIDE (Schach).'
+      'Regelquellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“, strategy-games.de (deutsche Dame), FMJD (internationale Dame), FIDE (Schach); Schmidt-Spiele-Anleitungen (Ludo, Würfelglück), de.wikipedia „Schiffe versenken“, „Vier gewinnt“, „Mau-Mau (Kartenspiel)“, „Memory (Spiel)“, World Othello Federation (Reversi).',
+      'Tierbilder bei Paare finden: Emoji der Systemschrift.'
     ),
     h('p', {}, 'Alle Details stehen in ', h('a', { href: 'LICENSES.md', target: '_blank', rel: 'noopener', text: 'LICENSES.md' }), '.'));
 }
