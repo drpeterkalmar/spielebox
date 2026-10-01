@@ -102,6 +102,15 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
         }
         break;
       }
+      case 'reversi': {
+        if (move.pass) { note(by, you(by) ? 'Du musst passen' : `${name(by)} muss passen`, true); break; }
+        const l = gs.last;
+        if (!l || l.i !== move.i) break;
+        const n = (l.flipped || []).length;
+        if ([0, 7, 56, 63].includes(move.i)) ev(by, `nimmt eine Ecke (dreht ${plural(n, 'Stein', 'Steine')} um)`, `nimmst eine Ecke (drehst ${plural(n, 'Stein', 'Steine')} um)`, true);
+        else if (n >= 5) ev(by, `dreht ${n} Steine um`, `drehst ${n} Steine um`, false);
+        break;
+      }
       case 'wuerfel': {
         if (move.type === 'roll' && gs.dice && gs.dice.every((x) => x === gs.dice[0])) note(by, you(by) ? `Fünferpasch! Du würfelst 5 × ${gs.dice[0]}` : `Fünferpasch! ${name(by)} würfelt 5 × ${gs.dice[0]}`, true);
         else if (move.type === 'score' && d) note(by, `${you(by) ? 'Du' : name(by)} – ${d}`, !you(by) && /Fünferpasch|Große Straße|Full House|extra|Extra/.test(d));

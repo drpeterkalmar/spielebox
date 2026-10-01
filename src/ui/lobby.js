@@ -20,6 +20,8 @@ import { RULES as MAUMAU_RULES } from '../games/maumau/rules.js';
 RULES.maumau = () => rulesFromData(MAUMAU_RULES);
 import { RULES as WUERFEL_RULES } from '../games/wuerfel/rules.js';
 RULES.wuerfel = () => rulesFromData(WUERFEL_RULES);
+import { RULES as REVERSI_RULES } from '../games/reversi/rules.js';
+RULES.reversi = () => rulesFromData(REVERSI_RULES);
 import { openSettings } from './settings.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -67,6 +69,11 @@ export function miniBoard(game) {
     d += '<path d="M42 8H58V42H92V58H58V92H42V58H8V42H42Z" fill="#f4e9d2" stroke="#5a3a1a" stroke-width="2"/>';
     corners.forEach(([x, y], k) => { d += `<circle cx="${x + 15}" cy="${y + 15}" r="8" fill="${col[k]}" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>`; });
     svg.innerHTML = d + '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/>';
+  } else if (game === 'reversi') {
+    let d = '<rect width="100" height="100" rx="12" fill="#2f7a4a"/>';
+    for (let k = 1; k < 4; k++) d += `<path d="M${k * 25} 4V96M4 ${k * 25}H96" stroke="rgba(10,40,20,.7)" stroke-width="1.6"/>`;
+    const disc = (x, y, b) => `<circle cx="${x}" cy="${y}" r="9.5" fill="url(#sb-st-${b ? 'b' : 'w'})" stroke="${b ? '#000' : '#7a6548'}"/>`;
+    svg.innerHTML = d + disc(37.5, 37.5, 0) + disc(62.5, 62.5, 0) + disc(62.5, 37.5, 1) + disc(37.5, 62.5, 1) + disc(62.5, 12.5, 1);
   } else if (game === 'wuerfel') {
     const die = (x, y, r, v) => { const o = 7; const P = { 1: [[0, 0]], 3: [[-o, -o], [0, 0], [o, o]], 5: [[-o, -o], [o, -o], [0, 0], [-o, o], [o, o]], 6: [[-o, -o], [o, -o], [-o, 0], [o, 0], [-o, o], [o, o]] }[v];
       return `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-14" y="-14" width="28" height="28" rx="6" fill="#fffdf6" stroke="#3a2515" stroke-width="1.5"/>${P.map(([a, b]) => `<circle cx="${a}" cy="${b}" r="2.6" fill="#1f140c"/>`).join('')}</g>`; };

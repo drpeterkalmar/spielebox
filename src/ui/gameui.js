@@ -34,6 +34,9 @@ import { RULES as MAUMAU_RULES } from '../games/maumau/rules.js';
 import { createBoard as wuerfelBoard } from '../games/wuerfel/view.js';
 import * as WG from '../games/wuerfel/engine.js';
 import { RULES as WUERFEL_RULES } from '../games/wuerfel/rules.js';
+import { createBoard as reversiBoard } from '../games/reversi/view.js';
+import * as RV from '../games/reversi/engine.js';
+import { RULES as REVERSI_RULES } from '../games/reversi/rules.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -482,6 +485,25 @@ UI.wuerfel = {
       }
     }
     return out;
+  }
+};
+
+UI.reversi = {
+  board: reversiBoard,
+  icon: (seat) => stoneIcon(1 - seat),   // Sitz 0 = Schwarz
+  rules: (o) => rulesFromData(REVERSI_RULES, o),
+  sub(t, seat) {
+    const c = RV.counts(t.gs);
+    return `${seat ? 'Weiß' : 'Schwarz'} · ${c[seat]} Steine`;
+  },
+  status(t, seat) {
+    if (t.gs.turn !== seat) return null;
+    const l = RV.legalMoves(t.gs);
+    return l.length === 1 && l[0].pass ? 'Kein Feld frei – du musst passen' : 'Du bist dran: Feld wählen';
+  },
+  actions(t, legal, submit) {
+    const p = legal.length === 1 && legal[0].pass ? legal[0] : null;
+    return p ? [h('button', { class: 'btn primary', data: { act: 'pass' }, on: { click: () => submit(p) } }, 'Passen')] : [];
   }
 };
 

@@ -245,6 +245,40 @@ def wuerfel(P, form):
     P.shot(f'wuerfel_allein_{form}', 'n4')
 
 
+def reversi(P, form):
+    P.ev("__box.local('bot', 'reversi', {}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'reversi' and my_turn(P), 15, 'Reversi: ich bin dran')
+    time.sleep(0.3)
+    check_screen(P, f'{form} Reversi')
+    dots = P.ev("document.querySelectorAll('.board-reversi .hint-dot').length")
+    c.ok(dots == 4, f'{form}: Start – 4 erlaubte Felder markiert ({dots})')
+    for k in range(5):
+        wait(lambda: my_turn(P) or tbl(P)['status'] != 'play', 20, 'wieder dran')
+        if tbl(P)['status'] != 'play': break
+        legal = P.ev("__box.legal()")
+        if legal[0].get('pass'):
+            P.tap('[data-act="pass"]'); continue
+        m = legal[0]
+        before = P.ev("__box.table().gs.board.filter(x => x === 0).length")
+        n = tbl(P)['nmoves']
+        tap_target(P, m['i'])
+        wait(lambda: tbl(P)['nmoves'] > n, 5, 'gesetzt')
+        if k == 0:
+            after = P.ev(f"__box.table().hist.filter(e => e.by === 0).pop().m.i")
+            c.ok(after == m['i'], f'{form}: Stein per Tipp gesetzt ({m["i"]})')
+    c.ok(tbl(P)['nmoves'] >= 6, f'{form}: Reversi – Computer antwortet ({tbl(P)["nmoves"]} Züge)')
+    P.shot(f'reversi_{form}', 'n4')
+    P.open('?nosw&alle&tempo=normal')
+    P.ev("__box.local('hotseat', 'reversi', {})")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'reversi', 10, 'zu zweit')
+    time.sleep(0.3)
+    x, y = P.ev("__box.target(19)")
+    P.pg.touchscreen.tap(x, y) if P.device != 'desktop' else P.pg.mouse.click(x, y)
+    anims = P.ev("document.getAnimations().length")
+    c.ok(anims >= 2, f'{form}: Steine kippen animiert ({anims} Animationen)')
+    P.open('?nosw&alle')
+
+
 def schiffe(P, form):
     P.ev("__box.local('bot', 'schiffe', {}, 'weiss', 1)")
     wait(lambda: tbl(P) and tbl(P)['game'] == 'schiffe' and my_turn(P), 15, 'Schiffe: aufstellen')
