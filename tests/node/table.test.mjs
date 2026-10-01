@@ -613,5 +613,34 @@ await ok('Würfelglück online: gehaltene Würfel bleiben, nur die übrigen werd
   h.close(); g.close();
 });
 
+await ok('Paare finden online: verdeckte Karten kennt nur der Host-Speicher, Gast sieht genau die offenen, fair gemischt', async () => {
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'paare', opts: { paare: 8, players: 2 }, host: { pid: 'H', name: 'Peter' } }) });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play' && g.table.gs.phase === 'play', 3000, 'Start');
+  const pa = gameOf('paare').engine;
+  const rng = mulberry32(31);
+  let moves = 0;
+  for (let i = 0; i < 500 && h.table.status === 'play'; i++) {
+    const turn = pa.currentPlayer(h.table.gs);
+    const who = turn === 0 ? h : g;
+    if (turn === null || who.pendingMove || who.table.seq !== h.table.seq) { await sleep(2); i--; continue; }
+    const H = h.table.gs, G = g.table.gs;
+    G.cards.forEach((c, k) => {
+      const open = H.found[k] !== null || H.open.includes(k) || (H.shown && H.shown.includes(k));
+      assert.equal(c, open ? H.cards[k] : null, 'Gast sieht genau die offenen Karten');
+    });
+    const n = h.table.nmoves;
+    assert.ok(who.submitMove(pick(rng, pa.legalMoves(who.table.gs))).ok);
+    await until(() => h.table.nmoves === n + 1 && g.table.seq === h.table.seq, 3000, 'verteilt');
+    moves++;
+  }
+  assert.equal(h.table.status, 'over');
+  await until(() => g.fairCheck && g.fairCheck.n === h.table.fair.log.length && g.fairCheck.checked >= 1, 3000);
+  assert.ok(g.fairCheck.ok);
+  console.log(`   ${moves} Züge, ${h.table.result.reason}, Mischung nach dem Spiel geprüft`);
+  h.close(); g.close();
+});
+
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
 process.exit(fails ? 1 : 0);

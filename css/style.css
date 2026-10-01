@@ -559,3 +559,14 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board-cards .card.drawn image { filter: drop-shadow(0 0 12px #6fe3a4); }
 .pbar.top.solo { display: none; }
 table.wg-block td, table.wg-block th { padding: 3px 5px; font-size: 14px; }
+
+/* ---------- n4: Paare finden ---------- */
+.board .pa-back { fill: #2f6f8f; stroke: #1d4357; stroke-width: 4; }
+.board .pa-back-in { fill: none; stroke: rgba(255,255,255,.35); stroke-width: 3; stroke-dasharray: 10 8; }
+.board .pa-q { font-weight: 800; fill: rgba(255,255,255,.4); text-anchor: middle; font-family: system-ui, sans-serif; }
+.board .pa-face { fill: #fffaf0; stroke: #b8862c; stroke-width: 4; }
+.board .pa-face.open { stroke: #ffd24a; stroke-width: 8; }
+.board .pa-face.wrong { stroke: #e5483b; stroke-width: 8; }
+.board .pa-emoji { text-anchor: middle; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+.board .pa-card.found { opacity: .55; }
+.board .pa-card { cursor: pointer; }

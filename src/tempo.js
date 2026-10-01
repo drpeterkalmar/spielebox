@@ -94,6 +94,8 @@ export function animMs(game, move, prevGs, gs, a) {
       return 0;
     case 'schiffe':
       return move.type === 'shot' && a.slide > 0 ? a.slide + 700 : 0;
+    case 'paare':
+      return Number.isInteger(move.flip) && a.slide > 0 ? Math.max(160, a.slide * 0.6) + (gs && gs.last && gs.last.match ? a.pause : 0) : 0;
     case 'reversi':
       return Number.isInteger(move.i) ? reversiMs(a, gs, move) : 0;
     case 'vier': {

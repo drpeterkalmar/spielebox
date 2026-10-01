@@ -13,6 +13,7 @@ import * as vier from './vier/engine.js';
 import * as maumau from './maumau/engine.js';
 import * as wuerfel from './wuerfel/engine.js';
 import * as reversi from './reversi/engine.js';
+import * as paare from './paare/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -201,12 +202,26 @@ export const GAMES = {
     seats: 2,
     options: [],
     variantName: () => 'Reversi'
+  },
+  paare: {
+    id: 'paare',
+    title: 'Paare finden',
+    engine: paare,
+    blurb: '1–4 Spieler, Tierbilder merken',
+    seats: (o) => o.players,
+    cards: true,
+    options: [
+      { key: 'paare', type: 'choice', label: 'Karten', choices: [
+        { value: 8, label: '8 Paare', sub: '4 × 4' }, { value: 12, label: '12 Paare', sub: '4 × 6' }, { value: 18, label: '18 Paare', sub: '6 × 6' }], dflt: 12 },
+      { key: 'players', type: 'choice', label: 'Spieler', choices: [1, 2, 3, 4].map((n) => ({ value: n, label: String(n) })), dflt: 2 }
+    ],
+    variantName: (o) => { const x = paare.normalizeOptions(o); return `${x.paare} Paare · ${x.players} Spieler`; }
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier, GAMES.maumau, GAMES.wuerfel, GAMES.reversi];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier, GAMES.maumau, GAMES.wuerfel, GAMES.reversi, GAMES.paare];
 // in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
-export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier', 'maumau', 'wuerfel', 'reversi']);
+export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier', 'maumau', 'wuerfel', 'reversi', 'paare']);
 
 // Sitzanzahl eines Spiels (fest oder aus den Optionen, z. B. Blackjack 2–6)
 export function seatCount(g, opts) {

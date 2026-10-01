@@ -102,6 +102,14 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
         }
         break;
       }
+      case 'paare': {
+        const l = gs.last;
+        if (l && l.match && l.seat === by && l.b === move.flip) {
+          const NAMES = ['Hund', 'Katze', 'Maus', 'Hase', 'Fuchs', 'Bär', 'Panda', 'Koala', 'Tiger', 'Löwe', 'Kuh', 'Schwein', 'Frosch', 'Affe', 'Huhn', 'Pinguin', 'Eule', 'Schildkröte'];
+          note(by, you(by) ? `Paar! ${NAMES[l.motif]}` : `${name(by)} findet ein Paar: ${NAMES[l.motif]}!`, true);
+        }
+        break;
+      }
       case 'reversi': {
         if (move.pass) { note(by, you(by) ? 'Du musst passen' : `${name(by)} muss passen`, true); break; }
         const l = gs.last;

@@ -22,6 +22,8 @@ import { RULES as WUERFEL_RULES } from '../games/wuerfel/rules.js';
 RULES.wuerfel = () => rulesFromData(WUERFEL_RULES);
 import { RULES as REVERSI_RULES } from '../games/reversi/rules.js';
 RULES.reversi = () => rulesFromData(REVERSI_RULES);
+import { RULES as PAARE_RULES } from '../games/paare/rules.js';
+RULES.paare = () => rulesFromData(PAARE_RULES);
 import { openSettings } from './settings.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -69,6 +71,11 @@ export function miniBoard(game) {
     d += '<path d="M42 8H58V42H92V58H58V92H42V58H8V42H42Z" fill="#f4e9d2" stroke="#5a3a1a" stroke-width="2"/>';
     corners.forEach(([x, y], k) => { d += `<circle cx="${x + 15}" cy="${y + 15}" r="8" fill="${col[k]}" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>`; });
     svg.innerHTML = d + '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/>';
+  } else if (game === 'paare') {
+    let d = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>';
+    const face = { 0: '🐱', 3: '🐱', 5: '🐶' };
+    for (let k = 0; k < 9; k++) { const x = 8 + (k % 3) * 29, y = 8 + Math.floor(k / 3) * 29; d += face[k] ? `<rect x="${x}" y="${y}" width="26" height="26" rx="5" fill="#fffaf0" stroke="#b8862c" stroke-width="1.5"/><text x="${x + 13}" y="${y + 19}" font-size="16" text-anchor="middle">${face[k]}</text>` : `<rect x="${x}" y="${y}" width="26" height="26" rx="5" fill="#2f6f8f" stroke="#1d4357" stroke-width="1.5"/>`; }
+    svg.innerHTML = d;
   } else if (game === 'reversi') {
     let d = '<rect width="100" height="100" rx="12" fill="#2f7a4a"/>';
     for (let k = 1; k < 4; k++) d += `<path d="M${k * 25} 4V96M4 ${k * 25}H96" stroke="rgba(10,40,20,.7)" stroke-width="1.6"/>`;

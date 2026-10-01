@@ -37,6 +37,8 @@ import { RULES as WUERFEL_RULES } from '../games/wuerfel/rules.js';
 import { createBoard as reversiBoard } from '../games/reversi/view.js';
 import * as RV from '../games/reversi/engine.js';
 import { RULES as REVERSI_RULES } from '../games/reversi/rules.js';
+import { createBoard as paareBoard } from '../games/paare/view.js';
+import { RULES as PAARE_RULES } from '../games/paare/rules.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -505,6 +507,23 @@ UI.reversi = {
   actions(t, legal, submit) {
     const p = legal.length === 1 && legal[0].pass ? legal[0] : null;
     return p ? [h('button', { class: 'btn primary', data: { act: 'pass' }, on: { click: () => submit(p) } }, 'Passen')] : [];
+  }
+};
+
+UI.paare = {
+  board: paareBoard,
+  icon: (seat) => seatIcon(seat),
+  rules: (o) => rulesFromData(PAARE_RULES, o),
+  hidden: true,
+  shared: true,   // verdeckt für alle gleich → zu zweit am Gerät kein Sichtschutz nötig
+  sub(t, seat) {
+    const n = t.gs.scores[seat];
+    return t.gs.n === 1 ? `${n} ${n === 1 ? 'Paar' : 'Paare'} · ${t.gs.flips} Züge` : `${n} ${n === 1 ? 'Paar' : 'Paare'}`;
+  },
+  status(t, seat) {
+    const gs = t.gs;
+    if (gs.turn !== seat || gs.phase !== 'play') return null;
+    return gs.open.length ? 'Zweite Karte umdrehen' : gs.last && gs.last.match && gs.last.seat === seat ? 'Paar! Du darfst nochmal' : 'Du bist dran: Karte umdrehen';
   }
 };
 

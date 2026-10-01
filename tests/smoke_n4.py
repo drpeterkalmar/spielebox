@@ -6,7 +6,7 @@ sys.path.insert(0, 'tests')
 from util import *
 
 c = Checker()
-ALL = ['ludo', 'vier', 'maumau', 'wuerfel', 'schiffe', 'reversi']
+ALL = ['ludo', 'vier', 'maumau', 'wuerfel', 'schiffe', 'reversi', 'paare']
 want = [a for a in sys.argv[1:] if a in ALL] or ALL
 forms = ['hoch', 'quer', 'desktop']
 for a in sys.argv[1:]:
@@ -277,6 +277,39 @@ def reversi(P, form):
     anims = P.ev("document.getAnimations().length")
     c.ok(anims >= 2, f'{form}: Steine kippen animiert ({anims} Animationen)')
     P.open('?nosw&alle')
+
+
+def paare(P, form):
+    P.ev("__box.local('bot', 'paare', {paare: 18, players: 2}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'paare' and my_turn(P), 15, 'Paare: ich bin dran')
+    time.sleep(0.3)
+    check_screen(P, f'{form} Paare (6 × 6)')
+    c.ok(P.ev("document.querySelectorAll('.pa-emoji').length") == 0, f'{form}: am Anfang kein Bild im DOM (alles verdeckt)')
+    found = 0
+    for k in range(8):
+        wait(lambda: my_turn(P) or tbl(P)['status'] != 'play', 30, 'wieder dran')
+        if tbl(P)['status'] != 'play': break
+        g = gs(P)   # voller Zustand (lokal) – nur der Test schummelt, um ein Paar zu treffen
+        free = [i for i in range(36) if g['found'][i] is None and i not in g['open']]
+        if g['open']:
+            a = g['open'][0]
+            mate = next((i for i in free if g['cards'][i] == g['cards'][a]), free[0])
+            n = tbl(P)['nmoves']; tap_target(P, mate); wait(lambda: tbl(P)['nmoves'] > n, 5, 'zweite Karte')
+            if P.ev(f"__box.table().gs.found[{mate}]") == 0: found += 1
+        else:
+            n = tbl(P)['nmoves']; tap_target(P, free[0]); wait(lambda: tbl(P)['nmoves'] > n, 5, 'erste Karte')
+            vis = P.ev("document.querySelectorAll('.pa-emoji').length")
+            should = P.ev("(() => { const g = __box.table().gs; return g.cards.filter((_, i) => g.found[i] !== null || g.open.includes(i) || (g.shown && g.shown.includes(i))).length; })()")
+            if vis != should: c.ok(False, f'{form}: {vis} Bilder im DOM, offen sind {should}')
+    c.ok(found >= 2, f'{form}: Paare per Tipp gefunden ({found}), nur offene Bilder im DOM')
+    P.shot(f'paare_{form}', 'n4')
+    P.ev("__box.local('hotseat', 'paare', {paare: 8, players: 2})")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'paare', 10, 'zu zweit')
+    time.sleep(0.3)
+    c.ok(not P.ev("!!document.querySelector('[data-act=unlock]')"), f'{form}: zu zweit kein Sichtschutz nötig (für alle gleich verdeckt)')
+    tap_target(P, 0); tap_target(P, 5)
+    time.sleep(0.2)
+    P.shot(f'paare_zuzweit_{form}', 'n4')
 
 
 def schiffe(P, form):
