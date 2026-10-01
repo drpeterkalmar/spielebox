@@ -582,5 +582,36 @@ await ok('Mau-Mau online: 3 Sitze (2 Gäste + Computer), keiner sieht fremde Kar
   h.close(); a.close();
 });
 
+await ok('Würfelglück online: gehaltene Würfel bleiben, nur die übrigen werden fair gewürfelt (n = 5 − gehalten), Gast prüft jeden Wurf', async () => {
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'wuerfel', opts: { players: 2 }, host: { pid: 'H', name: 'Peter' } }) });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play', 3000, 'Start');
+  const wg = gameOf('wuerfel').engine;
+  const rng = mulberry32(17);
+  let rolls = 0;
+  for (let i = 0; i < 60 && h.table.status === 'play'; i++) {
+    const turn = wg.currentPlayer(h.table.gs);
+    const who = turn === 0 ? h : g;
+    if (turn === null || who.pendingMove || who.table.seq !== h.table.seq || h.table.fairNeed) { await sleep(3); i--; continue; }
+    const legal = wg.legalMoves(who.table.gs);
+    const m = pick(rng, legal);
+    const before = who.table.gs.dice;
+    const n = h.table.nmoves;
+    assert.ok(who.submitMove(m).ok);
+    await until(() => h.table.nmoves === n + 1 && !h.table.fairNeed && g.table.seq === h.table.seq, 3000, 'verteilt');
+    if (m.type === 'roll') {
+      rolls++;
+      const e = h.table.fair.log[h.table.fair.log.length - 1];
+      assert.equal(e.n, m.hold.filter((x) => !x).length, 'Würfelzahl = nicht gehaltene');
+      if (before) m.hold.forEach((x, k) => { if (x) assert.equal(h.table.gs.dice[k], before[k], 'gehaltener Würfel bleibt'); });
+    }
+  }
+  await until(() => g.fairCheck && g.fairCheck.n === h.table.fair.log.length, 3000);
+  assert.ok(g.fairCheck.ok && h.table.fair.log.every((e) => !e.fallback), JSON.stringify(g.fairCheck));
+  console.log(`   ${rolls} Würfe, alle vom Gast geprüft`);
+  h.close(); g.close();
+});
+
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
 process.exit(fails ? 1 : 0);

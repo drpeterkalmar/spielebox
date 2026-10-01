@@ -557,3 +557,5 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board .mm-badge.pen { fill: #8a2018; }
 .board .mm-badge-t { font: 800 32px system-ui, sans-serif; fill: #fff6dd; text-anchor: middle; }
 .board-cards .card.drawn image { filter: drop-shadow(0 0 12px #6fe3a4); }
+.pbar.top.solo { display: none; }
+table.wg-block td, table.wg-block th { padding: 3px 5px; font-size: 14px; }

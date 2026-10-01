@@ -10,10 +10,11 @@ import { chooseMove as ludo } from './games/ludo/bot.js';
 import { chooseMove as schiffe } from './games/schiffe/bot.js';
 import { chooseMove as vier } from './games/vier/bot.js';
 import { chooseMove as maumau } from './games/maumau/bot.js';
+import { chooseMove as wuerfel } from './games/wuerfel/bot.js';
 
 import { evalPosition } from './evalpos.js';
 
-const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma, ludo, schiffe, vier, maumau };
+const BOTS = { muehle, dame, schach, schnapsen, backgammon, blackjack, halma, ludo, schiffe, vier, maumau, wuerfel };
 const TIME = { 1: 150, 2: 400, 3: 1200 };
 let worker = null;
 let seq = 0;

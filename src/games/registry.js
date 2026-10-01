@@ -11,6 +11,7 @@ import * as ludo from './ludo/engine.js';
 import * as schiffe from './schiffe/engine.js';
 import * as vier from './vier/engine.js';
 import * as maumau from './maumau/engine.js';
+import * as wuerfel from './wuerfel/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -171,12 +172,29 @@ export const GAMES = {
       { key: 'mau', type: 'switch', label: '„Mau“ sagen', sub: 'Bei der vorletzten Karte – vergessen = 2 Strafkarten', dflt: true }
     ],
     variantName: (o) => { const x = maumau.normalizeOptions(o); return [`${x.players} Spieler`, ...['sieben', 'unter', 'ass', 'mau'].filter((k) => !x[k]).map((k) => `ohne ${{ sieben: '7er', unter: 'Unter', ass: 'Daus', mau: 'Mau' }[k]}`)].join(' · '); }
+  },
+  wuerfel: {
+    id: 'wuerfel',
+    title: 'Würfelglück',
+    engine: wuerfel,
+    blurb: '1–6 Spieler, 5 Würfel, 13 Felder',
+    seats: (o) => o.players,
+    winPoints: 1,
+    options: [
+      { key: 'players', type: 'choice', label: 'Spieler', choices: [1, 2, 3, 4, 5, 6].map((n) => ({ value: n, label: String(n) })), dflt: 2 },
+      { key: 'joker', type: 'choice', label: 'Weiterer Fünferpasch', choices: [
+        { value: 'grund', label: 'Grundregel', sub: '+50, Feld frei wählen' },
+        { value: 'meister', label: 'Meister', sub: '+50, normal eintragen' },
+        { value: 'aus', label: 'Aus', sub: 'kein Extra' }] },
+      { key: 'freiStreichen', type: 'switch', label: 'Frei streichen', sub: 'Jedes Feld darf jederzeit gestrichen werden (Meisterschaftsregel)' }
+    ],
+    variantName: (o) => { const x = wuerfel.normalizeOptions(o); return [`${x.players} ${x.players === 1 ? 'Spieler' : 'Spieler'}`, x.joker === 'meister' ? 'Meisterregel' : x.joker === 'aus' ? 'ohne Extra-Fünferpasch' : '', x.freiStreichen ? 'frei streichen' : ''].filter(Boolean).join(' · '); }
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier, GAMES.maumau];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier, GAMES.maumau, GAMES.wuerfel];
 // in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
-export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier', 'maumau']);
+export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier', 'maumau', 'wuerfel']);
 
 // Sitzanzahl eines Spiels (fest oder aus den Optionen, z. B. Blackjack 2–6)
 export function seatCount(g, opts) {

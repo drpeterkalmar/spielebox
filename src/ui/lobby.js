@@ -18,6 +18,8 @@ import { RULES as VIER_RULES } from '../games/vier/rules.js';
 RULES.vier = () => rulesFromData(VIER_RULES);
 import { RULES as MAUMAU_RULES } from '../games/maumau/rules.js';
 RULES.maumau = () => rulesFromData(MAUMAU_RULES);
+import { RULES as WUERFEL_RULES } from '../games/wuerfel/rules.js';
+RULES.wuerfel = () => rulesFromData(WUERFEL_RULES);
 import { openSettings } from './settings.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
@@ -65,6 +67,10 @@ export function miniBoard(game) {
     d += '<path d="M42 8H58V42H92V58H58V92H42V58H8V42H42Z" fill="#f4e9d2" stroke="#5a3a1a" stroke-width="2"/>';
     corners.forEach(([x, y], k) => { d += `<circle cx="${x + 15}" cy="${y + 15}" r="8" fill="${col[k]}" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>`; });
     svg.innerHTML = d + '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/>';
+  } else if (game === 'wuerfel') {
+    const die = (x, y, r, v) => { const o = 7; const P = { 1: [[0, 0]], 3: [[-o, -o], [0, 0], [o, o]], 5: [[-o, -o], [o, -o], [0, 0], [-o, o], [o, o]], 6: [[-o, -o], [o, -o], [-o, 0], [o, 0], [-o, o], [o, o]] }[v];
+      return `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-14" y="-14" width="28" height="28" rx="6" fill="#fffdf6" stroke="#3a2515" stroke-width="1.5"/>${P.map(([a, b]) => `<circle cx="${a}" cy="${b}" r="2.6" fill="#1f140c"/>`).join('')}</g>`; };
+    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="#1d5a3f"/>' + die(26, 30, -12, 5) + die(66, 26, 10, 5) + die(30, 70, 8, 5) + die(70, 68, -6, 6) + die(50, 48, 3, 5);
   } else if (game === 'vier') {
     let d = '<rect width="100" height="100" rx="12" fill="#2459b8"/>';
     const b = ['....', '..r.', '.yr.', 'yrry'];

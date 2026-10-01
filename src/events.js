@@ -102,6 +102,11 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
         }
         break;
       }
+      case 'wuerfel': {
+        if (move.type === 'roll' && gs.dice && gs.dice.every((x) => x === gs.dice[0])) note(by, you(by) ? `Fünferpasch! Du würfelst 5 × ${gs.dice[0]}` : `Fünferpasch! ${name(by)} würfelt 5 × ${gs.dice[0]}`, true);
+        else if (move.type === 'score' && d) note(by, `${you(by) ? 'Du' : name(by)} – ${d}`, !you(by) && /Fünferpasch|Große Straße|Full House|extra|Extra/.test(d));
+        break;
+      }
       case 'maumau': {
         const l = gs.last;
         if (!l || l.seat !== by) break;

@@ -86,6 +86,8 @@ export function animMs(game, move, prevGs, gs, a) {
       // eigene Teilzüge sind beim Tippen schon geglitten → nicht noch einmal
       if (move.type === 'play' && move.steps && move.steps.length && !a.own) return move.steps.length * a.slide + (move.steps.length - 1) * a.pause;
       return 0;
+    case 'wuerfel':
+      return move.type === 'roll' ? a.dice : move.type === 'score' ? a.slide : 0;
     case 'maumau':
       if (move.type === 'play') return a.slide;
       if (move.type === 'draw' && gs && gs.last && gs.last.n) return a.slide + (Math.min(4, gs.last.n) - 1) * Math.min(160, a.slide / 2);

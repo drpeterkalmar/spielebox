@@ -197,6 +197,54 @@ def maumau(P, form):
     P.shot(f'maumau_zuzweit_{form}', 'n4')
 
 
+def wuerfel(P, form):
+    P.ev("__box.local('bot', 'wuerfel', {players: 2}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'wuerfel' and my_turn(P), 15, 'Würfelglück: ich bin dran')
+    time.sleep(0.3)
+    check_screen(P, f'{form} Würfelglück', board=False)
+    box = P.ev("(() => { const r = document.querySelector('.wg').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom, innerWidth, innerHeight]; })()")
+    c.ok(box[0] >= -1 and box[1] >= -1 and box[2] <= box[4] + 1 and box[3] <= box[5] + 1, f'{form}: Würfel + Block ganz im Bild {[round(x) for x in box]}')
+    for rnd in range(2):
+        wait(lambda: my_turn(P), 30, 'wieder dran')
+        P.tap('[data-act="roll"]')
+        wait(lambda: gs(P)['phase'] == 'choose' and my_turn(P), 5, 'gewürfelt')
+        d0 = gs(P)['dice']
+        tap_target(P, 0); tap_target(P, 1)
+        pressed = P.ev("[...document.querySelectorAll('.wg-die')].map(e => e.getAttribute('aria-pressed'))")
+        if rnd == 0:
+            c.ok(pressed[:2] == ['true', 'true'] and pressed[2:] == ['false'] * 3, f'{form}: Würfel 1 und 2 per Tipp gehalten ({pressed})')
+            P.shot(f'wuerfel_halten_{form}', 'n4')
+        P.tap('[data-act="roll"]')
+        wait(lambda: gs(P)['rolls'] == 2 and gs(P)['phase'] == 'choose', 5, 'zweiter Wurf')
+        d1 = gs(P)['dice']
+        c.ok(d1[:2] == d0[:2], f'{form}: gehaltene Würfel bleiben ({d0} → {d1})') if rnd == 0 else None
+        best = P.ev("document.querySelector('.wg-cat.best').dataset.cat")
+        n = tbl(P)['nmoves']
+        P.tap(f'.wg-cat[data-cat="{best}"]')
+        acts = P.ev("[...document.querySelectorAll('.actions [data-act]')].map(e => e.dataset.act)")
+        P.tap(f'.wg-cat[data-cat="{best}"]')
+        wait(lambda: tbl(P)['nmoves'] > n, 5, 'eingetragen')
+        sheet = P.ev("__box.table().gs.sheets[0]")
+        if rnd == 0: c.ok(sheet[best] is not None and 'score' in acts, f'{form}: Vorschlag ★ {best} per Doppeltipp eingetragen ({sheet[best]} Punkte, Knopf „Eintragen“ war da)')
+    wait(lambda: my_turn(P), 30, 'Computer fertig')
+    P.shot(f'wuerfel_{form}', 'n4')
+    P.tap('[data-act="menu"]')
+    P.tap('[data-act="block"]')
+    time.sleep(0.3)
+    rows = P.ev("document.querySelectorAll('.wg-block tr').length")
+    c.ok(rows >= 16, f'{form}: Menü → Spielblock aller Spieler ({rows} Zeilen)')
+    P.shot(f'wuerfel_block_{form}', 'n4')
+    P.pg.keyboard.press('Escape'); P.pg.keyboard.press('Escape')
+    time.sleep(0.3)
+    # allein
+    P.ev("__box.local('hotseat', 'wuerfel', {players: 1})")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'wuerfel' and len(tbl(P)['seats']) == 1, 10, 'allein')
+    P.tap('[data-act="roll"]')
+    time.sleep(0.4)
+    check_screen(P, f'{form} Würfelglück allein', board=False)
+    P.shot(f'wuerfel_allein_{form}', 'n4')
+
+
 def schiffe(P, form):
     P.ev("__box.local('bot', 'schiffe', {}, 'weiss', 1)")
     wait(lambda: tbl(P) and tbl(P)['game'] == 'schiffe' and my_turn(P), 15, 'Schiffe: aufstellen')

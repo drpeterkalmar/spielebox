@@ -6,8 +6,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const quick = process.argv.includes('--schnell');
-const files = ['words.test.mjs', 'crypto.test.mjs', 'relaychannel.test.mjs', 'muehle.test.mjs', 'dame.test.mjs', 'table.test.mjs', 'schnapsen.test.mjs', 'backgammon.test.mjs', 'blackjack.test.mjs', 'halma.test.mjs', 'fair.test.mjs', 'evaluate.test.mjs', 'tempo.test.mjs', 'toastqueue.test.mjs', 'ludo.test.mjs', 'schiffe.test.mjs', 'vier.test.mjs', 'maumau.test.mjs'];
-if (!quick) files.push('muehle.swarm.test.mjs', 'dame.swarm.test.mjs', 'schach.test.mjs', 'schnapsen.swarm.test.mjs', 'backgammon.swarm.test.mjs', 'blackjack.swarm.test.mjs', 'halma.swarm.test.mjs', 'ludo.swarm.test.mjs', 'schiffe.swarm.test.mjs', 'vier.swarm.test.mjs', 'maumau.swarm.test.mjs');
+const files = ['words.test.mjs', 'crypto.test.mjs', 'relaychannel.test.mjs', 'muehle.test.mjs', 'dame.test.mjs', 'table.test.mjs', 'schnapsen.test.mjs', 'backgammon.test.mjs', 'blackjack.test.mjs', 'halma.test.mjs', 'fair.test.mjs', 'evaluate.test.mjs', 'tempo.test.mjs', 'toastqueue.test.mjs', 'ludo.test.mjs', 'schiffe.test.mjs', 'vier.test.mjs', 'maumau.test.mjs', 'wuerfel.test.mjs'];
+if (!quick) files.push('muehle.swarm.test.mjs', 'dame.swarm.test.mjs', 'schach.test.mjs', 'schnapsen.swarm.test.mjs', 'backgammon.swarm.test.mjs', 'blackjack.swarm.test.mjs', 'halma.swarm.test.mjs', 'ludo.swarm.test.mjs', 'schiffe.swarm.test.mjs', 'vier.swarm.test.mjs', 'maumau.swarm.test.mjs', 'wuerfel.swarm.test.mjs');
 let bad = 0;
 const t0 = Date.now();
 for (const f of files) {

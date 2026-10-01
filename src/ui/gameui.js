@@ -31,6 +31,9 @@ import { RULES as VIER_RULES } from '../games/vier/rules.js';
 import { createBoard as maumauBoard } from '../games/maumau/view.js';
 import * as MM from '../games/maumau/engine.js';
 import { RULES as MAUMAU_RULES } from '../games/maumau/rules.js';
+import { createBoard as wuerfelBoard } from '../games/wuerfel/view.js';
+import * as WG from '../games/wuerfel/engine.js';
+import { RULES as WUERFEL_RULES } from '../games/wuerfel/rules.js';
 export { SEAT_COLORS, SEAT_SYMBOLS };
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -425,6 +428,59 @@ UI.maumau = {
     const d = legal.find((m) => m.type === 'draw'), p = legal.find((m) => m.type === 'pass');
     if (d) out.push(b(t.gs.penalty > 0 ? `${t.gs.penalty} Karten ziehen` : 'Karte ziehen', 'draw', () => submit(d)));
     if (p) out.push(b('Weiter', 'pass', () => submit(p), ' primary'));
+    return out;
+  }
+};
+
+// ganzer Spielblock aller Spieler (Menü)
+function wgBlock(t) {
+  const gs = t.gs;
+  const names = t.seats.map((x, i) => (x ? x.name : `Spieler ${i + 1}`));
+  const row = (label, vals, cls = '') => h('tr', { class: cls }, h('td', { text: label }), ...vals.map((v) => h('td', { class: 'bt-num', text: v === null || v === undefined ? '' : String(v) })));
+  const tot = gs.sheets.map(WG.totals);
+  return h('div', { class: 'rules' }, h('table', { class: 'bummerl wg-block' },
+    h('tr', {}, h('th', { text: '' }), ...names.map((n) => h('th', { class: 'bt-num', text: n }))),
+    ...WG.CATS.filter((c) => c.section === 'oben').map((c) => row(c.name, gs.sheets.map((sh) => sh[c.key]))),
+    row('Bonus', tot.map((x) => x.bonus || `${x.oben}/63`), 'bt-head'),
+    ...WG.CATS.filter((c) => c.section === 'unten').map((c) => row(c.name, gs.sheets.map((sh) => sh[c.key]))),
+    tot.some((x) => x.extra) ? row('Extra', tot.map((x) => x.extra)) : null,
+    row('Summe', tot.map((x) => x.gesamt), 'bt-head')));
+}
+
+UI.wuerfel = {
+  board: wuerfelBoard,
+  icon: (seat) => seatIcon(seat),
+  rules: (o) => rulesFromData(WUERFEL_RULES, o),
+  sub(t, seat) {
+    const sh = t.gs.sheets[seat];
+    if (!sh) return '';
+    const filled = WG.CAT_KEYS.filter((k) => sh[k] !== null).length;
+    return `${WG.totals(sh).gesamt} Punkte · ${filled}/13 Felder`;
+  },
+  status(t, seat) {
+    const gs = t.gs;
+    if (gs.turn !== seat) return null;
+    if (gs.phase === 'roll') return `Runde ${gs.round}: würfeln`;
+    if (gs.phase === 'choose') return gs.rolls < 3 ? `Wurf ${gs.rolls} von 3 – halten oder eintragen` : 'Letzter Wurf – eintragen';
+    return null;
+  },
+  menu(t, { item, sheet }) {
+    return [item('Spielblock (alle Spieler)', () => sheet('Spielblock', wgBlock(t)), 'block')];
+  },
+  actions(t, legal, submit, view) {
+    if (!view) return [];
+    const gs = t.gs;
+    const b = (label, act, fn, primary, disabled) => Object.assign(h('button', { class: 'btn' + (primary ? ' primary' : ''), data: { act }, on: { click: fn } }, label), { disabled: !!disabled });
+    const out = [];
+    const sel = view.selected();
+    if (gs.phase === 'roll') out.push(b('Würfeln', 'roll', () => view.roll(), true));
+    else if (gs.phase === 'choose') {
+      if (gs.rolls < 3) out.push(b(`Würfeln (noch ${3 - gs.rolls})`, 'roll', () => view.roll(), !sel, view.allHeld()));
+      if (sel) {
+        const pts = WG.scoreFor(gs.dice, sel, gs.sheets[gs.turn], gs.opts);
+        out.push(b(`Eintragen: ${WG.CAT_NAME[sel]} ${pts ? '+' + pts : '(0)'}`, 'score', () => view.scoreSelected(), true));
+      }
+    }
     return out;
   }
 };

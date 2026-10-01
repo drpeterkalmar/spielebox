@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = 'a8731cdfff';
+const VERSION = '3ed224377f';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -156,6 +156,10 @@ const ASSETS = [
   'src/games/vier/engine.js',
   'src/games/vier/rules.js',
   'src/games/vier/view.js',
+  'src/games/wuerfel/bot.js',
+  'src/games/wuerfel/engine.js',
+  'src/games/wuerfel/rules.js',
+  'src/games/wuerfel/view.js',
   'src/net/crypto.js',
   'src/net/fair.js',
   'src/net/netlink.js',

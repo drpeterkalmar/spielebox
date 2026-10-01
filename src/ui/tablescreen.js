@@ -207,6 +207,13 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       playerBar(pBot2, t, bs);
       return;
     }
+    if (t.seats.length === 1) {
+      // allein (Würfelglück): nur die eigene Leiste
+      for (const el of [pTop, pTop2]) { clear(el); el.className = 'pbar top solo'; }
+      playerBar(pBot, t, 0);
+      playerBar(pBot2, t, 0);
+      return;
+    }
     playerBar(pTop, t, 1 - bs);
     playerBar(pBot, t, bs);
     playerBar(pTop2, t, 1 - bs);
@@ -228,6 +235,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (t.status === 'over') {
       const r = t.result || {};
       if (r.winner === null || r.winner === undefined) return `Remis – ${r.reason || ''}`;
+      if (t.seats.length === 1) return `Geschafft: ${r.reason || ''}`;
       const reason = r.reason ? ` (${r.reason})` : '';
       if (mode === 'online' && seat === r.winner) return `Du gewinnst!${reason}`;
       if (mode === 'bot' && seat === r.winner) return `Du gewinnst!${reason}`;
@@ -458,7 +466,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     for (const e of list) {
       addEvent(e.text);
       // Banner: was die anderen (vor allem der Computer) gemacht haben; zu zweit am Gerät alles Wichtige
-      if (e.big && (mode === 'hotseat' || !you(e.seat) || /^Pasch|^Schach/.test(e.text))) pushBanner(e.text);
+      if (e.big && (mode === 'hotseat' || !you(e.seat) || /^Pasch|^Schach|^Fünferpasch/.test(e.text))) pushBanner(e.text);
     }
   }
 
