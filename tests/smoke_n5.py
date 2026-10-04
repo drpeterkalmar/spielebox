@@ -185,6 +185,54 @@ def sidepot_shot(br, srv, form):
     P.close()
 
 
+def busted_new(P, form):
+    # gegen den Computer ausgeschieden: Hinweis + Knopf „Neues Turnier“ (≥ 48 px), Tipp startet ein frisches Turnier.
+    # Tempo normal: im Test-Tempo spielen die Computer den Rest sofort zu Ende, dann gäbe es nur noch „Revanche“.
+    P.open('?nosw&alle&tempo=normal')
+    P.ev("__box.setName('Peter')")
+    P.ev("__box.local('bot', 'holdem', {players: 4}, 'weiss', 2)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'holdem', 10, 'Start')
+    me = P.state()['mySeat']
+    for attempt in range(40):
+        if P.ev("__box.table().gs.out[%d] !== null" % me) or tbl(P)['status'] == 'over': break
+        try:
+            wait(lambda: my_turn(P) or P.ev("__box.table().gs.out[%d] !== null" % me), 30, 'dran')
+        except TimeoutError:
+            break
+        if not my_turn(P): continue
+        # nur Test: eigener Stack fast leer, dann All-in
+        P.ev("""(() => { const g = __box.table().gs; const me = __box.state().mySeat; g.stacks[me] = Math.min(g.stacks[me], 5); __box.poke(); })()""")
+        P.ev("__box.move(__box.legal().find(m => m.type === 'raise' && m.to === Math.max(...__box.legal().filter(x => x.type === 'raise').map(x => x.to))) || __box.legal().find(m => m.type === 'call') || __box.legal().find(m => m.type === 'check') || __box.legal()[0])")
+        time.sleep(0.2)
+    # kein Vorgriff: solange die letzte Hand noch ausgespielt wird (Karten, Showdown), steht der Knopf noch nicht da
+    early = []
+    t0 = time.time()
+    while time.time() - t0 < 20 and not P.ev("!!document.querySelector('[data-act=new-tournament]')"):
+        if P.ev("__box.table().gs.out[%d] !== null" % me) and P.ev("__box.busy()"):
+            early.append(P.ev("!!document.querySelector('[data-act=new-tournament]') || !!document.querySelector('.he-out')"))
+        time.sleep(0.05)
+    c.ok(early and not any(early), f'{form}: „Du bist raus“ erst nach dem Ausspielen der Hand ({len(early)} Proben während der Animation)')
+    try:
+        wait(lambda: P.ev("!!document.querySelector('[data-act=new-tournament]')"), 20, 'Knopf Neues Turnier')
+    except TimeoutError:
+        pass
+    has = P.ev("!!document.querySelector('[data-act=new-tournament]')")
+    txt = P.ev("(document.querySelector('.he-out') || {}).textContent || ''")
+    c.ok(has and 'Du bist raus' in txt, f'{form}: ausgeschieden → „{txt}“ + Knopf „Neues Turnier“')
+    if not has: return
+    time.sleep(0.3)
+    check_screen(P, f'{form} ausgeschieden')
+    P.shot(f'ausgeschieden_{form}', SUB)
+    old = tbl(P)['id'] if 'id' in tbl(P) else None
+    P.tap('[data-act=new-tournament]')
+    wait(lambda: P.ev("__box.table().gs.out[%d] === null && __box.table().gs.hand <= 1" % me), 10, 'neues Turnier')
+    st = P.ev("__box.table().gs.stacks.concat(__box.table().gs.contrib)")
+    c.ok(P.ev("__box.table().gs.out.every(x => x === null)"), f'{form}: „Neues Turnier“ startet frisch (Hand 1, alle wieder dabei, Stacks {st[:4]})')
+    c.ok(P.app_errors() == [], f'{form}: ausgeschieden/neu ohne Fehler')
+    P.open('?nosw')
+    P.ev("__box.setName('Peter')")
+
+
 def tournament_end(P, form):
     P.ev("__box.local('bot', 'holdem', {players: 4}, 'weiss', 1)")
     wait(lambda: tbl(P) and tbl(P)['game'] == 'holdem', 10, 'Start')
@@ -229,6 +277,7 @@ with Server() as srv, sync_playwright() as pw:
         try:
             play_solo(P, form)
             hotseat_sidepot(P, form)
+            busted_new(P, form)
             tournament_end(P, form)
         except Exception as e:
             c.ok(False, f'{form}: Abbruch {e}')

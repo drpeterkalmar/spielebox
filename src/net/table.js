@@ -849,7 +849,12 @@ export class TableSession {
       }
       return;
     }
-    if (t) this._clientFair();
+    if (t) {
+      // nach Neuladen (Stand aus dem Speicher, kein neuerer vom Host) entsteht die Prüfung erst hier → Anzeige auffrischen
+      const before = this.fairCheck;
+      this._clientFair();
+      if (before !== this.fairCheck) this._changed({ kind: 'fair' });
+    }
     // Client: unbestätigten Zug wiederholen
     if (this.pendingMove && now - this.pendingMove.sent > TIMING.moveRetry) {
       this.pendingMove.sent = now;

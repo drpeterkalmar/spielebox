@@ -187,7 +187,9 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
           const t = v.labels[seat];
           const w = Math.max(110, t.text.length * 15 + 24);
           const lx = Math.max(w / 2 + 18, Math.min(SIZE - w / 2 - 18, x));
-          g.append(s('g', { class: 'he-label ' + (t.cls || '') }, s('rect', { x: lx - w / 2, y: y - 112, width: w, height: 40, rx: 20 }), s('text', { x: lx, y: y - 84, text: t.text })));
+          // oberster Platz im Hochformat: über dem Avatar ist kein Platz mehr (Bildrand) → unter den Chip-Stand
+          const ly = y - 112 < 4 ? y + 122 : y - 112;
+          g.append(s('g', { class: 'he-label ' + (t.cls || '') }, s('rect', { x: lx - w / 2, y: ly, width: w, height: 40, rx: 20 }), s('text', { x: lx, y: ly + 28, text: t.text })));
         }
       }
       gSeats.append(g);

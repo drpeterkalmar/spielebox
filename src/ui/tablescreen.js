@@ -248,7 +248,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       const c = eng().chance && eng().chance(t.gs);
       return c && c.kind === 'dice' ? 'Es wird gewürfelt …' : 'Karten werden gemischt …';
     }
-    if (mode === 'hotseat') return `${who.name} (${eng().PLAYERS[turn]}) ist am Zug`;
+    if (mode === 'hotseat') return who.name === eng().PLAYERS[turn] ? `${who.name} ist am Zug` : `${who.name} (${eng().PLAYERS[turn]}) ist am Zug`;
     if (who && who.bot) return t.seats.length > 2 ? `${who.name} ist dran …` : 'Der Computer denkt nach …';
     if (seat === turn) {
       const extra = gameUi(t.game).status && gameUi(t.game).status(t, seat);
@@ -292,7 +292,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (gu.actions) {
       const legal = legalFor(t);
       if (legal) actions.append(...gu.actions(shownOf(t), legal, submit, view));
-      else if (gu.idle && !locked(t)) actions.append(...gu.idle(shownOf(t), view, { mode, seat: viewer() ?? null, newLocal: mode !== 'online' ? onNewLocal : null, act: (a) => { const r = session.act(a, viewer()); if (r && r.ok === false && r.reason) toast(r.reason); } }));
+      else if (gu.idle && !locked(t)) actions.append(...gu.idle(shownOf(t), view, { mode, seat: viewer() ?? null, newLocal: mode !== 'online' ? onNewLocal : null, animating, act: (a) => { const r = session.act(a, viewer()); if (r && r.ok === false && r.reason) toast(r.reason); } }));
       if (gu.hidden || !gameOf(t.game).draws) return; // Aufgeben steht dann im Menü
     }
     const canOffer = mode !== 'bot' && gameOf(t.game).draws && (t.drawOffer === null || t.drawOffer === undefined);

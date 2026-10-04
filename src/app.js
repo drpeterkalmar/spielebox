@@ -107,9 +107,10 @@ function onLocal(mode, game, opts, color, level = 2) {
   const table = newTable({ game, opts, host: m, hostSeat });
   const n = table.seats.length;
   const lv = ['', 'leicht', 'mittel', 'stark'][level] || 'mittel';
+  let k = 0;   // Computer fortlaufend ab 1 nummerieren, auch wenn der Mensch auf dem letzten Platz sitzt
   for (let i = 0; i < n; i++) {
     if (i === hostSeat && mode === 'bot') continue;
-    if (mode === 'bot') table.seats[i] = { pid: 'bot' + i, name: two ? `Computer (${lv})` : `Computer ${i}`, bot: level };
+    if (mode === 'bot') table.seats[i] = { pid: 'bot' + i, name: two ? `Computer (${lv})` : `Computer ${++k}`, bot: level };
     else table.seats[i] = { pid: i ? `${m.pid}#${i + 1}` : m.pid, name: i === 0 && m.name !== 'Gast' ? m.name : `Spieler ${i + 1}` };
   }
   table.status = 'play';
@@ -260,6 +261,7 @@ window.__box = {
       roomId: cur ? cur.roomId : null,
       pending: !!(s && s.pendingMove),
       stats: s ? s.stats : null,
+      fair: s ? s.fairCheck : null,
       table: t ? {
         game: t.game, opts: t.opts, status: t.status, seq: t.seq, epoch: t.epoch, round: t.round, nmoves: t.nmoves,
         turn: turnOf(t), result: t.result, seats: t.seats.map((x) => x && { name: x.name, pid: x.pid, bot: x.bot || 0 }),

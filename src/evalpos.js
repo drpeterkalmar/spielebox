@@ -25,7 +25,7 @@ export const EVAL = {
   // kennt niemand – es ist eine Schätzung, kein Wissen)
   holdem: {
     unit: '%', digits: 0, pct: (x) => x / 100,
-    label: (r) => (r.none ? 'Wer gewinnt? – nicht in dieser Hand' : `Wer gewinnt? ${Math.round(r.x)} % gegen ${r.opp === 1 ? 'eine zufällige Hand' : `${r.opp} zufällige Hände`}`),
+    label: (r) => (r.over ? 'Wer gewinnt? – Turnier vorbei' : r.none ? 'Wer gewinnt? – nicht in dieser Hand' : `Wer gewinnt? ${Math.round(r.x)} % gegen ${r.opp === 1 ? 'eine zufällige Hand' : `${r.opp} zufällige Hände`}`),
     title: 'Gewinnchance deiner Hand, wenn die anderen irgendwelche Karten hätten (Monte-Carlo, 4000 Durchgänge)'
   }
 };
@@ -37,6 +37,7 @@ export function evalPosition(game, gs, seat) {
   if (game === 'holdem') {
     const hole = gs.holes && gs.holes[seat];
     const opp = gs.phase === 'bet' ? holdemLive(gs).filter((q) => q !== seat).length : 0;
+    if (over) return { x: over.winner === seat ? 100 : 0, p: over.winner === seat ? 1 : 0, none: true, over: true };
     if (!hole || hole.length !== 2 || !hole[0] || gs.folded[seat] || !opp) return { x: 0, p: 0.5, none: true };
     const { eq } = holdemEquity(hole, gs.board, Array(opp).fill(null), { iters: 4000 });
     return { x: eq * 100, p: eq, opp };
