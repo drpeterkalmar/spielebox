@@ -1,14 +1,15 @@
 // Schätzt die Dauer eines Hold'em-Turniers (Sit & Go) aus Selbstspiel: Hände, Entscheidungen, Showdowns je Turnier,
 // dazu die Zeiten aus src/tempo.js (Denkzeit des Computers, Animationen, Ergebnis liegen lassen) und eine
 // angenommene Bedenkzeit des Menschen (6 s je Entscheidung). Ein Platz = Mensch (gespielt von Stufe 2).
-// Aufruf: node tools/holdem_duration.mjs [--players=4] [--blinds=normal] [--n=300] [--level=2]
+// Aufruf: node tools/holdem_duration.mjs [--players=4] [--blinds=normal] [--n=300] [--level=2] [--human=2]
+//   --level = Stufe der Computer, --human = Stufe, die den Menschen nachspielt (1 = lockerer Familienspieler)
 import * as E from '../src/games/holdem/engine.js';
 import { chooseMove } from '../src/games/holdem/bot.js';
 import { TEMPO, holdemTimes } from '../src/tempo.js';
 import { mulberry32 } from '../src/rng.js';
 
 const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.split('=')[1] : d; };
-const players = Number(arg('players', 4)), blinds = arg('blinds', 'normal'), N = Number(arg('n', 300)), level = Number(arg('level', 2));
+const players = Number(arg('players', 4)), blinds = arg('blinds', 'normal'), N = Number(arg('n', 300)), level = Number(arg('level', 2)), humanLevel = Number(arg('human', level));
 const HUMAN = 6000;
 const rng = mulberry32(42);
 const res = { gemuetlich: [], normal: [] };
@@ -26,7 +27,7 @@ for (let t = 0; t < N; t++) {
       continue;
     }
     const seat = s.turn;
-    const m = chooseMove(E.viewFor(s, seat), { level, rng, iters: 150 });
+    const m = chooseMove(E.viewFor(s, seat), { level: seat === human ? humanLevel : level, rng, iters: 150 });
     s = E.applyMove(s, m);
     for (const lv of ['gemuetlich', 'normal']) {
       const a = TEMPO[lv];
@@ -42,7 +43,7 @@ for (let t = 0; t < N; t++) {
   for (const lv of ['gemuetlich', 'normal']) res[lv].push(ms[lv] / 60000);
 }
 const q = (a, f) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(f * (b.length - 1))]; };
-console.log(`${players} Spieler, Blinds ${blinds}, ${N} Turniere (Stufe ${level}): Hände Median ${q(handsList, 0.5)} (25–75 %: ${q(handsList, 0.25)}–${q(handsList, 0.75)})`);
+console.log(`${players} Spieler, Blinds ${blinds}, ${N} Turniere (Computer Stufe ${level}, Mensch wie Stufe ${humanLevel}): Hände Median ${q(handsList, 0.5)} (25–75 %: ${q(handsList, 0.25)}–${q(handsList, 0.75)})`);
 for (const lv of ['gemuetlich', 'normal']) {
   console.log(`  Tempo ${lv}: Median ${q(res[lv], 0.5).toFixed(0)} min (25–75 %: ${q(res[lv], 0.25).toFixed(0)}–${q(res[lv], 0.75).toFixed(0)} min)`);
 }

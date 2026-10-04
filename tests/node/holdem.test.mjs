@@ -299,19 +299,19 @@ test('Gleich viele Chips beim Ausscheiden → gleicher Platz; Knopf überspringt
   eq([s.phase, s.hand, s.button, s.sb, s.bb], ['deal', 2, 3, 3, 0], 'zu zweit: Knopf (3) = SB');
 });
 
-test('Blinds steigen nach Händen (normal: alle 15, langsam: 22, schnell: 9, aus: nie)', () => {
+test('Blinds steigen nach Händen (normal: alle 20, langsam: 30, schnell: 12, aus: nie)', () => {
   const lv = (b, h) => E.levelFor(E.normalizeOptions({ blinds: b }), h);
-  eq([lv('normal', 1), lv('normal', 15), lv('normal', 16), lv('normal', 31)], [0, 0, 1, 2], 'normal');
-  eq([lv('schnell', 9), lv('schnell', 10), lv('langsam', 23)], [0, 1, 1], 'schnell/langsam');
+  eq([lv('normal', 1), lv('normal', 20), lv('normal', 21), lv('normal', 41)], [0, 0, 1, 2], 'normal');
+  eq([lv('schnell', 12), lv('schnell', 13), lv('langsam', 30), lv('langsam', 31)], [0, 1, 0, 1], 'schnell/langsam');
   eq(lv('aus', 500), 0, 'aus');
   let s = init({ players: 2, blinds: 'schnell' });
   const rng = mulberry32(5);
-  for (let h = 0; h < 10; h++) {
+  for (let h = 0; h < 13; h++) {
     s = E.applyChance(s, [...Array(52).keys()].sort(() => rng() - 0.5));
     while (s.phase === 'bet') s = mv(s, E.legalMoves(s).some((m) => m.type === 'check') ? 'check' : 'call');
   }
-  eq([s.hand, s.level, s.sbAmt, s.bbAmt], [11, 1, 10, 20], 'Hand 11: Stufe 2');
-  eq(E.handsToNextLevel(s), 8, 'noch 8 Hände');
+  eq([s.hand, s.level, s.sbAmt, s.bbAmt], [14, 1, 10, 20], 'Hand 14: Stufe 2');
+  eq(E.handsToNextLevel(s), 11, 'noch 11 Hände');
 });
 
 test('Kurzer Blind: All-in mit weniger, Mitgehen kostet trotzdem den vollen Big Blind', () => {

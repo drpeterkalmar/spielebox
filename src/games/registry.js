@@ -232,8 +232,8 @@ export const GAMES = {
       { key: 'start', type: 'choice', label: 'Chips am Anfang', choices: [
         { value: 500, label: '500', sub: 'kurz' }, { value: 1000, label: '1.000', sub: 'normal' }, { value: 2000, label: '2.000' }, { value: 5000, label: '5.000', sub: 'lang' }], dflt: 1000 },
       { key: 'blinds', type: 'choice', label: 'Blinds steigen', choices: [
-        { value: 'langsam', label: 'Langsam', sub: 'alle 22 Hände' }, { value: 'normal', label: 'Normal', sub: 'alle 15' },
-        { value: 'schnell', label: 'Schnell', sub: 'alle 9' }, { value: 'aus', label: 'Nie' }], dflt: 'normal' },
+        { value: 'langsam', label: 'Langsam', sub: 'alle 30 Hände' }, { value: 'normal', label: 'Normal', sub: 'alle 20' },
+        { value: 'schnell', label: 'Schnell', sub: 'alle 12' }, { value: 'aus', label: 'Nie' }], dflt: 'normal' },
       { key: 'timer', type: 'choice', label: 'Bedenkzeit online', choices: [
         { value: 15, label: '15 s' }, { value: 30, label: '30 s' }, { value: 60, label: '60 s' }, { value: 0, label: 'unbegrenzt' }], dflt: 30 }
     ],
