@@ -158,7 +158,7 @@ function duel(a, b, decks, seed) {
     for (let i = 51; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
     let deck = 0;
     for (const lv of [[a, b], [b, a]]) {
-      let s = E.initialState({ players: 2, start: 2000, blinds: 'aus' });
+      let s = E.initialState({ players: 2, start: 1000, blinds: 'aus' });
       s = E.applyChance(s, p);
       const rng = mulberry32(seed * 7 + d);
       while (s.phase === 'bet') s = E.applyMove(s, chooseMove(E.viewFor(s, s.turn), { level: lv[s.turn], rng, iters: 250 }));

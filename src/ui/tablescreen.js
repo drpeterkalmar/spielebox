@@ -292,7 +292,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (gu.actions) {
       const legal = legalFor(t);
       if (legal) actions.append(...gu.actions(shownOf(t), legal, submit, view));
-      else if (gu.idle && !locked(t)) actions.append(...gu.idle(shownOf(t), view, { mode, seat: viewer() ?? null, act: (a) => { const r = session.act(a, viewer()); if (r && r.ok === false && r.reason) toast(r.reason); } }));
+      else if (gu.idle && !locked(t)) actions.append(...gu.idle(shownOf(t), view, { mode, seat: viewer() ?? null, newLocal: mode !== 'online' ? onNewLocal : null, act: (a) => { const r = session.act(a, viewer()); if (r && r.ok === false && r.reason) toast(r.reason); } }));
       if (gu.hidden || !gameOf(t.game).draws) return; // Aufgeben steht dann im Menü
     }
     const canOffer = mode !== 'bot' && gameOf(t.game).draws && (t.drawOffer === null || t.drawOffer === undefined);

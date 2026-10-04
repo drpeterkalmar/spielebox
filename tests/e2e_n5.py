@@ -101,6 +101,27 @@ with Server() as srv, sync_playwright() as pw:
             if h == hand0 + 2:
                 A.shot(f'e2e_{TAG}_gastgeber', 'n5'); B.shot(f'e2e_{TAG}_gast', 'n5'); Z.shot(f'e2e_{TAG}_zuschauer', 'n5')
         time.sleep(0.05)
+    # Bedenkzeit: auf dem eigenen Zug zeigt der Tisch die Restsekunden (online, 60 s)
+    try:
+        def anna_turn():
+            if B.ev("__box.legal().length > 0"): return True
+            for P in (A, C):
+                if P.ev("__box.legal().length > 0") and not P.state()['pending']: P.ev("__box.botMove(2)")
+            return False
+        wait(anna_turn, 90, 'Anna dran', step=0.3)
+        clk = wait(lambda: B.ev("(() => { const e = document.querySelector('svg.board .he-clock'); return e && e.textContent; })()"), 10, 'Uhr')
+        c.ok(clk.endswith(' s') and int(clk.split()[0]) <= 60, f'{TAG}: Bedenkzeit sichtbar ({clk})')
+    except TimeoutError:
+        c.ok(False, f'{TAG}: Bedenkzeit nicht sichtbar')
+    # Weiterspielen nach Neuladen: Anna lädt neu (drei Wörter im Link) und hat danach wieder ihre Karten
+    before = A.ev(f"__box.table().gs.holes[{seats['B']}]")
+    hand_b = A.ev("__box.table().gs.hand")
+    B.pg.reload()
+    B.pg.wait_for_function("window.__box && window.__box.ready", timeout=60000)
+    wait(lambda: B.state()['table'] and B.state()['mySeat'] == seats['B'] and B.state()['table']['seq'] == tbl(A)['seq'], 60, 'Anna wieder am Tisch')
+    mine = B.ev(f"__box.table().gs.holes[{seats['B']}]")
+    now = A.ev(f"__box.table().gs.holes[{seats['B']}]")
+    c.ok(mine == now and (A.ev("__box.table().gs.hand") != hand_b or mine == before), f'{TAG}: nach Neuladen wieder am Platz {seats["B"]} mit den eigenen Karten {mine}')
     played = A.ev("__box.table().gs.hand") - hand0
     c.ok(played >= min(HANDS, 3) or tbl(A)['status'] == 'over', f'{TAG}: {played} Hände gespielt, {moves} Züge der Menschen')
     c.ok(checks > 20 and not leaks, f'{TAG}: keine fremde Hole Card bei Gästen/Zuschauer – {checks} Prüfungen (Zustand + DOM) {leaks[:2]}')

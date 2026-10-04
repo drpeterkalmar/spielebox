@@ -38,18 +38,26 @@ function perm(state, holes, board = '') {
   const cards = want.map((c) => c || rest.shift()).concat(rest);
   return cards.map((c) => E.DECK.indexOf(c));
 }
+// Regelfälle rechnen mit Blinds 10/20 (erste Hand); die echte erste Stufe ist 5/10 (eigener Test)
+function init(opts) {
+  const s = E.initialState(opts);
+  s.sbAmt = 10; s.bbAmt = 20; s.minRaise = 20;
+  return s;
+}
 const deal = (s, holes, board) => E.applyChance(s, perm(s, holes, board));
 const mv = (s, type, to) => E.applyMove(s, to === undefined ? { type } : { type, to });
 const chips = (s) => sum(s.stacks) + sum(s.contrib);
 function withStacks(opts, stacks) {
-  const s = E.initialState({ ...opts, players: stacks.length });
+  const s = init({ ...opts, players: stacks.length });
   s.stacks = stacks.slice();
   s.startStacks = stacks.slice();
   return s;
 }
 
-test('Start: Knopf Platz 1, Blinds 10/20, Mischen ausstehend', () => {
-  const s = E.initialState({ players: 4 });
+test('Start: Knopf Platz 1, Blinds 5/10 (100 Big Blinds), Mischen ausstehend', () => {
+  const s0 = E.initialState({ players: 4 });
+  eq([s0.sbAmt, s0.bbAmt, s0.opts.start], [5, 10, 1000], 'erste Stufe');
+  const s = init({ players: 4 });
   eq([s.phase, s.hand, s.button, s.sb, s.bb, s.sbAmt, s.bbAmt], ['deal', 1, 0, 1, 2, 10, 20], 'Start');
   eq(E.chance(s), { kind: 'shuffle', n: 52 }, 'chance');
   eq(E.currentPlayer(s), null, 'niemand am Zug');
@@ -61,7 +69,7 @@ test('Start: Knopf Platz 1, Blinds 10/20, Mischen ausstehend', () => {
 });
 
 test('Heads-up: Knopf = Small Blind, handelt vor dem Flop zuerst, danach zuletzt', () => {
-  let s = deal(E.initialState({ players: 2 }), { 0: 'AS AD', 1: 'KS KD' }, '2C 7D 9H 3S 4S');
+  let s = deal(init({ players: 2 }), { 0: 'AS AD', 1: 'KS KD' }, '2C 7D 9H 3S 4S');
   eq([s.button, s.sb, s.bb, s.turn], [0, 0, 1, 0], 'Preflop: Knopf zuerst');
   s = mv(s, 'call');
   eq(s.turn, 1, 'BB hat die Option');
@@ -77,7 +85,7 @@ test('Heads-up: Knopf = Small Blind, handelt vor dem Flop zuerst, danach zuletzt
 });
 
 test('Mindest-Erhöhung = letzte volle Erhöhung', () => {
-  let s = deal(E.initialState({ players: 4 }), {});
+  let s = deal(init({ players: 4 }), {});
   s = mv(s, 'raise', 60);                       // +40
   eq(E.raiseRange(s), { min: 100, max: 1000 }, 'nach Erhöhung auf 60');
   ok(!E.isLegal(s, { type: 'raise', to: 99 }), '99 zu klein');
@@ -145,7 +153,7 @@ test('Unvollständiges All-in öffnet nicht wieder; zwei kurze All-ins zusammen 
 });
 
 test('Nicht gegangener Einsatz geht zurück', () => {
-  let s = deal(E.initialState({ players: 3 }), {});
+  let s = deal(init({ players: 3 }), {});
   s = mv(s, 'raise', 300); s = mv(s, 'fold'); s = mv(s, 'fold');
   eq(s.lastHand.returned, [{ seat: 0, amount: 280 }], 'zurück');
   eq(s.lastHand.pots, [{ amount: 50, eligible: [0], winners: [0], value: null, name: null }], 'Pot 10+20+20');
@@ -223,7 +231,7 @@ test('Split-Pot mit Rest-Chip: ab links vom Knopf', () => {
 });
 
 test('Showdown: letzter Aggressor zeigt zuerst, Verlierer legt weg, „show“ danach', () => {
-  let s = deal(E.initialState({ players: 3 }), { 0: 'AS AH', 1: '7C 2D', 2: 'KS KH' }, '3C 8D 9S JC 4H');
+  let s = deal(init({ players: 3 }), { 0: 'AS AH', 1: '7C 2D', 2: 'KS KH' }, '3C 8D 9S JC 4H');
   s = mv(s, 'call'); s = mv(s, 'call'); s = mv(s, 'check');     // Preflop
   for (let i = 0; i < 6; i++) s = mv(s, 'check');                // Flop, Turn
   s = mv(s, 'check');                                            // River: SB checkt
@@ -247,7 +255,7 @@ test('Showdown: letzter Aggressor zeigt zuerst, Verlierer legt weg, „show“ d
 });
 
 test('Gewinn ohne Showdown: nichts gezeigt, „show“ möglich', () => {
-  let s = deal(E.initialState({ players: 2 }), { 0: '7C 2D', 1: 'AS AH' });
+  let s = deal(init({ players: 2 }), { 0: '7C 2D', 1: 'AS AH' });
   s = mv(s, 'raise', 60); s = mv(s, 'fold');
   eq([s.lastHand.uncontested, s.lastHand.shown], [0, {}], 'uncontested');
   ok(E.isLegalAct(s, 0, 'show'), 'Sieger darf zeigen');
@@ -256,7 +264,7 @@ test('Gewinn ohne Showdown: nichts gezeigt, „show“ möglich', () => {
 });
 
 test('Sicht: fremde Hole Cards und Stapel verdeckt, Zuschauer sieht keine; All-in deckt auf', () => {
-  let s = deal(E.initialState({ players: 3 }), { 0: 'AS AH', 1: 'KS KH', 2: 'QS QH' });
+  let s = deal(init({ players: 3 }), { 0: 'AS AH', 1: 'KS KH', 2: 'QS QH' });
   const v = E.viewFor(s, 1);
   eq(v.holes, [[null, null], ['KS', 'KH'], [null, null]], 'Sitz 1');
   ok(v.deck.every((c) => c === null) && v.deck.length === s.deck.length, 'Stapel verdeckt');
@@ -291,19 +299,19 @@ test('Gleich viele Chips beim Ausscheiden → gleicher Platz; Knopf überspringt
   eq([s.phase, s.hand, s.button, s.sb, s.bb], ['deal', 2, 3, 3, 0], 'zu zweit: Knopf (3) = SB');
 });
 
-test('Blinds steigen nach Händen (normal: alle 10, schnell: 6, aus: nie)', () => {
+test('Blinds steigen nach Händen (normal: alle 15, langsam: 22, schnell: 9, aus: nie)', () => {
   const lv = (b, h) => E.levelFor(E.normalizeOptions({ blinds: b }), h);
-  eq([lv('normal', 1), lv('normal', 10), lv('normal', 11), lv('normal', 21)], [0, 0, 1, 2], 'normal');
-  eq([lv('schnell', 6), lv('schnell', 7), lv('langsam', 16)], [0, 1, 1], 'schnell/langsam');
+  eq([lv('normal', 1), lv('normal', 15), lv('normal', 16), lv('normal', 31)], [0, 0, 1, 2], 'normal');
+  eq([lv('schnell', 9), lv('schnell', 10), lv('langsam', 23)], [0, 1, 1], 'schnell/langsam');
   eq(lv('aus', 500), 0, 'aus');
-  let s = E.initialState({ players: 2, blinds: 'schnell' });
+  let s = init({ players: 2, blinds: 'schnell' });
   const rng = mulberry32(5);
-  for (let h = 0; h < 7; h++) {
+  for (let h = 0; h < 10; h++) {
     s = E.applyChance(s, [...Array(52).keys()].sort(() => rng() - 0.5));
     while (s.phase === 'bet') s = mv(s, E.legalMoves(s).some((m) => m.type === 'check') ? 'check' : 'call');
   }
-  eq([s.hand, s.level, s.sbAmt, s.bbAmt], [8, 1, 15, 30], 'Hand 8: Stufe 2');
-  eq(E.handsToNextLevel(s), 5, 'noch 5 Hände');
+  eq([s.hand, s.level, s.sbAmt, s.bbAmt], [11, 1, 10, 20], 'Hand 11: Stufe 2');
+  eq(E.handsToNextLevel(s), 8, 'noch 8 Hände');
 });
 
 test('Kurzer Blind: All-in mit weniger, Mitgehen kostet trotzdem den vollen Big Blind', () => {
@@ -332,7 +340,7 @@ test('Erhöhen verboten, wenn alle anderen All-in sind; Check-Pflicht statt Auss
   t = mv(t, 'fold');           // SB raus
   eq(E.legalMoves(t).map((m) => m.type), ['fold', 'call'], 'BB (30) nur mitgehen/aussteigen');
   ok(!E.isLegal(t, { type: 'fold', extra: 1 }), 'Zusatzfeld');
-  let u = deal(E.initialState({ players: 3 }), {});
+  let u = deal(init({ players: 3 }), {});
   u = mv(u, 'call'); u = mv(u, 'call');
   ok(!E.isLegal(u, { type: 'fold' }), 'BB darf ohne Einsatz nicht aussteigen');
   eq(E.timeoutMove(u), { type: 'check' }, 'Zeitlimit: checken');
@@ -341,7 +349,7 @@ test('Erhöhen verboten, wenn alle anderen All-in sind; Check-Pflicht statt Auss
 });
 
 test('Ungültige Züge und Müll werden abgelehnt', () => {
-  const s = deal(E.initialState({ players: 3 }), {});
+  const s = deal(init({ players: 3 }), {});
   for (const m of [null, 1, 'call', [], {}, { type: 'x' }, { type: 'raise' }, { type: 'raise', to: 39 }, { type: 'raise', to: 1001 },
     { type: 'raise', to: 40.5 }, { type: 'raise', to: '40' }, { type: 'check' }]) {
     ok(!E.isLegal(s, m), `abgelehnt: ${JSON.stringify(m)}`);
@@ -356,7 +364,7 @@ test('Ungültige Züge und Müll werden abgelehnt', () => {
 test('Determinismus: gleiche Mischungen + gleiche Züge = gleicher Verlauf', () => {
   const run = () => {
     const rng = mulberry32(99);
-    let s = E.initialState({ players: 5, blinds: 'schnell', start: 500 });
+    let s = init({ players: 5, blinds: 'schnell', start: 500 });
     let steps = 0;
     while (s.phase !== 'over' && steps < 20000) {
       if (E.chance(s)) {
@@ -380,7 +388,7 @@ test('Determinismus: gleiche Mischungen + gleiche Züge = gleicher Verlauf', () 
 });
 
 test('Texte: describeMove, Kartennamen, Chips', () => {
-  let s = deal(E.initialState({ players: 3 }), {});
+  let s = deal(init({ players: 3 }), {});
   eq(E.describeMove(s, { type: 'call' }), 'geht mit (20)', 'call');
   eq(E.describeMove(s, { type: 'raise', to: 60 }), 'erhöht auf 60', 'raise');
   eq(E.describeMove(s, { type: 'raise', to: 1000 }), 'geht All-in (1.000)', 'allin');

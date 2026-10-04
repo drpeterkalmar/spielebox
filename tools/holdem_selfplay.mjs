@@ -1,7 +1,7 @@
 // Selbstspiel der Hold'em-Computer: Stufen-Vergleich mit Chips/100 Hände und 95-%-Konfidenz.
 // Duplicate-Verfahren (weniger Glück im Ergebnis): Jede Mischung wird so oft gespielt, wie Plätze am Tisch sind,
 // jedes Mal mit um einen Platz weitergedrehter Sitzordnung – jede Stufe bekommt also dieselben Karten auf jedem Platz.
-// Jede Hand beginnt mit 100 Big Blinds (10/20, Stack 2000) wie im Cash Game; gezählt wird das Chip-Ergebnis je Hand.
+// Jede Hand beginnt mit 100 Big Blinds (5/10, Stack 1000) wie im Cash Game; gezählt wird das Chip-Ergebnis je Hand.
 // Prüft nebenbei: jeder Zug legal (gegen den vollen Zustand), keine Hand hängt (Schrittgrenze).
 // Aufruf: node tools/holdem_selfplay.mjs [--hu=1,3] [--hands=10000] [--table=1,2,3,1,2,3] [--workers=6] [--seed=1]
 //   --hu=a,b       Heads-up Stufe a gegen b; --table=… Sitzordnung eines Tischs (Stufen); Hände = Hände je Stufe/Platz
@@ -13,7 +13,8 @@ import * as E from '../src/games/holdem/engine.js';
 import { chooseMove } from '../src/games/holdem/bot.js';
 import { mulberry32 } from '../src/rng.js';
 
-const STACK = 2000;
+const STACK = 1000;
+const BB = 10;
 
 function shuffled(rng) {
   const p = [...Array(52).keys()];
@@ -102,7 +103,7 @@ if (!isMainThread) {
     const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
     const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / (xs.length - 1));
     const se = sd / Math.sqrt(xs.length);
-    out.levels[l] = { chipsPer100: Math.round(mean * 100), ci95: Math.round(1.96 * se * 100), bbPer100: Math.round(mean * 100 / 20 * 10) / 10 };
+    out.levels[l] = { chipsPer100: Math.round(mean * 100), ci95: Math.round(1.96 * se * 100), bbPer100: Math.round(mean * 100 / BB * 10) / 10 };
   }
   console.log(JSON.stringify(out));
   const NAME = { 1: 'leicht', 2: 'mittel', 3: 'stark' };

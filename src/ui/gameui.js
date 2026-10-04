@@ -619,10 +619,15 @@ UI.holdem = {
     return [h('div', { class: 'he-bar' }, ...out)];
   },
   // nicht am Zug: Vorab-Knöpfe (online/gegen Computer) und „Karten zeigen“ nach der Hand
-  idle(t, view, { mode, seat, act }) {
+  idle(t, view, { mode, seat, act, newLocal }) {
     const gs = t.gs;
     if (!view || seat === null || seat === undefined) return [];
     const out = [];
+    // gegen den Computer ausgeschieden: zuschauen oder gleich neu anfangen
+    if (mode === 'bot' && gs.out[seat] !== null && gs.out[seat] !== undefined && newLocal) {
+      out.push(h('p', { class: 'muted he-out', text: `Du bist raus (Platz ${gs.out[seat]}) – die Computer spielen weiter.` }));
+      out.push(h('button', { class: 'btn primary he-new', data: { act: 'new-tournament' }, on: { click: () => newLocal() } }, 'Neues Turnier'));
+    }
     const ui = view.ui;
     if (mode !== 'hotseat' && gs.phase === 'bet' && HE.live(gs, seat) && !gs.allin[seat] && gs.turn !== seat) {
       const tg = (label, key) => h('button', { class: 'btn he-pre' + (ui.pre === key ? ' on' : ''), 'aria-pressed': String(ui.pre === key), data: { act: 'pre-' + key }, on: { click: () => view.setPre(key) } },

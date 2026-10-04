@@ -66,10 +66,10 @@ export const HIDDEN = true;
 
 export const DECK = Object.freeze([...RANK_CHARS].reverse().flatMap((r) => [...SUIT_CHARS].map((s) => r + s)));   // AS AH AD AC KS …
 export const BLIND_LEVELS = Object.freeze([
-  [10, 20], [15, 30], [20, 40], [30, 60], [40, 80], [50, 100], [75, 150], [100, 200], [150, 300], [200, 400],
+  [5, 10], [10, 20], [15, 30], [20, 40], [30, 60], [40, 80], [50, 100], [75, 150], [100, 200], [150, 300], [200, 400],
   [300, 600], [400, 800], [500, 1000], [700, 1400], [1000, 2000], [1500, 3000], [2000, 4000], [3000, 6000],
   [5000, 10000], [7500, 15000], [10000, 20000], [15000, 30000], [25000, 50000]].map(Object.freeze));
-export const HANDS_PER_LEVEL = Object.freeze({ aus: Infinity, langsam: 15, normal: 10, schnell: 6 });
+export const HANDS_PER_LEVEL = Object.freeze({ aus: Infinity, langsam: 22, normal: 15, schnell: 9 });
 export const STARTS = Object.freeze([500, 1000, 2000, 5000]);
 export const TIMERS = Object.freeze([0, 15, 30, 60]);
 export const MAX_HANDS = 600;
