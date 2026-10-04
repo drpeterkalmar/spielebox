@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '01ba91e395';
+const VERSION = '7c47915dd7';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',

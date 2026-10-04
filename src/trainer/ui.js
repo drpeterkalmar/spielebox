@@ -557,7 +557,7 @@ export function showTrainer(root, nav) {
     let gs = S.fromFen(p.fen);
     let step = 0, mistakes = 0, helped = false, done = false, last = null;
     page = { kind: 'taktik', id: p.id, motif: p.motif, user, get step() { return step; }, get done() { return done; }, get mistakes() { return mistakes; }, puzzle: p };
-    const task = mateN ? `Setze matt in ${mateN[1]} Zug${mateN[1] === '1' ? '' : 'en'}` : 'Finde den besten Zug';
+    const task = mateN ? `Setze matt in ${mateN[1]} ${mateN[1] === '1' ? 'Zug' : 'Zügen'}` : 'Finde den besten Zug';
     scr.info(h('p', { class: 'tr-idea' }, h('b', { text: m.name + ': ' }), m.intro));
     scr.status(`${COLOR[user]} am Zug – ${task}`);
     scr.show({ gs, evalFor: seatOf(user) });
