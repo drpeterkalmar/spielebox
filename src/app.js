@@ -20,6 +20,7 @@ const netlog = [];
 let cur = null;        // { session, screen, link, words, roomId, mode }
 let lobby = null;
 let routed = null;
+let trainer = null;     // Schach-Trainer (erst beim Öffnen geladen)
 
 // Wörter vereinheitlichen: Reihenfolge egal (sortiert → gleicher Raum)
 const canon = (ws) => ws.map((w) => findWord(w)).sort();
@@ -51,10 +52,15 @@ async function leaveTable() {
   if (c.link) await c.link.close();
 }
 
+function leaveTrainer() {
+  if (trainer) { trainer.destroy(); trainer = null; }
+}
+
 async function showLobby(prefill) {
   await leaveTable();
+  leaveTrainer();
   document.body.dataset.screen = 'lobby';
-  lobby = renderLobby(root, { onCreate, onLocal, onJoin, onResume });
+  lobby = renderLobby(root, { onCreate, onLocal, onJoin, onResume, onTrainer: () => { setHash('trainer'); openTrainer('trainer'); } });
   if (prefill) lobby.prefill(prefill);
 }
 
@@ -113,6 +119,7 @@ function onLocal(mode, game, opts, color, level = 2) {
 
 async function openLocal(mode, table) {
   await leaveTable();
+  leaveTrainer();
   const session = new TableSession({ mode, me: me(), table, bot: { choose: chooseBotMove }, save: (t) => store.saveLocal(mode, t) });
   setHash(mode === 'bot' ? 'solo' : 'zuzweit');
   mount(session, {});
@@ -164,6 +171,33 @@ function newLocal() {
   onLocal(s.mode, t.game, t.opts, color, botSeat >= 0 ? t.seats[botSeat].bot : 2);
 }
 
+// Schach-Trainer: eigener Bereich unter #trainer…, Modul wird erst hier geladen
+async function openTrainer(path) {
+  await leaveTable();
+  const mod = await import('./trainer/ui.js');
+  if (!trainer) {
+    trainer = mod.showTrainer(root, {
+      go: (p) => { setHash(p); trainer.show(p); },
+      lobby: () => { leaveTrainer(); goLobby(); },
+      // nach einer Eröffnungslinie gegen den Computer weiterspielen (normale Partie, Züge der Linie in der Zugliste)
+      playFrom: ({ moves, color, level }) => {
+        const m = me();
+        const hostSeat = color === 'b' ? 1 : 0;
+        const table = newTable({ game: 'schach', opts: {}, host: m, hostSeat });
+        const lv = ['', 'leicht', 'mittel', 'stark'][level] || 'mittel';
+        table.seats[1 - hostSeat] = { pid: 'bot' + (1 - hostSeat), name: `Computer (${lv})`, bot: level };
+        const E = gameOf('schach').engine;
+        table.gs = moves.reduce((gs, mv) => E.applyMove(gs, mv), E.initialState());
+        table.status = 'play';
+        leaveTrainer();
+        store.saveLocal('bot', table);
+        openLocal('bot', table);
+      }
+    });
+  }
+  trainer.show(path);
+}
+
 async function onResume(item) {
   if (item.kind === 'online') return openOnline({ words: item.e.words, want: 'play', resume: true });
   const t = store.loadLocal(item.kind);
@@ -175,6 +209,7 @@ async function route() {
   routed = location.hash;
   const hash = decodeURIComponent(location.hash.slice(1));
   if (!hash) return showLobby();
+  if (hash === 'trainer' || hash.startsWith('trainer/')) return openTrainer(hash);
   if (hash === 'solo' || hash === 'zuzweit') {
     const mode = hash === 'solo' ? 'bot' : 'hotseat';
     const t = store.loadLocal(mode);
@@ -263,7 +298,9 @@ window.__box = {
   relayStats: () => (cur && cur.link && cur.link.relay ? cur.link.relay.status() : null),
   netlog: () => netlog.slice(-80),
   sessionLog: () => (cur ? cur.session.log.slice(-80) : []),
-  errors: () => window.__errors || []
+  errors: () => window.__errors || [],
+  trainer: () => trainer,
+  openTrainer: (p = 'trainer') => { setHash(p); return openTrainer(p); }
 };
 
 ensureDefs();

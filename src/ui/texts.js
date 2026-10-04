@@ -54,7 +54,8 @@ export function rulesSchach() {
       'Rochade: König zwei Felder Richtung Turm ziehen (oder nach dem König den eigenen Turm antippen). En passant und Umwandlung gehen ebenfalls per Tipp; bei der Umwandlung wählst du die Figur direkt auf dem Brett.',
       'Die Partie endet mit Schachmatt, Aufgeben oder Remis: Patt, zu wenig Material, 50 Züge ohne Bauernzug und ohne Schlag, dreifache Stellungswiederholung (diese Remis werden automatisch erkannt) oder Remis nach Angebot.',
       'Im Menü kannst du die Partie als PGN teilen – das lesen alle Schachprogramme (z. B. Lichess-Analyse).',
-      'Der Computer (3 Stufen) ist ein Übungsgegner ohne Eröffnungsbuch.'
+      'Der Computer (3 Stufen) ist ein Übungsgegner ohne Eröffnungsbuch.',
+      'Üben ohne Gegner: In der Übersicht gibt es den Schach-Trainer mit Eröffnungen, Taktik-Aufgaben und Endspielen.'
     ));
 }
 
@@ -147,7 +148,8 @@ export function credits() {
       'Holztexturen: Poly Haven, CC0 – „Silver Oak Veneer 01“ und „Walnut Veneer“ (Jenelle van Heerden), „Dark Wood“ (Dario Barresi, Dimitrios Savva, Rico Cilliers).',
       'Netz: Trystero 0.25.4 (MIT, Dan Motzenbecker), @noble/secp256k1 (MIT, Paul Miller).',
       'Regelquellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“, strategy-games.de (deutsche Dame), FMJD (internationale Dame), FIDE (Schach); Schmidt-Spiele-Anleitungen (Ludo, Würfelglück), de.wikipedia „Schiffe versenken“, „Vier gewinnt“, „Mau-Mau (Kartenspiel)“, „Memory (Spiel)“, World Othello Federation (Reversi).',
-      'Tierbilder bei Paare finden: Emoji der Systemschrift.'
+      'Tierbilder bei Paare finden: Emoji der Systemschrift.',
+      'Schach-Trainer: Taktik-Aufgaben aus der Lichess-Puzzle-Datenbank (database.lichess.org, CC0), Eröffnungsnamen und ECO-Codes aus lichess-org/chess-openings (CC0). Zugfolgen, Texte und Endspiel-Tabellen: eigene Arbeit.'
     ),
     h('p', {}, 'Alle Details stehen in ', h('a', { href: 'LICENSES.md', target: '_blank', rel: 'noopener', text: 'LICENSES.md' }), '.'));
 }

@@ -108,3 +108,17 @@ export function settings() {
 export function saveSettings(s) {
   set('settings', s);
 }
+
+// Schach-Trainer: Fortschritt nur auf diesem Gerät (Eröffnungs-Karteikarten, Taktik-Wertung, Endspiel-Sterne)
+export function trainer() {
+  const t = get('trainer', null);
+  return t && t.v === 1 ? t : { v: 1, open: {}, tac: { rating: 1000, games: 0, streak: 0, best: 0, done: {} }, end: {}, opt: {} };
+}
+
+export function saveTrainer(t) {
+  set('trainer', t);
+}
+
+export function resetTrainer() {
+  del('trainer');
+}

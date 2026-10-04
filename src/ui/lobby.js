@@ -97,6 +97,12 @@ export function miniBoard(game) {
     d += '<rect x="68" y="44" width="13" height="40" rx="6.5" fill="#cfd6dc" stroke="#53606a" stroke-width="1.5"/>';
     d += '<circle cx="42" cy="26.5" r="6" fill="#e5483b"/><path d="M38 23l8 7M46 23l-8 7" stroke="#fff" stroke-width="2"/><circle cx="28" cy="66" r="3" fill="#fff"/><circle cx="50" cy="80" r="3" fill="#fff"/>';
     svg.innerHTML = d;
+  } else if (game === 'trainer') {
+    let sq = '';
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;
+    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' + `<g fill="url(#sb-wood-dark)">${sq}</g>` +
+      '<image href="assets/pieces/wN.svg" x="4" y="54" width="42" height="42"/><image href="assets/pieces/bK.svg" x="54" y="4" width="42" height="42"/>' +
+      '<line x1="28" y1="70" x2="58" y2="42" stroke="rgba(40,175,105,.92)" stroke-width="8" stroke-linecap="round"/><path d="M68 32 L50 40 L60 50Z" fill="rgba(40,175,105,.92)"/>';
   } else if (game === 'schach') {
     let sq = '';
     for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;
@@ -199,11 +205,15 @@ export function renderLobby(root, handlers) {
   };
 
   // --- Neuer Tisch ---
-  const games = h('div', { class: 'games' }, ...liveGames().map((g) =>
+  const games = h('div', { class: 'games' }, ...liveGames().flatMap((g) => [
     h('button', { class: 'game', data: { game: g.id }, on: { click: () => openGameSheet(g.id, {
       onOnline: (...a) => { if (needName()) handlers.onCreate(...a); },
       onLocal: (...a) => handlers.onLocal(...a)
-    }) } }, miniBoard(g.id), h('span', { class: 'game-t', text: g.title }), h('span', { class: 'game-sub', text: g.blurb }))));
+    }) } }, miniBoard(g.id), h('span', { class: 'game-t', text: g.title }), h('span', { class: 'game-sub', text: g.blurb })),
+    // Schach-Trainer gleich nach Schach: allein üben, kein Tisch
+    g.id === 'schach' && handlers.onTrainer ? h('button', { class: 'game trainer-tile', data: { game: 'trainer' }, on: { click: () => handlers.onTrainer() } },
+      miniBoard('trainer'), h('span', { class: 'game-t', text: 'Schach-Trainer' }), h('span', { class: 'game-sub', text: 'Eröffnungen, Taktik, Endspiele – allein üben' })) : null
+  ].filter(Boolean)));
 
   // --- Beitreten ---
   const fields = [0, 1, 2].map((k) => h('input', {

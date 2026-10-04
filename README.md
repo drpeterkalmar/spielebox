@@ -6,6 +6,7 @@ Brett- und Kartenspiele übers Netz – ohne Konto, ohne Server, Zutritt mit dre
 Handy zuerst (Hoch- und Querformat), als App installierbar (PWA), offline gegen den Computer oder zu zweit an einem Gerät.
 **Spiele:** Mühle · Dame (Deutsch 8×8 / International 10×10) · Schach · Schnapsen · Backgammon · Blackjack (2–6) · Stern-Halma (2/3/4/6)
 · Ludo (2–4) · Schiffe versenken · Vier in einer Reihe · Mau-Mau (2–5) · Würfelglück (1–6) · Reversi · Paare finden (1–4).
+Dazu der **Schach-Trainer** (allein üben): Eröffnungen, Taktik-Aufgaben, Endspiele.
 Jedes Spiel online über die drei Wörter, gegen den Computer (3 Stufen) oder an einem Gerät. Freie Plätze an Mehr-Personen-Tischen
 füllt der Computer. Unter dem Brett steht auf Wunsch „Wer gewinnt?“ (Zahl in der Einheit des Spiels ↔ Gewinnchance in %).
 
@@ -126,6 +127,37 @@ Paar = behalten und nochmal, sonst bleibt das falsche Paar offen, bis der Nächs
 Quellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“,
 strategy-games.de (deutsche Dame), FMJD (international), FIDE (Schach).
 
+## Schach-Trainer
+Eigene Kachel in der Lobby (gleich nach Schach), Adresse `#trainer`. Allein, offline, ohne Konto; der Fortschritt liegt nur
+auf dem Gerät (`localStorage`, Schlüssel `sb.trainer`) und lässt sich unter *Fortschritt* zurücksetzen. Der Bereich wird erst
+beim Öffnen geladen (dynamischer Import), die Lobby startet also nicht langsamer.
+- **Eröffnungen:** 34 Hauptlinien in 19 Familien (Italienisch, Zweispringer, Spanisch, Schottisch, Vierspringer, Königsgambit,
+  Sizilianisch Najdorf/Drache/Sweschnikow/Taimanow/Alapin, Französisch, Caro-Kann, Skandinavisch, Damengambit angenommen/
+  abgelehnt, Slawisch, Londoner System, Königsindisch, Grünfeld, Nimzo-, Damenindisch, Holländisch, Englisch), je 8–12 Züge,
+  deutscher Name, 1–2 Sätze Idee, Hinweise zu Schlüsselzügen.
+  *Ansehen* (Pfeil für den nächsten Zug, Vor/Zurück), *Lernen* (du ziehst deine Seite, Farbe wählbar; falscher Zug →
+  Figur leuchtet auf, beim zweiten Mal Pfeil), *Wiederholen* nach Leitner (Fächer 1–5, Pausen 1/3/7/16/35 Tage; Fehler →
+  zurück in Fach 1, die Linie kommt nach 10 Minuten wieder). Am Ende: *Gegen Computer weiterspielen* (normale Partie,
+  Linienzüge stehen in der Zugliste, Stufe wählbar).
+- **Taktik:** 300 Aufgaben aus der Lichess-Puzzle-Datenbank in 12 Motiven (Gabel, Doppelangriff, Fesselung, Spieß, Abzug/
+  Abzugsschach, Verteidiger beseitigen, Ablenkung, Hinlenkung, Grundreihenmatt, Matt in 1/2/3), je 25, Wertung 600–2000
+  aufsteigend, je Motiv eine kurze Erklärung. Ablauf wie bei Lichess: Der Gegner zieht zuerst, du findest die Lösung; jedes
+  Matt zählt. Fehlversuch → Tipp und die richtige Figur leuchtet auf, dann Pfeil; „Lösung zeigen“ spielt sie vor. Eigene
+  Wertung (Elo-artig, Start 1000, nur der erste Versuch zählt) und Serie „richtig in Folge“; „Gemischt“ wählt Aufgaben
+  passend zur Wertung. (Lichess kennt kein Thema „Überlastung“; stattdessen „Verteidiger beseitigen“.)
+- **Endspiele:** 11 Lektionen gegen den Computer mit Ziel und 1–3 Sternen: K+D gegen K, K+T gegen K (beide auch mit
+  Zufallsstellung), K+2L gegen K (für Profis), Opposition (gewinnen und Remis halten), Quadratregel (durchlaufen und
+  einholen), Randbauer, Bauern-Durchbruch, Lucena, Philidor. Für K+D, K+T und K+Bauer gegen K rechnet die App beim ersten
+  Öffnen eine **exakte Endspiel-Tabelle** (Retrograd-Analyse, `src/trainer/tb.js`, je 512 KB im Speicher, ~0,1 s am Mac,
+  ~0,3 s bei 4× gedrosselter CPU): Der Computer verteidigt sich perfekt (längster Widerstand) bzw. stellt in Remis-Stellungen
+  Fallen; ein Fehler, der den Gewinn verschenkt, wird sofort erkannt („Zug zurücknehmen“). Für K+2L, Durchbruch, Lucena und
+  Philidor spielt der Übungs-Computer (stärkste Stufe) mit Ziel-Prüfung (Umwandlung, Remis gehalten). Sterne: bei Matt nach
+  Zugzahl (3 = höchstens 2 Züge über dem kürzesten Weg), sonst nach Tipps/Zurücknahmen.
+- „Wer gewinnt?“ lässt sich im Menü (⋯) einblenden – in den Tabellen-Endspielen exakt („Matt in 7“, „Remis“).
+- Daten: `src/trainer/data/openings.js` (`tools/build_openings.mjs`), `src/trainer/data/puzzles.js` (`tools/build_puzzles.py`),
+  beide CC0 (Quellen unten und in LICENSES.md). Neue + geänderte Dateien zusammen ~55 KB gzip.
+- Nur Deutsch – wie der Rest der Spielebox (es gibt in der App keine englischen Texte).
+
 ## Entwickeln und testen
 Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm run build:lib`).
 - `npm test` – Node: Wortliste, Krypto, Relay-Kanal, Regelfälle aller Spiele, Tisch-Protokoll (auch verdeckte Karten,
@@ -133,6 +165,11 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
   Backgammon/Blackjack/Ludo/Schiffe/Vier/Mau-Mau/Würfelglück/Reversi/Paare je 10 000 Partien, Halma 2 460, Schach 150 +
   Bot-Stufen), Computer-Tempo und Ereignisse, Meldungs-
   Warteschlange, Stich-Blatt; `npm test -- --schnell` ohne Schwarm.
+- Schach-Trainer: `node tests/node/trainer_*.test.mjs` (in `npm test`) – Eröffnungen legal/Namen passend, 300 Aufgaben legal
+  inkl. „jedes Matt zählt“, Endspiel-Tabellen gegen chess.js (je 3000 Stellungen) und 200 Partien je Material in exakt
+  optimaler Zugzahl, Leitner, Wertung, Lektionen. `python3 tests/smoke_n6.py` – Browser hoch/quer/Desktop mit echten Taps
+  (Lernen mit Fehler, Weiterspielen, Wiederholen, Aufgabe mit Fehlversuch, zwei Endspiele, Zurücksetzen), Screenshots
+  `tests/shots/n6/`.
 - `python3 tests/smoke_n4.py [ludo] [vier] [maumau] [wuerfel] [schiffe] [reversi] [paare]` – Browser (Pixel 7 hoch/quer,
   Desktop): die n4-Spiele mit echten Taps, Knöpfe ≥ 48 px, Brett im Bild, Halten/Vorschläge, Flotte setzen, Mau sagen,
   Sichtschutz, nie eine fremde Karte/Flotte im DOM, Animationen (Steine fallen/kippen). Screenshots `tests/shots/n4/`.
@@ -162,4 +199,6 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
 - Doppeldeutsche Karten (Schnapsen, Mau-Mau, 32 Blatt): Fotos von Zákupák (Wikimedia Commons, gemeinfrei), entzerrt mit `tools/cards/crop_de.py`.
 - Tierbilder bei Paare finden: Emoji der Systemschrift (keine Bilddateien im Repo).
 - Französische Karten: Byron Knoll, „Vector Playing Cards“ (gemeinfrei).
+- Schach-Trainer: Taktik-Aufgaben aus der [Lichess-Puzzle-Datenbank](https://database.lichess.org/#puzzles) (CC0),
+  Eröffnungsnamen/ECO aus [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings) (CC0).
 - Alle Einzelheiten: [LICENSES.md](LICENSES.md); in der App unter „Credits“.

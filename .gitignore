@@ -8,3 +8,6 @@ __pycache__/
 *.pyc
 .DS_Store
 assets_src/
+
+# Cache für tools/build_puzzles.py (Lichess-CSV-Ausschnitt, ~250 MB)
+tools/.cache/

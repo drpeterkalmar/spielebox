@@ -1,6 +1,7 @@
 // Schachbrett als SVG: Holzfelder wie Dame, cburnett-Figuren (BSD-3), letzter Zug, Schach-Markierung,
 // erlaubte Züge beim Antippen (auch Rochade: König auf g1/c1 bzw. auf den Turm tippen, en passant),
 // Umwandlungsauswahl direkt auf dem Brett, Zug-Animation, Brett für Schwarz gedreht.
+// Schach-Trainer: marks({ arrows: [{ from, to, cls }], squares: [{ sq, cls }] }) zeichnet Pfeile und Feld-Markierungen.
 import { board as boardOf, inCheck, kingSquare } from './engine.js';
 import { s, ensureDefs, place, animateSteps, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
@@ -25,10 +26,12 @@ export function createBoard(host, { onMove, onHint }) {
   const gPieces = s('g', { class: 'pieces' });
   const gFx = s('g', { class: 'fx' });
   const gHints = s('g', { class: 'hints' });
-  svg.append(gBoard, gLast, gFx, gPieces, gHints);
+  const gSq = s('g', { class: 'marks-sq' });
+  const gArrows = s('g', { class: 'marks-arrows' });
+  svg.append(gBoard, gLast, gSq, gFx, gPieces, gArrows, gHints);
   host.appendChild(svg);
 
-  let flip = null, table = null, legal = null, sel = null, promo = null, hint = '', grid = null;
+  let flip = null, table = null, legal = null, sel = null, promo = null, hint = '', grid = null, marks = null;
 
   const rc = (sq) => [8 - Number(sq[1]), FILES.indexOf(sq[0])];
   const center = (sq) => {
@@ -89,6 +92,26 @@ export function createBoard(host, { onMove, onHint }) {
       const k = kingSquare(table.gs, color);
       if (k) { const [x, y] = center(k); gLast.append(s('circle', { cx: x, cy: y, r: Q * 0.52, class: 'check-glow' })); }
     }
+  }
+
+  // Pfeil von Feldmitte zu Feldmitte, Spitze kurz vor der Zielmitte
+  function arrow(from, to, cls) {
+    const [x1, y1] = center(from), [x2, y2] = center(to);
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+    const head = 34, w = 15, sx = x1 + ux * 22, sy = y1 + uy * 22, ex = x2 - ux * 14, ey = y2 - uy * 14;
+    const bx = ex - ux * head, by = ey - uy * head;
+    const g = s('g', { class: 'arrow ' + (cls || '') });
+    g.append(s('line', { x1: sx, y1: sy, x2: bx, y2: by, 'stroke-width': w }),
+      s('polygon', { points: `${ex},${ey} ${bx - uy * w * 1.6},${by + ux * w * 1.6} ${bx + uy * w * 1.6},${by - ux * w * 1.6}` }));
+    return g;
+  }
+
+  function renderMarks() {
+    gSq.textContent = '';
+    gArrows.textContent = '';
+    if (!marks) return;
+    for (const m of marks.squares || []) gSq.append(sqRect(m.sq, 'mark-sq ' + (m.cls || '')));
+    for (const a of marks.arrows || []) gArrows.append(arrow(a.from, a.to, a.cls));
   }
 
   function renderHints() {
@@ -182,9 +205,11 @@ export function createBoard(host, { onMove, onHint }) {
       if (!legal || legal !== prevLegal) { sel = null; promo = null; }
       const f = !!ctx.flip;
       if (f !== flip) { flip = f; drawBoard(); }
+      if (ctx.marks !== undefined) marks = ctx.marks;
       grid = boardOf(t.gs);
       renderPieces();
       renderLast();
+      renderMarks();
       if (info.kind === 'move' && info.move && info.prevGs) {
         const a = ctx.anim || OWN;
         const m = info.move;
@@ -231,6 +256,7 @@ export function createBoard(host, { onMove, onHint }) {
       const scale = svg.getScreenCTM().a;
       return { minTargetPx: Q * scale, boardPx: SIZE * scale };
     },
+    marks(m) { marks = m; if (table) renderMarks(); },
     tap: tapSquare,
     destroy() { svg.remove(); }
   };

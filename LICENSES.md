@@ -14,9 +14,15 @@ Icons und die Wortliste (`src/words.js`, 1024 selbst erstellte Nomen) sind eigen
 | `assets/cards/de/*.webp` (32 Karten: 20 Schnapskarten + Neuner/Achter/Siebener, entzerrt/zugeschnitten mit `tools/cards/crop_de.py`) | Wikimedia Commons `File:Červené v kartách.jpg`, `File:Kule v kartách.jpg`, `File:Zelené v kartách.jpg`, `File:Žaludy v kartách.jpg` | Zákupák | Public Domain | https://commons.wikimedia.org/wiki/User:Z%C3%A1kup%C3%A1k (Belege: `assets/cards/SOURCES.md`) |
 | `assets/cards/fr/*.webp` (52 Karten, gerendert mit `tools/cards/build_fr.py`) | „Vector Playing Cards“, Repo `notpeter/Vector-Playing-Cards` (Commit 72cb5b2) | Byron Knoll | Public Domain | https://github.com/notpeter/Vector-Playing-Cards |
 | `lib/trystero.js` (darin enthalten) | `@noble/secp256k1` 3.2.0 | Paul Miller | MIT | https://github.com/paulmillr/noble-secp256k1 (Lizenztext: `lib/licenses/LICENSE-noble-secp256k1.txt`) |
+| `src/trainer/data/openings.js` (Spalten `eco`, `lichess`: Eröffnungsnamen und ECO-Codes, nur die benötigte Auswahl) | lichess-org/chess-openings, Commit `5a13018` (03.10.2026), abgerufen 04.10.2026 mit `tools/build_openings.mjs` | Lichess-Mitwirkende | CC0 1.0 (Lizenz-Schlüssel `cc0-1.0` laut GitHub-API, `COPYING.txt`) | https://github.com/lichess-org/chess-openings |
+| `src/trainer/data/puzzles.js` (300 Taktik-Aufgaben: ID, FEN, Züge, Wertung; Auswahl mit `tools/build_puzzles.py`) | Lichess-Puzzle-Datenbank `lichess_db_puzzle.csv.zst`, Stand 02.10.2026, abgerufen 04.10.2026 | lichess.org | CC0 1.0 – database.lichess.org am 04.10.2026: „Database exports are released under the Creative Commons CC0 license.“ | https://database.lichess.org/#puzzles |
 
 Die Icons (`icons/`) sind eigene Gestaltung; als Hintergrund dient die oben genannte CC0-Holztextur.
 Details zur Aufbereitung der Texturen: `assets/wood/SOURCES.json` (Poly-Haven-API-Belege, md5 der Rohdateien).
+
+Zugfolgen der Eröffnungslinien (gängige Theorie, mit chess.js geprüft), deutsche Namen, Ideen-Texte, Motiv-Erklärungen
+und Endspiel-Lektionen des Schach-Trainers sind eigene Arbeit; die Endspiel-Tabellen (`src/trainer/tb.js`) rechnet die App
+selbst (Retrograd-Analyse), es werden keine fremden Tabellen verwendet.
 
 ## Regelquellen (keine Dateien übernommen)
 - de.wikipedia „Mühle (Spiel)“ und „Dame (Spiel)“

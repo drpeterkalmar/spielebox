@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '3848722c18';
+const VERSION = '01ba91e395';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -177,6 +177,15 @@ const ASSETS = [
   'src/rng.js',
   'src/store.js',
   'src/tempo.js',
+  'src/trainer/data/openings.js',
+  'src/trainer/data/puzzles.js',
+  'src/trainer/leitner.js',
+  'src/trainer/lessons.js',
+  'src/trainer/opening.js',
+  'src/trainer/puzzle.js',
+  'src/trainer/rating.js',
+  'src/trainer/tb.js',
+  'src/trainer/ui.js',
   'src/ui/cards.js',
   'src/ui/dom.js',
   'src/ui/gameui.js',

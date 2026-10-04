@@ -570,3 +570,72 @@ table.wg-block td, table.wg-block th { padding: 3px 5px; font-size: 14px; }
 .board .pa-emoji { text-anchor: middle; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
 .board .pa-card.found { opacity: .55; }
 .board .pa-card { cursor: pointer; }
+
+/* ---------- n6: Schach-Trainer ---------- */
+.game.trainer-tile { background: linear-gradient(#fffaf2, #f3ead2); border-color: rgba(40, 140, 90, .45); }
+.trainer { max-width: 760px; }
+.tr-head { display: flex; align-items: center; gap: 10px; color: #fbf3e4; padding: 2px 0 12px; }
+.tr-head h1 { font-size: 26px; }
+.tr-head .icon-btn { color: #fbf3e4; font-size: 26px; }
+.tr-cards { display: grid; gap: 12px; }
+.tr-lead { color: #f1e6d2; margin: 0 2px; }
+.tr-card { display: grid; gap: 10px; }
+.tr-card-main { display: flex; gap: 14px; align-items: center; text-align: left; border: none; background: none; padding: 0; min-height: 80px; width: 100%; color: inherit; font: inherit; }
+.tr-card-main .mini { width: 72px; height: 72px; flex: none; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,.25); }
+.tr-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tr-card-t { font-weight: 800; font-size: 21px; }
+.tr-card-sub { color: var(--muted); font-size: 14.5px; }
+.tr-card-stat { font-weight: 650; font-size: 14.5px; color: #2f6f4f; }
+.tr-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; text-align: left; border: none; border-top: 1px solid var(--line); background: none; padding: 8px 4px; font: inherit; color: inherit; }
+.tr-row:active { background: rgba(0,0,0,.05); }
+.tr-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tr-row-t { font-weight: 700; font-size: 17px; }
+.tr-row-sub { font-size: 13.5px; color: var(--muted); }
+.tr-badge { flex: none; font-size: 13px; font-weight: 750; padding: 3px 9px; border-radius: 10px; background: var(--card-2); color: var(--ink); white-space: nowrap; }
+.tr-badge.new { background: #e8e1d3; color: var(--muted); }
+.tr-badge.due { background: #f6d38b; color: #4a3005; }
+.tr-badge.ok { background: #cfe9d9; color: #1d5a3f; }
+.tr-badge.stars { font-size: 16px; letter-spacing: 1px; color: #b8862c; background: none; }
+.tr-badge.stars.ok { color: #d79a1e; }
+.tr-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-bottom: 12px; }
+.tr-big { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tr-stat .btn { width: 100%; }
+.tr-src { color: #e8dcc8; text-align: center; }
+.tr-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 8px; }
+.tr-dl dt { color: var(--muted); }
+.tr-dl dd { margin: 0; font-weight: 650; }
+.tr-bar-row { display: grid; grid-template-columns: 9.5em 1fr; gap: 10px; align-items: center; font-size: 14px; margin-top: 4px; }
+.tr-bar { height: 8px; background: var(--card-2); border-radius: 4px; overflow: hidden; }
+.tr-bar > span { display: block; height: 100%; background: var(--ok); }
+.trainer-board .tr-info { background: rgba(0,0,0,.16); border-radius: 12px; padding: 8px 12px; font-size: 15px; line-height: 1.4; max-height: 24dvh; overflow: auto; }
+.trainer-board .tr-info.hidden { display: none; }
+.trainer-board .tr-info p { margin: 0 0 4px; }
+.trainer-board .tr-info .muted { color: #e2d6c1; }
+.trainer-board .tr-status[data-state='ok'] { color: #8fe0b5; }
+.trainer-board .tr-status[data-state='warn'] { color: #ffc2a8; }
+.trainer-board .tr-status[data-state='over'] { color: #ffd98a; }
+.trainer-board .status { cursor: default; }
+.trainer-board .movelist .mv.on { color: #ffd98a; font-weight: 700; }
+.trainer-board .actions .btn { min-width: 0; padding: 8px 10px; }
+.board .arrow line { stroke: rgba(40, 175, 105, .82); stroke-linecap: round; }
+.board .arrow polygon { fill: rgba(40, 175, 105, .9); }
+.board .arrow.b line { stroke: rgba(45, 120, 210, .82); }
+.board .arrow.b polygon { fill: rgba(45, 120, 210, .9); }
+.board .arrow.hint line { stroke: rgba(240, 160, 30, .88); }
+.board .arrow.hint polygon { fill: rgba(240, 160, 30, .95); }
+.board .arrow { pointer-events: none; }
+.board .mark-sq.hint { fill: rgba(255, 190, 40, .42); stroke: rgba(240, 160, 30, .95); stroke-width: 6; animation: take 1.2s ease-in-out infinite; }
+@media (orientation: portrait) {
+  .trainer-board .actions { flex-wrap: nowrap; }
+  .trainer-board .actions .btn { font-size: 15px; }
+}
+@media (orientation: landscape) {
+  .trainer-board .tr-info { max-height: none; }
+}
+.board .mark-sq.hint-to { fill: rgba(255, 190, 40, .18); stroke: rgba(240, 160, 30, .95); stroke-width: 6; stroke-dasharray: 14 10; }
+@media (orientation: portrait) {
+  .trainer-board .tmain { justify-content: flex-start; padding-top: 4px; }
+  .trainer-board .tside { padding-top: 6px; }
+}
+.trainer-board .moves-box.empty { display: none; }
+.trainer-board .movelist { list-style: none; padding-left: 4px; }
