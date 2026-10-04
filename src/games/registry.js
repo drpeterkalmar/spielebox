@@ -14,6 +14,7 @@ import * as maumau from './maumau/engine.js';
 import * as wuerfel from './wuerfel/engine.js';
 import * as reversi from './reversi/engine.js';
 import * as paare from './paare/engine.js';
+import * as holdem from './holdem/engine.js';
 
 export const GAMES = {
   muehle: {
@@ -216,10 +217,34 @@ export const GAMES = {
       { key: 'players', type: 'choice', label: 'Spieler', choices: [1, 2, 3, 4].map((n) => ({ value: n, label: String(n) })), dflt: 2 }
     ],
     variantName: (o) => { const x = paare.normalizeOptions(o); return `${x.paare} Paare · ${x.players} Spieler`; }
+  },
+  holdem: {
+    id: 'holdem',
+    title: "Texas Hold'em",
+    engine: holdem,
+    blurb: '2–8 Spieler, No-Limit, nur Spielchips',
+    soloLast: true,
+    seats: (o) => o.players,
+    cards: true,
+    winPoints: 1,
+    options: [
+      { key: 'players', type: 'choice', label: 'Plätze am Tisch', choices: [2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: n, label: String(n) })), dflt: 4 },
+      { key: 'start', type: 'choice', label: 'Chips am Anfang', choices: [
+        { value: 500, label: '500', sub: 'kurz' }, { value: 1000, label: '1.000', sub: 'normal' }, { value: 2000, label: '2.000' }, { value: 5000, label: '5.000', sub: 'lang' }], dflt: 1000 },
+      { key: 'blinds', type: 'choice', label: 'Blinds steigen', choices: [
+        { value: 'langsam', label: 'Langsam', sub: 'alle 15 Hände' }, { value: 'normal', label: 'Normal', sub: 'alle 10' },
+        { value: 'schnell', label: 'Schnell', sub: 'alle 6' }, { value: 'aus', label: 'Nie' }], dflt: 'normal' },
+      { key: 'timer', type: 'choice', label: 'Bedenkzeit online', choices: [
+        { value: 15, label: '15 s' }, { value: 30, label: '30 s' }, { value: 60, label: '60 s' }, { value: 0, label: 'unbegrenzt' }], dflt: 30 }
+    ],
+    variantName: (o) => {
+      const x = holdem.normalizeOptions(o);
+      return [`${x.players} Plätze`, `${holdem.fmtChips(x.start)} Chips`, x.blinds === 'aus' ? 'Blinds fest' : `Blinds ${x.blinds}`].join(' · ');
+    }
   }
 };
 
-export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier, GAMES.maumau, GAMES.wuerfel, GAMES.reversi, GAMES.paare];
+export const GAME_LIST = [GAMES.muehle, GAMES.dame, GAMES.schach, GAMES.schnapsen, GAMES.backgammon, GAMES.blackjack, GAMES.halma, GAMES.ludo, GAMES.schiffe, GAMES.vier, GAMES.maumau, GAMES.wuerfel, GAMES.reversi, GAMES.paare, GAMES.holdem];
 // in der Lobby sichtbar (Spiele werden einzeln freigeschaltet, sobald Oberfläche und Tests stehen)
 export const LIVE = new Set(['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier', 'maumau', 'wuerfel', 'reversi', 'paare']);
 

@@ -9,6 +9,9 @@
 //     fairNeed: null|{ k, kind, missing: [Sitze] }, fairPriv (nur beim Host, wird nie verschickt) }
 // Kartenspiele (Engine mit HIDDEN): Jeder Empfänger bekommt nur viewFor(gs, sein Sitz); Zuschauer sehen keine Hand.
 // Zufall (Engine mit chance): lokal crypto-Zufall, online Hash-Ketten aller Sitze (src/net/fair.js).
+// Zeitlimit (Engine mit timeoutMove, nur online): Wer opts.timer Sekunden nicht handelt oder nicht erreichbar ist,
+// macht automatisch den Zug der Engine (Hold'em: checken bzw. aussteigen), bis er wieder da ist.
+// Tisch-Kommandos außerhalb der Reihe (Engine mit ACTS/applyAct, z. B. Hold'em „show“) laufen über act().
 import { gameOf, seatCount } from '../games/registry.js';
 import { chainLink, verifyLink, mixLinks, valueFor, randomHex, sha256, verifyFair, CHAIN } from './fair.js';
 
@@ -21,7 +24,11 @@ export const TIMING = {
   // In der App setzt app.js session.botDelayFor aus der Einstellung „Computer-Tempo“ (src/tempo.js).
   botDelay: (() => { try { const v = parseInt(new URLSearchParams(globalThis.location?.search || '').get('botms'), 10); return v >= 0 ? v : 1500; } catch { return 1500; } })(),
   relayAfter: 12000, // wie NetLink: so lange ohne Direktweg zur wichtigen Gegenstelle → Relay zuschalten
-  fairWait: 12000    // so lange auf Kettenglieder/Commits der Mitspieler warten, dann Host-Zufall (als ungeprüft markiert)
+  fairWait: 12000,   // so lange auf Kettenglieder/Commits der Mitspieler warten, dann Host-Zufall (als ungeprüft markiert)
+  timerGrace: 1500,  // Zeitlimit: Zuschlag für Netz-Verzögerung (die Uhr beim Spieler startet etwas später)
+  awayMove: 3000,    // Spieler nicht erreichbar: so lange warten, dann automatischer Zug
+  awayStart: 15000,  // … aber erst, wenn der Host selbst so lange läuft (sonst kennt er die Verbindungen noch nicht)
+  timerUnit: 1000    // ms je Sekunde der Option opts.timer (Tests: kleiner)
 };
 const HIST = 40;
 
@@ -189,11 +196,12 @@ export class TableSession {
   }
 
   // 'resign' | 'draw-offer' | 'draw-accept' | 'draw-decline' | 'rematch' | 'fill-bots' (Host: freie Plätze mit Computer)
-  act(a) {
+  // oder ein Kommando der Engine (ACTS, z. B. 'show'); seat nur zu mehreren an einem Gerät (wer gerade schaut)
+  act(a, seatArg = null) {
     const t = this.table;
     if (!t) return { ok: false };
     if (this.role === 'host') {
-      const seat = this.mode === 'hotseat' ? turnOf(t) : this.mySeat;
+      const seat = this.mode === 'hotseat' ? (seatArg ?? turnOf(t)) : this.mySeat;
       return this._applyAct(seat, { a, round: t.round });
     }
     this._sendHost({ t: 'act', a, round: t.round, id: this._id() });
@@ -219,13 +227,13 @@ export class TableSession {
 
   // ---------- Host ----------
 
-  _applyMove(seat, move) {
+  _applyMove(seat, move, note = '') {
     const t = this.table;
     const eng = this.engine;
     if (t.status !== 'play') return { ok: false, reason: 'Partie läuft nicht' };
     if (turnOf(t) !== seat) return { ok: false, reason: 'Nicht am Zug' };
     if (!eng.isLegal(t.gs, move)) return { ok: false, reason: 'Zug nicht erlaubt' };
-    const d = eng.describeMove(t.gs, move);
+    const d = eng.describeMove(t.gs, move) + note;
     const prevGs = t.gs;
     t.gs = eng.applyMove(t.gs, move);
     t.last = { m: move, by: seat, d };
@@ -256,6 +264,14 @@ export class TableSession {
       this._startRound();
       this._commit({ kind: 'seat' });
       this._maybeBot();
+      return { ok: true };
+    }
+    const eng = this.engine;
+    if (eng.ACTS && eng.ACTS.includes(a)) {
+      // Kommando der Engine außerhalb der Reihe (z. B. Hold'em: weggelegte Karten doch zeigen)
+      if (seat === null || seat === undefined || t.status === 'wait' || !eng.isLegalAct(t.gs, seat, a)) return { ok: false, reason: 'nicht möglich' };
+      t.gs = eng.applyAct(t.gs, seat, a);
+      this._commit({ kind: 'act', a, by: seat });
       return { ok: true };
     }
     if (seat === null || seat === undefined || t.status !== 'play') return { ok: false, reason: 'Partie läuft nicht' };
@@ -783,12 +799,40 @@ export class TableSession {
     if (now - this._indirectSince > TIMING.relayAfter) this.link.ensureRelay(this.role === 'host' ? 'Mitspieler nicht direkt erreichbar' : 'Gastgeber nicht direkt erreichbar');
   }
 
+  // Gegenstelle gerade erreichbar (direkt oder über Relay)?
+  _reachable(pid) {
+    try { return (this.link.status().peers || []).some((p) => p.pid === pid && p.via !== 'weg'); } catch { return true; }
+  }
+
+  // Host: Zeitlimit bzw. Spieler weg → automatischer Zug der Engine (nur online, nur Menschen)
+  _autoMove(now) {
+    const t = this.table;
+    const eng = this.engine;
+    if (!eng.timeoutMove || t.status !== 'play') { this._turn = null; return; }
+    const seat = turnOf(t);
+    if (seat === null || this._isBot(seat) || !t.seats[seat]) { this._turn = null; return; }
+    const key = `${t.round}|${t.nmoves}|${seat}`;
+    if (!this._turn || this._turn.key !== key) this._turn = { key, since: now };
+    const elapsed = now - this._turn.since;
+    const pid = t.seats[seat].pid;
+    const limit = (Number(t.opts.timer) || 0) * TIMING.timerUnit;
+    const away = pid !== this.me.pid && !this._reachable(pid) && now - this.startedAt > TIMING.awayStart;
+    const late = limit > 0 && elapsed > limit + TIMING.timerGrace;
+    if (!late && !(away && elapsed > TIMING.awayMove)) return;
+    const m = eng.timeoutMove(t.gs);
+    if (!m || !eng.isLegal(t.gs, m)) return;
+    this._note(`Automatischer Zug für Sitz ${seat} (${away ? 'nicht erreichbar' : 'Zeit abgelaufen'})`);
+    this._turn = null;
+    this._applyMove(seat, m, away ? ' (nicht da)' : ' (Zeit um)');
+  }
+
   _tick() {
     if (this.closed) return;
     const t = this.table;
     const now = this.now();
     this._checkDirect(now);
     if (this.role === 'host' && t) {
+      this._autoMove(now);
       if (!this._lastHb || now - this._lastHb >= TIMING.heartbeat) {
         this._lastHb = now;
         const here = [...this.present.entries()].filter(([, p]) => now - p.lastSeen < 30000).map(([pid]) => pid);

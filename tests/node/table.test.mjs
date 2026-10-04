@@ -9,7 +9,8 @@ import * as muehleBot from '../../src/games/muehle/bot.js';
 import * as bjBot from '../../src/games/blackjack/bot.js';
 import * as ludoBot from '../../src/games/ludo/bot.js';
 import * as mmBot from '../../src/games/maumau/bot.js';
-const BOTS = { blackjack: bjBot.chooseMove, muehle: muehleBot.chooseMove, ludo: ludoBot.chooseMove, maumau: mmBot.chooseMove };
+import * as heBot from '../../src/games/holdem/bot.js';
+const BOTS = { blackjack: bjBot.chooseMove, muehle: muehleBot.chooseMove, ludo: ludoBot.chooseMove, maumau: mmBot.chooseMove, holdem: (gs, o) => heBot.chooseMove(gs, { ...o, iters: 60 }) };
 
 Object.assign(TIMING, { heartbeat: 40, hostGone: 400, moveRetry: 150, botDelay: 0, relayAfter: 120 });
 
@@ -640,6 +641,88 @@ await ok('Paare finden online: verdeckte Karten kennt nur der Host-Speicher, Gas
   assert.ok(g.fairCheck.ok);
   console.log(`   ${moves} Züge, ${h.table.result.reason}, Mischung nach dem Spiel geprüft`);
   h.close(); g.close();
+});
+
+await ok("Hold'em online: 3 Geräte + Computer + Zuschauer – jede Nachricht nur mit eigenen Hole Cards, fair gemischt je Hand", async () => {
+  const hub = new Hub();
+  const he = gameOf('holdem').engine;
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'holdem', opts: { players: 4, start: 500, blinds: 'schnell', timer: 0 }, host: { pid: 'H', name: 'Peter' } }) });
+  // gezielte Nachrichten des Hosts mitschreiben (Empfänger + Inhalt)
+  const out = [];
+  const send0 = h.link.send.bind(h.link);
+  h.link.send = (msg, to) => { if (msg.t === 'state') out.push({ to: to || '*', gs: msg.table.gs }); return send0(msg, to); };
+  const a = player(hub, 'A', 'Anna');
+  const b = player(hub, 'B', 'Ben');
+  await until(() => a.table && b.table && h.table.seats.filter(Boolean).length === 3, 3000, 'Plätze');
+  const z = player(hub, 'Z', 'Zoe', { want: 'watch' });
+  assert.ok(h.act('fill-bots').ok);
+  await until(() => h.table.status === 'play' && h.table.gs.phase === 'bet', 3000, 'erste Hand');
+  const seatOfPid = (pid) => seatOf(h.table, pid);
+  const ppl = [h, a, b];
+  let moves = 0, hands0 = h.table.gs.hand;
+  for (let i = 0; i < 3000 && h.table.status === 'play' && h.table.gs.hand < hands0 + 12; i++) {
+    const turn = he.currentPlayer(h.table.gs);
+    const who = ppl.find((x) => x.mySeat === turn);
+    // Sichten aller Geräte prüfen: fremde Hole Cards nie sichtbar (außer All-in aufgedeckt)
+    for (const x of [a, b, z]) {
+      if (!x.table || x.table.seq !== h.table.seq) continue;
+      const me = x.mySeat;
+      x.table.gs.holes.forEach((hc, q) => { if (q !== me && !h.table.gs.shown[q]) assert.ok(hc.every((c) => c === null), `${x.me.name} sieht Karten von Sitz ${q}`); });
+      assert.ok(x.table.gs.deck.every((c) => c === null), 'Stapel verdeckt');
+    }
+    if (!who || who.pendingMove || who.table.seq !== h.table.seq) { await sleep(2); continue; }
+    const m = heBot.chooseMove(who.table.gs, { level: 2, iters: 60 });
+    assert.ok(who.submitMove(m).ok, JSON.stringify(m));
+    moves++;
+    await sleep(1);
+  }
+  // alle verschickten Stände: Empfänger sieht nur die eigenen Hole Cards
+  for (const e of out) {
+    const seat = e.to === '*' ? null : seatOfPid(e.to);
+    e.gs.holes.forEach((hc, q) => { if (q !== seat && !e.gs.shown[q]) assert.ok(hc.every((c) => c === null), `Nachricht an ${e.to} enthält Karten von Sitz ${q}`); });
+    assert.ok(e.gs.deck.every((c) => c === null), 'Stapel in Nachricht');
+    for (const k of Object.keys(e.gs.lastHoles || {})) assert.equal(Number(k), seat, 'weggelegte Karten nur an den Besitzer');
+  }
+  assert.ok(out.some((e) => e.to === 'Z'), 'Zuschauer bekam Stände');
+  assert.ok(h.table.gs.hand >= hands0 + 5, 'mehrere Hände gespielt');
+  // Mischungen früherer Hände sind veröffentlicht und von allen (auch dem Zuschauer) geprüft
+  await until(() => [a, b, z].every((x) => x.fairCheck && x.fairCheck.n === h.table.fair.log.length && x.fairCheck.checked >= 3), 4000, 'Prüfung');
+  for (const x of [a, b, z]) assert.ok(x.fairCheck.ok && !x.fairCheck.fallback, JSON.stringify(x.fairCheck));
+  console.log(`   ${moves} Züge, ${h.table.gs.hand - hands0} Hände, ${out.length} Stände geprüft, ${a.fairCheck.checked} Mischungen von jedem Gerät geprüft`);
+  h.close(); a.close(); b.close(); z.close();
+});
+
+await ok("Hold'em: Zeitlimit checkt/foldet automatisch, abwesender Spieler ebenso, „show“ zeigt weggelegte Karten", async () => {
+  const save = { ...TIMING };
+  Object.assign(TIMING, { timerUnit: 10, timerGrace: 20, awayMove: 60, awayStart: 0 });
+  try {
+    const hub = new Hub();
+    const he = gameOf('holdem').engine;
+    const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'holdem', opts: { players: 3, timer: 15 }, host: { pid: 'H', name: 'Peter' } }) });
+    const a = player(hub, 'A', 'Anna');
+    await until(() => a.table && h.table.seats.filter(Boolean).length === 2, 3000);
+    assert.ok(h.act('fill-bots').ok);
+    // niemand handelt: nach 15 × 10 ms + Zuschlag kommt der automatische Zug
+    await until(() => h.table.hist.some((e) => /Zeit um/.test(e.d)), 3000, 'Zeitlimit');
+    const auto = h.table.hist.find((e) => /Zeit um/.test(e.d));
+    assert.ok(/steigt aus|checkt/.test(auto.d), auto.d);
+    // Anna trennt sich: ihr Platz handelt sofort automatisch (nicht da)
+    Object.assign(TIMING, { timerUnit: 100000 });
+    a.link.disconnect();
+    await until(() => h.table.hist.some((e) => /nicht da/.test(e.d)), 4000, 'abwesend');
+    // „show“: Host gewinnt eine Hand ohne Showdown bzw. legt weg → darf zeigen
+    await until(() => {
+      const gs = h.table.gs;
+      return gs.lastHoles && gs.lastHoles[h.mySeat];
+    }, 8000, 'Host hat weggelegte/ungezeigte Karten').catch(() => null);
+    const gs = h.table.gs;
+    if (gs.lastHoles && gs.lastHoles[h.mySeat]) {
+      assert.ok(h.act('show').ok);
+      assert.deepEqual(h.table.gs.lastHand.shown[h.mySeat], gs.lastHoles[h.mySeat]);
+      assert.equal(h.act('show').ok, false, 'nur einmal');
+    }
+    h.close(); a.close();
+  } finally { Object.assign(TIMING, save); }
 });
 
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
