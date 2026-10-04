@@ -131,7 +131,7 @@ export function helpNet() {
       'Der Gastgeber ist Schiedsrichter: Sein Gerät prüft jeden Zug. Fällt er aus, übernimmt der Mitspieler.',
       'Tab zu, Akku leer, neu geladen? Einfach dieselben drei Wörter eingeben (oder unter „Weiterspielen“ antippen) – die Partie geht weiter.',
       'Wer keinen Platz mehr bekommt, schaut zu. Freie Plätze kann der Gastgeber mit dem Computer füllen.',
-      'Kartenspiele und Schiffe versenken: Jeder bekommt nur seine eigenen Karten bzw. seine eigene Flotte geschickt (fremde Schiffe erst, wenn sie versenkt sind), Zuschauer sehen keine Hand und keine Flotte. Ehrliche Grenze: Der Browser des Gastgebers kennt alle Karten (wer technisch versiert ist, könnte sie dort auslesen); läuft die Verbindung über ein Relay, sind die Nachrichten mit einem gemeinsamen Schlüssel aus den 3 Wörtern verschlüsselt. Gedacht für Familie und Freunde.',
+      'Kartenspiele und Schiffe versenken: Jeder bekommt nur seine eigenen Karten bzw. seine eigene Flotte geschickt (fremde Schiffe erst, wenn sie versenkt sind), Zuschauer sehen keine Hand und keine Flotte. Ehrliche Grenze: Der Browser des Gastgebers kennt alle Karten (wer technisch versiert ist, könnte sie dort auslesen); läuft die Verbindung über ein Relay, sind die Nachrichten mit einem gemeinsamen Schlüssel aus den 3 Wörtern verschlüsselt. Gedacht für Familie und Freunde. Bei Texas Hold\'em sieht niemand fremde Karten – außer die, die beim Aufdecken gezeigt werden.',
       'Fair gemischt und gewürfelt: Jeder Spieler legt sich zu Beginn auf eine geheime Zahlenkette fest. Karten und Würfel ergeben sich aus den Beiträgen aller – niemand, auch nicht der Gastgeber, kann sie steuern. Nach jedem Spiel prüft jedes Gerät das nach (Anzeige „✓ fair gemischt“).'
     ));
 }
@@ -144,11 +144,12 @@ export function credits() {
       'Schachfiguren: Colin M. L. Burnett (cburnett), Wikimedia Commons, BSD-3-Clause.',
       'Schachregeln: chess.js 1.4.0 (BSD-2-Clause, Jeff Hlywa).',
       'Doppeldeutsche Karten (Schnapsen, Mau-Mau): Fotos von Zákupák (Wikimedia Commons, gemeinfrei), von uns entzerrt und zugeschnitten.',
-      'Französische Karten: Byron Knoll, „Vector Playing Cards“ (gemeinfrei).',
+      'Französische Karten (Blackjack, Texas Hold\'em): Byron Knoll, „Vector Playing Cards“ (gemeinfrei).',
       'Holztexturen: Poly Haven, CC0 – „Silver Oak Veneer 01“ und „Walnut Veneer“ (Jenelle van Heerden), „Dark Wood“ (Dario Barresi, Dimitrios Savva, Rico Cilliers).',
       'Netz: Trystero 0.25.4 (MIT, Dan Motzenbecker), @noble/secp256k1 (MIT, Paul Miller).',
-      'Regelquellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“, strategy-games.de (deutsche Dame), FMJD (internationale Dame), FIDE (Schach); Schmidt-Spiele-Anleitungen (Ludo, Würfelglück), de.wikipedia „Schiffe versenken“, „Vier gewinnt“, „Mau-Mau (Kartenspiel)“, „Memory (Spiel)“, World Othello Federation (Reversi).',
+      'Regelquellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“, strategy-games.de (deutsche Dame), FMJD (internationale Dame), FIDE (Schach); Schmidt-Spiele-Anleitungen (Ludo, Würfelglück), de.wikipedia „Schiffe versenken“, „Vier gewinnt“, „Mau-Mau (Kartenspiel)“, „Memory (Spiel)“, World Othello Federation (Reversi), TDA-Turnierregeln (Texas Hold\'em).',
       'Tierbilder bei Paare finden: Emoji der Systemschrift.',
+      'Texas Hold\'em: Handbewertung, Starthand-Tabelle, Chips und Computer-Spieler sind eigene Arbeit. Gespielt wird nur um Spielchips – kein Geld, keine Käufe.',
       'Schach-Trainer: Taktik-Aufgaben aus der Lichess-Puzzle-Datenbank (database.lichess.org, CC0), Eröffnungsnamen und ECO-Codes aus lichess-org/chess-openings (CC0). Zugfolgen, Texte und Endspiel-Tabellen: eigene Arbeit.'
     ),
     h('p', {}, 'Alle Details stehen in ', h('a', { href: 'LICENSES.md', target: '_blank', rel: 'noopener', text: 'LICENSES.md' }), '.'));

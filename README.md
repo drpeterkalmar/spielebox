@@ -5,7 +5,8 @@ Brett- und Kartenspiele übers Netz – ohne Konto, ohne Server, Zutritt mit dre
 
 Handy zuerst (Hoch- und Querformat), als App installierbar (PWA), offline gegen den Computer oder zu zweit an einem Gerät.
 **Spiele:** Mühle · Dame (Deutsch 8×8 / International 10×10) · Schach · Schnapsen · Backgammon · Blackjack (2–6) · Stern-Halma (2/3/4/6)
-· Ludo (2–4) · Schiffe versenken · Vier in einer Reihe · Mau-Mau (2–5) · Würfelglück (1–6) · Reversi · Paare finden (1–4).
+· Ludo (2–4) · Schiffe versenken · Vier in einer Reihe · Mau-Mau (2–5) · Würfelglück (1–6) · Reversi · Paare finden (1–4)
+· Texas Hold'em (2–8, nur Spielchips).
 Dazu der **Schach-Trainer** (allein üben): Eröffnungen, Taktik-Aufgaben, Endspiele.
 Jedes Spiel online über die drei Wörter, gegen den Computer (3 Stufen) oder an einem Gerät. Freie Plätze an Mehr-Personen-Tischen
 füllt der Computer. Unter dem Brett steht auf Wunsch „Wer gewinnt?“ (Zahl in der Einheit des Spiels ↔ Gewinnchance in %).
@@ -53,9 +54,13 @@ Wörter, nie die Wörter, Namen oder Züge im Klartext.
 - **Schiffe versenken** nutzt denselben Weg wie die Kartenspiele: Jedes Gerät bekommt nur die eigene Flotte, fremde
   Schiffe erst, wenn sie versenkt sind; das Aufstellen steht nie im Zugverlauf der anderen. Gleiche ehrliche Grenze:
   Der Browser des Gastgebers kennt beide Flotten.
+- **Texas Hold'em:** Hole Cards gehen nur an das eigene Gerät, das Board erst beim Aufdecken; Zuschauer sehen keine
+  Hole Cards (nach der Hand nur die gezeigten). Jede Hand wird über die Hash-Ketten aller Spieler gemischt und nach der Hand
+  von jedem Gerät geprüft („✓ fair gemischt“). Gleiche ehrliche Grenze: Der Browser des Gastgebers kennt alle Karten.
+  **Nur Spielchips – kein Echtgeld, keine Käufe.**
 - **Paare finden:** Die Bilder sind für alle verdeckt, der Gastgeber-Browser kennt sie (gleiche Grenze), fair gemischt.
 - **Würfel mit beliebig vielen Würfeln** (Ludo 1, Würfelglück nur die nicht gehaltenen) laufen über dieselben Hash-Ketten.
-- **Zu zweit an einem Gerät** (Schnapsen, Mau-Mau, Schiffe versenken): Sichtschutz „Gerät an … weitergeben“ zwischen den
+- **Zu zweit an einem Gerät** (Schnapsen, Mau-Mau, Schiffe versenken, Texas Hold'em): Sichtschutz „Gerät an … weitergeben“ zwischen den
   Zügen; bei Schiffe versenken steht darauf das Ergebnis des letzten Schusses.
 
 ## Regeln und Schalter
@@ -124,6 +129,22 @@ keiner mehr kann; mehr Steine gewinnt.
 **Paare finden** (de.wikipedia „Memory (Spiel)“; ohne Markennamen): 8, 12 oder 18 Tierpaare, zwei Karten umdrehen,
 Paar = behalten und nochmal, sonst bleibt das falsche Paar offen, bis der Nächste dreht. 1–4 Spieler.
 
+**Texas Hold'em** (No-Limit, Turnier „Sit & Go“, TDA-Regeln): 2–8 Plätze (freie füllt der Computer), alle starten mit
+gleich vielen Chips (500 / 1.000 / 2.000 / 5.000). Dealer-Knopf, Small/Big Blind; zu zweit ist der Dealer Small Blind und
+handelt vor dem Flop zuerst. Blinds starten bei 5/10 und steigen alle 20 Hände (*langsam* 30, *schnell* 12, *nie*) – mit
+4 Spielern dauert eine Partie so etwa 20–30 min (`tools/holdem_duration.mjs`). Check, Call, Bet, Raise (Mindest-Raise =
+letzte Erhöhung), Fold, All-in; ein unvollständiges All-in öffnet die Setzrunde nicht wieder. Side-Pots, Split-Pots,
+Rest-Chip an den ersten Gewinner links vom Knopf. Showdown: letzter Aggressor zuerst, Verlierer dürfen verdeckt lassen,
+nach einem Fold-Sieg „Karten zeigen“. Wer keine Chips mehr hat, scheidet aus und schaut zu (gegen den Computer:
+„Neues Turnier“); Sieger ist, wer alle Chips hat, darunter die Rangliste. Bedienung: Aussteigen / Checken-Mitgehen (mit
+Betrag) / Erhöhen mit Regler, ½ Pot, ¾ Pot, Pot, All-in, Plus/Minus; vorab „Check/Fold“ oder „Call jeden Betrag“.
+Online Bedenkzeit 15/30/60 s oder unbegrenzt (Standard 30 s), danach – und solange jemand die Verbindung verloren hat –
+checkt bzw. steigt sein Platz aus. Computer: *leicht* (callt viel, blufft selten), *mittel* (Starthand-Tabellen nach
+Position, Gewinnchance per Monte-Carlo, Pot-Odds, Semibluffs), *stark* (Positions- und Stack-bewusst, Push/Fold unter
+~12 Big Blinds, grenzt Bereiche nach Aktionen ein, merkt sich Tendenzen) – keiner kennt fremde Karten. „Wer gewinnt?“ =
+Gewinnchance der eigenen Hand gegen zufällige Hände der Mitspieler (eine Schätzung, kein Wissen); Hand-Hilfe benennt die
+eigene Hand. Hilfe am Tisch: Hand-Rangliste mit Kartenbildern und „Wie setze ich?“.
+
 Quellen: de.wikipedia „Mühle (Spiel)“, „Dame (Spiel)“, „Schnapsen“, „Halma“, en.wikipedia „Chinese checkers“,
 strategy-games.de (deutsche Dame), FMJD (international), FIDE (Schach).
 
@@ -162,7 +183,7 @@ beim Öffnen geladen (dynamischer Import), die Lobby startet also nicht langsame
 Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm run build:lib`).
 - `npm test` – Node: Wortliste, Krypto, Relay-Kanal, Regelfälle aller Spiele, Tisch-Protokoll (auch verdeckte Karten,
   faire Würfel/Mischung, Mehr-Sitz-Tisch), Fair Play, evaluate, Zufalls-Schwarm mit Invarianten (Mühle/Dame/Schnapsen/
-  Backgammon/Blackjack/Ludo/Schiffe/Vier/Mau-Mau/Würfelglück/Reversi/Paare je 10 000 Partien, Halma 2 460, Schach 150 +
+  Backgammon/Blackjack/Ludo/Schiffe/Vier/Mau-Mau/Würfelglück/Reversi/Paare/Hold'em je 10 000 Partien bzw. Turniere, Halma 2 460, Schach 150 +
   Bot-Stufen), Computer-Tempo und Ereignisse, Meldungs-
   Warteschlange, Stich-Blatt; `npm test -- --schnell` ohne Schwarm.
 - Schach-Trainer: `node tests/node/trainer_*.test.mjs` (in `npm test`) – Eröffnungen legal/Namen passend, 300 Aufgaben legal
@@ -170,6 +191,13 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
   optimaler Zugzahl, Leitner, Wertung, Lektionen. `python3 tests/smoke_n6.py` – Browser hoch/quer/Desktop mit echten Taps
   (Lernen mit Fehler, Weiterspielen, Wiederholen, Aufgabe mit Fehlversuch, zwei Endspiele, Zurücksetzen), Screenshots
   `tests/shots/n6/`.
+- Hold'em: `node tests/node/holdem_eval.test.mjs` (alle 7 462 Klassen, 1 Mio. 7-Karten-Hände gegen naive Referenz),
+  `holdem.test.mjs` (Side-Pots, Heads-up, Min-Raise, unvollständiges All-in, Ausscheiden), `holdem_bot.test.mjs`;
+  `node tools/holdem_selfplay.mjs --hu=2,3 --hands=20000` (Stufen-Vergleich, Duplicate, Chips/100 Hände mit 95 %),
+  `node tools/holdem_duration.mjs [--players=4] [--blinds=normal] [--human=1]` (Partiedauer).
+  `python3 tests/smoke_n5.py` – Browser hoch/quer/Desktop: echte Taps, Regler, Vorab-Knöpfe, Sichtschutz, Side-Pot,
+  Turnierende, „Neues Turnier“ nach Ausscheiden, nie eine fremde Hole Card im DOM. `python3 tests/e2e_n5.py [--relay]` –
+  3 Geräte + Zuschauer: keine fremden Hole Cards (Zustand + DOM), Bedenkzeit, Neuladen, „✓ fair gemischt“.
 - `python3 tests/smoke_n4.py [ludo] [vier] [maumau] [wuerfel] [schiffe] [reversi] [paare]` – Browser (Pixel 7 hoch/quer,
   Desktop): die n4-Spiele mit echten Taps, Knöpfe ≥ 48 px, Brett im Bild, Halten/Vorschläge, Flotte setzen, Mau sagen,
   Sichtschutz, nie eine fremde Karte/Flotte im DOM, Animationen (Steine fallen/kippen). Screenshots `tests/shots/n4/`.
@@ -198,7 +226,9 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
 - Schachfiguren: Colin M. L. Burnett (cburnett), Wikimedia Commons, BSD-3-Clause.
 - Doppeldeutsche Karten (Schnapsen, Mau-Mau, 32 Blatt): Fotos von Zákupák (Wikimedia Commons, gemeinfrei), entzerrt mit `tools/cards/crop_de.py`.
 - Tierbilder bei Paare finden: Emoji der Systemschrift (keine Bilddateien im Repo).
-- Französische Karten: Byron Knoll, „Vector Playing Cards“ (gemeinfrei).
+- Französische Karten (Blackjack, Texas Hold'em): Byron Knoll, „Vector Playing Cards“ (gemeinfrei).
+- Texas Hold'em: Evaluator, Starthand-Tabelle (`tools/holdem_preflop.mjs`, selbst gerechnet), Chips und Computer: eigene Arbeit;
+  Regeln nach den TDA-Turnierregeln (keine Dateien übernommen).
 - Schach-Trainer: Taktik-Aufgaben aus der [Lichess-Puzzle-Datenbank](https://database.lichess.org/#puzzles) (CC0),
   Eröffnungsnamen/ECO aus [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings) (CC0).
 - Alle Einzelheiten: [LICENSES.md](LICENSES.md); in der App unter „Credits“.

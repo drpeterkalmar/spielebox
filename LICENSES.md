@@ -12,7 +12,7 @@ Icons und die Wortliste (`src/words.js`, 1024 selbst erstellte Nomen) sind eigen
 | `lib/chess.js` (gebündelt mit esbuild, `tools/build_chess.mjs`, Version gepinnt) | chess.js 1.4.0 | Jeff Hlywa | BSD-2-Clause | https://github.com/jhlywa/chess.js (Lizenztext: `lib/licenses/LICENSE-chess.js.txt`) |
 | `assets/pieces/*.svg` (12 Schachfiguren, unverändert) | Wikimedia Commons `File:Chess_{k,q,r,b,n,p}{l,d}t45.svg` | Colin M. L. Burnett (cburnett) | BSD-3-Clause (mehrfach lizenziert: BSD-3, GPL, GFDL, CC BY-SA 3.0; wir nutzen BSD-3) | https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces |
 | `assets/cards/de/*.webp` (32 Karten: 20 Schnapskarten + Neuner/Achter/Siebener, entzerrt/zugeschnitten mit `tools/cards/crop_de.py`) | Wikimedia Commons `File:Červené v kartách.jpg`, `File:Kule v kartách.jpg`, `File:Zelené v kartách.jpg`, `File:Žaludy v kartách.jpg` | Zákupák | Public Domain | https://commons.wikimedia.org/wiki/User:Z%C3%A1kup%C3%A1k (Belege: `assets/cards/SOURCES.md`) |
-| `assets/cards/fr/*.webp` (52 Karten, gerendert mit `tools/cards/build_fr.py`) | „Vector Playing Cards“, Repo `notpeter/Vector-Playing-Cards` (Commit 72cb5b2) | Byron Knoll | Public Domain | https://github.com/notpeter/Vector-Playing-Cards |
+| `assets/cards/fr/*.webp` (52 Karten, gerendert mit `tools/cards/build_fr.py`; Blackjack, Texas Hold'em) | „Vector Playing Cards“, Repo `notpeter/Vector-Playing-Cards` (Commit 72cb5b2) | Byron Knoll | Public Domain | https://github.com/notpeter/Vector-Playing-Cards |
 | `lib/trystero.js` (darin enthalten) | `@noble/secp256k1` 3.2.0 | Paul Miller | MIT | https://github.com/paulmillr/noble-secp256k1 (Lizenztext: `lib/licenses/LICENSE-noble-secp256k1.txt`) |
 | `src/trainer/data/openings.js` (Spalten `eco`, `lichess`: Eröffnungsnamen und ECO-Codes, nur die benötigte Auswahl) | lichess-org/chess-openings, Commit `5a13018` (03.10.2026), abgerufen 04.10.2026 mit `tools/build_openings.mjs` | Lichess-Mitwirkende | CC0 1.0 (Lizenz-Schlüssel `cc0-1.0` laut GitHub-API, `COPYING.txt`) | https://github.com/lichess-org/chess-openings |
 | `src/trainer/data/puzzles.js` (300 Taktik-Aufgaben: ID, FEN, Züge, Wertung; Auswahl mit `tools/build_puzzles.py`) | Lichess-Puzzle-Datenbank `lichess_db_puzzle.csv.zst`, Stand 02.10.2026, abgerufen 04.10.2026 | lichess.org | CC0 1.0 – database.lichess.org am 04.10.2026: „Database exports are released under the Creative Commons CC0 license.“ | https://database.lichess.org/#puzzles |
@@ -30,6 +30,8 @@ selbst (Retrograd-Analyse), es werden keine fremden Tabellen verwendet.
 - FIDE-Schachregeln (über chess.js)
 - de.wikipedia „Schnapsen“, „Halma“; en.wikipedia „Chinese checkers“; Standardregeln Backgammon und Blackjack
 - FMJD-Regeln (internationale Dame: Mehrheits-Schlagzwang, fliegende Dame, 25-Züge-Regel)
+- Texas Hold'em: Poker TDA (Tournament Directors Association), Turnierregeln; Handbewertung, Starthand-Tabelle
+  (`src/games/holdem/preflop.js`, mit eigenem Evaluator per Monte-Carlo gerechnet) und Computer-Spieler sind eigene Arbeit
 
 ## Netz
 Öffentliche Nostr-Relays (`src/net/relays.js`) dienen nur als Vermittlung bzw. Relay-Fallback; es werden keine
