@@ -1,5 +1,5 @@
 // Service-Worker: offline spielbar (Solo/zu zweit), Cache-Busting über Inhalts-Hash (tools/update_sw.py)
-const VERSION = '7c47915dd7';
+const VERSION = '9b70ac679f';
 const CACHE = 'spielebox-' + VERSION;
 const ASSETS = [
   './',
@@ -130,6 +130,13 @@ const ASSETS = [
   'src/games/halma/bot.js',
   'src/games/halma/engine.js',
   'src/games/halma/view.js',
+  'src/games/holdem/bot.js',
+  'src/games/holdem/engine.js',
+  'src/games/holdem/equity.js',
+  'src/games/holdem/eval.js',
+  'src/games/holdem/help.js',
+  'src/games/holdem/preflop.js',
+  'src/games/holdem/view.js',
   'src/games/ludo/bot.js',
   'src/games/ludo/engine.js',
   'src/games/ludo/rules.js',
@@ -192,6 +199,7 @@ const ASSETS = [
   'src/ui/lobby.js',
   'src/ui/seatcolors.js',
   'src/ui/settings.js',
+  'src/ui/sound.js',
   'src/ui/svg.js',
   'src/ui/tablescreen.js',
   'src/ui/texts.js',

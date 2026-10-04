@@ -3,7 +3,7 @@
 // Anzeige-Warteschlange: Züge der anderen werden in Ruhe ausgespielt (Tempo aus src/tempo.js), wichtige Ereignisse
 // erscheinen als Banner über der gegnerischen Leiste, die letzten Ereignisse stehen hinter der Status-Zeile.
 import { h, clear, sheet, toast, onToast } from './dom.js';
-import { params as tempoParams, levelFrom, animMs, BANNER_MAX, LEVEL_NAMES } from '../tempo.js';
+import { params as tempoParams, levelFrom, animMs, holdemTimes, BANNER_MAX, LEVEL_NAMES } from '../tempo.js';
 import { moveEvents } from '../events.js';
 import { ownTricks } from '../games/schnapsen/engine.js';
 import { openSettings } from './settings.js';
@@ -292,6 +292,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (gu.actions) {
       const legal = legalFor(t);
       if (legal) actions.append(...gu.actions(shownOf(t), legal, submit, view));
+      else if (gu.idle && !locked(t)) actions.append(...gu.idle(shownOf(t), view, { mode, seat: viewer() ?? null, act: (a) => { const r = session.act(a, viewer()); if (r && r.ok === false && r.reason) toast(r.reason); } }));
       if (gu.hidden || !gameOf(t.game).draws) return; // Aufgeben steht dann im Menü
     }
     const canOffer = mode !== 'bot' && gameOf(t.game).draws && (t.drawOffer === null || t.drawOffer === undefined);
@@ -318,8 +319,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   function renderOverlay(t) {
     clear(overlay);
     let show = false;
-    if (t && locked(t)) {
-      // Sichtschutz: Gerät weitergeben, erst dann die Karten zeigen
+    if (t && locked(t) && !animating) {
+      // Sichtschutz: Gerät weitergeben, erst dann die Karten zeigen (erst wenn der letzte Zug ausgespielt ist –
+      // z. B. das Ergebnis einer Hold'em-Hand soll jeder noch sehen)
       show = true;
       const turn = turnOf(t);
       const name = t.seats[turn] ? t.seats[turn].name : `Spieler ${turn + 1}`;
@@ -403,17 +405,21 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     // Zug ausspielen: fremde Züge im eingestellten Tempo, eigene kurz
     const lv = level();
     let dur = 0, anim = null;
+    // verdeckte Karten: auch der Stand vor dem Zug nur in der Sicht dieses Geräts (Host hat sonst alles)
+    if (hidden() && info.prevGs) info = { ...info, prevGs: eng().viewFor(info.prevGs, locked(t) ? null : viewer() ?? null) };
     if (info.kind === 'move' && info.move) {
       anim = tempoParams(lv, ownMove(info.by));
       dur = animMs(t.game, info.move, info.prevGs, t.gs, anim);
-      noteMove(t, info, dur);
+      // Hold'em: Ergebnis der Hand melden, sobald die Karten aufgedeckt sind (nicht erst nach dem neuen Austeilen)
+      const ht = t.game === 'holdem' ? holdemTimes(anim, t.gs) : null;
+      noteMove(t, info, ht ? ht.chip + ht.toPot + ht.runout : dur);
     }
     animating = dur > 0 || queue.length > 0;
     animBy = dur > 0 && !anim.own ? info.by : null;
     animVerb = info.move && info.move.type === 'roll' ? 'würfelt' : t.game === 'schnapsen' || t.game === 'blackjack' ? 'spielt' : 'zieht';
     const legal = legalFor(t);
     if (stichSheet && (locked(t) || t.game !== 'schnapsen')) { stichSheet.close(); stichSheet = null; }
-    view.update(shownOf(t), info, { legal, flip: !!gameUi(t.game).flip && bs === 1, viewer: viewer() ?? bs, seated: viewer() !== null && viewer() !== undefined, anim, tempo: tempoParams(lv) });
+    view.update(shownOf(t), info, { legal, flip: !!gameUi(t.game).flip && bs === 1, viewer: viewer() ?? bs, seated: viewer() !== null && viewer() !== undefined, anim, tempo: tempoParams(lv), mode, help: helpOn(t) });
     // solange der Zug eines anderen ausgespielt wird: „Computer zieht …“ statt schon „Du bist am Zug“
     const st = animBy !== null && animBy !== undefined && t.status === 'play' ? `${nameOf(t, animBy)} ${animVerb} …` : statusText(t);
     statusTextEl.textContent = st;
@@ -466,12 +472,21 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     for (const e of list) {
       addEvent(e.text);
       // Banner: was die anderen (vor allem der Computer) gemacht haben; zu zweit am Gerät alles Wichtige
-      if (e.big && (mode === 'hotseat' || !you(e.seat) || /^Pasch|^Schach|^Fünferpasch/.test(e.text))) pushBanner(e.text);
+      if (e.big && (mode === 'hotseat' || !you(e.seat) || e.prio || /^Pasch|^Schach|^Fünferpasch/.test(e.text))) pushBanner(e.text, !!e.prio);
     }
   }
 
-  function pushBanner(text) {
+  // prio (Hold'em-Ergebnis): verdrängt wartende gewöhnliche Banner und erscheint sofort
+  const prioQ = new Set();
+  function pushBanner(text, prio = false) {
     if (banner && banner.text === text) return;
+    if (prio) {
+      for (let i = bannerQ.length - 1; i >= 0; i--) if (!prioQ.has(bannerQ[i])) bannerQ.splice(i, 1);
+      prioQ.add(text);
+      bannerQ.push(text);
+      if (!banner || !prioQ.has(banner.text)) nextBanner();
+      return;
+    }
     bannerQ.push(text);
     if (bannerQ.length > 3) bannerQ.shift();
     if (!banner || Date.now() - banner.since >= tempoParams(level()).banner) nextBanner();
@@ -486,6 +501,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     bannerEl.textContent = text;
     placeBanner();
     bannerEl.classList.remove('hidden');
+    if (screen.dataset.game === 'holdem') placeBanner();   // Höhe erst jetzt messbar
     bannerEl.classList.remove('pop');
     void bannerEl.offsetWidth;
     bannerEl.classList.add('pop');
@@ -508,6 +524,14 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
 
   // über der sichtbaren Leiste des Gegners (hoch: über dem Brett, quer: oben in der Seitenspalte)
   function placeBanner() {
+    if (screen.dataset.game === 'holdem') {
+      // Hold'em: Sitze stehen auf dem Tisch – Banner über dem Brett (hoch: im freien Platz darüber), quer über der Status-Zeile
+      const portrait = innerHeight > innerWidth;
+      const r = (portrait ? boardWrap : statusEl).getBoundingClientRect();
+      const top = portrait ? Math.max(bar.getBoundingClientRect().bottom + 2, r.top - Math.max(56, bannerEl.offsetHeight) - 4) : r.top;
+      Object.assign(bannerEl.style, { left: `${Math.round(r.left)}px`, top: `${Math.round(top)}px`, width: `${Math.round(r.width)}px`, minHeight: '56px' });
+      return;
+    }
     const anchor = [pTop, pTop2].find((el) => el.getClientRects().length && el.getBoundingClientRect().height > 0);
     const r = anchor ? anchor.getBoundingClientRect() : boardWrap.getBoundingClientRect();
     Object.assign(bannerEl.style, { left: `${Math.round(r.left)}px`, top: `${Math.round(r.top)}px`, width: `${Math.round(r.width)}px`, minHeight: `${Math.round(Math.max(48, anchor ? r.height : 56))}px` });
@@ -549,6 +573,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   }
 
   const evalOn = () => store.settings().evalOn !== false;
+  // Hold'em: Hand-Hilfe (eigene Hand benennen, Draws); Standard an, wenn ein Computer „leicht“ mitspielt
+  const helpOn = (t) => { const v = store.settings().holdemHelp; return v === undefined ? t.seats.some((x) => x && x.bot === 1) : !!v; };
 
   function requestEval(t) {
     const cfg = EVAL[t.game];
@@ -576,6 +602,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const cfg = EVAL[evalRes.game];
     const p = Math.max(0, Math.min(1, evalRes.p));
     evalBar.firstChild.style.height = `${(p * 100).toFixed(1)}%`;
+    if (cfg.label) { evalBtn.textContent = cfg.label(evalRes); evalBtn.title = cfg.title || ''; return; }
     const x = evalRes.x;
     const ax = Math.abs(x).toFixed(cfg.digits), zero = Number(ax) === 0;   // −0,3 → „±0“, nicht „−0“
     const num = Math.abs(x) >= 99 ? (cfg.win ? (x > 0 ? cfg.win[0] : cfg.win[1]) : x > 0 ? 'Matt in Sicht' : 'Matt droht') : `${zero ? '±' : x > 0 ? '+' : '−'}${ax.replace('.', ',')} ${cfg.unit}`;
@@ -631,7 +658,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     items.push(item('Was ist passiert? (letzte Ereignisse)', openEvents, 'events'));
     items.push(item(`Computer-Tempo: ${LEVEL_NAMES[level()]}`, () => openSettings(), 'tempo'));
     if (t && t.game === 'schnapsen' && viewer() !== null && viewer() !== undefined && !locked(t)) items.push(item('Deine Stiche ansehen', openStiche, 'stiche'));
-    if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(shownOf(t), { item, share: shareText, sheet }));
+    if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(shownOf(t), { item, share: shareText, sheet, rerender: () => { evalKey = ''; render({ kind: 'state' }); } }));
     if (t && t.status === 'play' && session.mySeat !== null && gameUi(t.game).actions && (gameUi(t.game).hidden || !gameOf(t.game).draws)) {
       items.push(item(t.seats.length > 2 ? 'Platz dem Computer überlassen' : 'Aufgeben', () => confirmAct('Aufgeben', t.seats.length > 2 ? 'Der Computer spielt für dich weiter. Sicher?' : 'Wirklich aufgeben?', 'resign'), 'resign'));
     }

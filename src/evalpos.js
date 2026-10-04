@@ -3,6 +3,8 @@
 // Kartenspiele bekommen nur die Sicht des Spielers (viewFor), nie verdeckte Karten.
 import { GAMES } from './games/registry.js';
 import { chooseMove as schachBot, stats as schachStats } from './games/schach/bot.js';
+import { equity as holdemEquity } from './games/holdem/equity.js';
+import { liveSeats as holdemLive } from './games/holdem/engine.js';
 
 // Einheit, Nachkommastellen und Steilheit der logistischen Abbildung auf eine Gewinnchance
 export const EVAL = {
@@ -18,13 +20,27 @@ export const EVAL = {
   reversi: { unit: 'Steine', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 9)) },
   wuerfel: { unit: 'Punkte', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 22)) },
   maumau: { unit: 'Karten', digits: 1, pct: (x) => 1 / (1 + Math.exp(-x / 1.6)) },
-  vier: { unit: 'Punkte', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 8)), win: ['Gewinn in Sicht', 'Verlust droht'] }
+  vier: { unit: 'Punkte', digits: 0, pct: (x) => 1 / (1 + Math.exp(-x / 8)), win: ['Gewinn in Sicht', 'Verlust droht'] },
+  // Hold'em: Gewinnchance der eigenen Hand gegen zufällige Hände der Mitspieler, die noch dabei sind (fremde Karten
+  // kennt niemand – es ist eine Schätzung, kein Wissen)
+  holdem: {
+    unit: '%', digits: 0, pct: (x) => x / 100,
+    label: (r) => (r.none ? 'Wer gewinnt? – nicht in dieser Hand' : `Wer gewinnt? ${Math.round(r.x)} % gegen ${r.opp === 1 ? 'eine zufällige Hand' : `${r.opp} zufällige Hände`}`),
+    title: 'Gewinnchance deiner Hand, wenn die anderen irgendwelche Karten hätten (Monte-Carlo, 4000 Durchgänge)'
+  }
 };
 
 export function evalPosition(game, gs, seat) {
   const E = GAMES[game].engine;
   let x;
   const over = E.result(gs);
+  if (game === 'holdem') {
+    const hole = gs.holes && gs.holes[seat];
+    const opp = gs.phase === 'bet' ? holdemLive(gs).filter((q) => q !== seat).length : 0;
+    if (!hole || hole.length !== 2 || !hole[0] || gs.folded[seat] || !opp) return { x: 0, p: 0.5, none: true };
+    const { eq } = holdemEquity(hole, gs.board, Array(opp).fill(null), { iters: 4000 });
+    return { x: eq * 100, p: eq, opp };
+  }
   if (game === 'schach' && !over) {
     schachBot(gs, { level: 2, timeMs: 160 });
     const cp = schachStats.score;   // aus Sicht der Seite am Zug

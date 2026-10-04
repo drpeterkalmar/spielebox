@@ -25,6 +25,8 @@ RULES.reversi = () => rulesFromData(REVERSI_RULES);
 import { RULES as PAARE_RULES } from '../games/paare/rules.js';
 RULES.paare = () => rulesFromData(PAARE_RULES);
 import { openSettings } from './settings.js';
+import { rulesHoldem } from '../games/holdem/help.js';
+RULES.holdem = () => rulesHoldem();
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
 const COLORS = [{ v: 'weiss', t: 'Weiß' }, { v: 'schwarz', t: 'Schwarz' }, { v: 'zufall', t: 'Zufall' }];
@@ -46,6 +48,11 @@ export function miniBoard(game) {
     const dir = de ? 'de' : 'fr';
     svg.innerHTML = '<rect width="100" height="100" rx="12" fill="#1d5a3f"/>' + cards.map((c, i) =>
       `<g transform="translate(${30 + i * 20} ${56}) rotate(${(i - 1) * 14})"><image href="assets/cards/${dir}/${c}.webp" x="-17" y="-27" width="34" height="${de ? 54 : 49}"/></g>`).join('');
+  } else if (game === 'holdem') {
+    const chip = (x, y, c) => `<ellipse cx="${x}" cy="${y + 2}" rx="11" ry="5" fill="rgba(0,0,0,.35)"/><ellipse cx="${x}" cy="${y}" rx="11" ry="5" fill="${c}" stroke="#fff7e6" stroke-width="1.6" stroke-dasharray="5 3.5"/>`;
+    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-frame)"/><ellipse cx="50" cy="52" rx="44" ry="34" fill="#1d5a3f" stroke="#0f3a28" stroke-width="2"/>' +
+      ['AS', 'AH'].map((c, i) => `<g transform="translate(${40 + i * 18} 44) rotate(${(i - 0.5) * 16})"><image href="assets/cards/fr/${c}.webp" x="-14" y="-20" width="28" height="41"/></g>`).join('') +
+      chip(24, 74, '#c0392b') + chip(24, 69, '#c0392b') + chip(76, 76, '#222') + chip(76, 71, '#d6a21e') + chip(76, 66, '#d6a21e');
   } else if (game === 'backgammon') {
     let tri = '';
     for (let i = 0; i < 6; i++) {

@@ -5,6 +5,7 @@ import { SUIT_NAMES as SN_SUITS } from './games/schnapsen/engine.js';
 import { inCheck } from './games/schach/engine.js';
 import { applySteps } from './games/backgammon/engine.js';
 import { bankReveal } from './tempo.js';
+import { lastMoveEffect as heEffect, fmtChips as heFmt } from './games/holdem/engine.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const DE_NAMES = { A: 'Daus', Z: 'Zehner', K: 'König', O: 'Ober', U: 'Unter' };
@@ -16,7 +17,7 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
   const out = [];
   // er = 3. Person („Computer sagt 40 an“), du = 2. Person („Du sagst 40 an“)
   const ev = (seat, er, du, big = true) => out.push({ seat, big, text: you(seat) ? `Du ${du}` : `${name(seat)} ${er}` });
-  const note = (seat, text, big = false) => out.push({ seat, big, text });
+  const note = (seat, text, big = false, prio = false) => out.push({ seat, big, text, prio });
   try {
     switch (game) {
       case 'schnapsen': {
@@ -150,6 +151,35 @@ export function moveEvents({ game, move, by, prevGs, gs, d = '', name = (s) => `
           note(by, you(by) ? `Versenkt! (${cell})` : you(opp) ? `${name(by)} versenkt dein Schiff (${cell})!` : `${name(by)} versenkt ein Schiff (${cell})`, true);
         } else if (l.hit) note(by, you(by) ? `Treffer auf ${cell}!` : you(opp) ? `${name(by)} trifft dein Schiff auf ${cell}!` : `${name(by)} trifft auf ${cell}`, true);
         else note(by, you(by) ? `${cell}: Wasser` : `${name(by)} schießt auf ${cell} – Wasser`, false);
+        break;
+      }
+      case 'holdem': {
+        if (/All-in/.test(d) && !/mit – All-in/.test(d)) ev(by, 'geht All-in!', 'gehst All-in!', true);
+        else if (/All-in/.test(d)) ev(by, 'geht mit – All-in!', 'gehst mit – All-in!', true);
+        const fx = heEffect(gs);
+        const lh = gs.lastHand;
+        if (fx.handEnd && lh) {
+          const pots = lh.pots;
+          if (lh.uncontested !== null) {
+            const w = lh.uncontested;
+            note(w, you(w) ? `Du gewinnst ${heFmt(pots[0].amount)} (alle anderen sind ausgestiegen)` : `${name(w)} gewinnt ${heFmt(pots[0].amount)}`, false);
+          } else {
+            pots.forEach((p, i) => {
+              const what = pots.length > 1 ? (i ? (pots.length > 2 ? `den Side-Pot ${i}` : 'den Side-Pot') : 'den Hauptpot') : '';
+              if (p.winners.length > 1) {
+                const share = Math.floor(p.amount / p.winners.length);
+                const who = p.winners.map((q) => (you(q) ? 'du' : name(q)));
+                const list = who.length > 1 ? `${who.slice(0, -1).join(', ')} und ${who[who.length - 1]}` : who[0];
+                note(p.winners[0], `${what ? `${what[0].toUpperCase()}${what.slice(1)} ` : 'Pot '}geteilt (je ${heFmt(share)}): ${list} – ${p.name}`, true, true);
+              } else {
+                const w = p.winners[0];
+                note(w, `${you(w) ? 'Du gewinnst' : `${name(w)} gewinnt`} ${what ? `${what} ` : ''}${heFmt(p.amount)} – ${p.name}`, true, true);
+              }
+            });
+          }
+          for (const q of lh.busted || []) note(q, you(q) ? `Du scheidest aus (Platz ${gs.places[q]})` : `${name(q)} scheidet aus (Platz ${gs.places[q]})`, true, true);
+          if (gs.phase !== 'over' && gs.level > lh.level) note(by, `Blinds steigen: ${heFmt(gs.sbAmt)}/${heFmt(gs.bbAmt)}`, true);
+        }
         break;
       }
       case 'halma':

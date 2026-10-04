@@ -20,6 +20,9 @@ DEVICES = {'hoch': PIXEL7_HOCH, 'quer': PIXEL7_QUER, 'desktop': DESKTOP, 'quer_t
 ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist",
         "--disable-features=WebRtcHideLocalIpsWithMdns", "--allow-loopback-in-peer-connection",
         "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]
+# Linux (omen16): kein Metal – ANGLE über Vulkan bzw. SwiftShader (die Spielebox zeichnet SVG, WebGL braucht sie nicht)
+if sys.platform.startswith('linux'):
+    ARGS = ["--use-gl=angle", "--use-angle=vulkan" if os.environ.get('SB_VULKAN') else "--use-angle=swiftshader"] + ARGS[1:]
 
 
 class Quiet(SimpleHTTPRequestHandler):

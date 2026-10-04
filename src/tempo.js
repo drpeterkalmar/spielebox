@@ -12,15 +12,17 @@
 //   dice      Würfeln (Backgammon)                 bankGap Abstand der Bank-Karten (Blackjack)
 //   trickHold ein fertiger Stich bleibt mindestens so lange liegen, bevor der Computer neu ausspielt
 //   banner    Mindestdauer eines Ereignis-Banners am Brett
+//   showdown  Hold'em: so lange bleibt das Ergebnis einer Hand (aufgedeckte Karten, Gewinner) liegen
 export const TEMPO = {
-  gemuetlich: { think: 1500, jitter: 500, slide: 600, hop: 450, pause: 600, fade: 450, dice: 1000, bankGap: 1000, trickHold: 2000, banner: 4000 },
-  normal: { think: 900, jitter: 150, slide: 420, hop: 330, pause: 350, fade: 350, dice: 800, bankGap: 650, trickHold: 1200, banner: 3000 },
-  flott: { think: 450, jitter: 0, slide: 260, hop: 260, pause: 0, fade: 320, dice: 650, bankGap: 250, trickHold: 0, banner: 2500 },
+  gemuetlich: { think: 1500, jitter: 500, slide: 600, hop: 450, pause: 600, fade: 450, dice: 1000, bankGap: 1000, trickHold: 2000, banner: 4000, showdown: 3500 },
+  normal: { think: 900, jitter: 150, slide: 420, hop: 330, pause: 350, fade: 350, dice: 800, bankGap: 650, trickHold: 1200, banner: 3000, showdown: 2600 },
+  flott: { think: 450, jitter: 0, slide: 260, hop: 260, pause: 0, fade: 320, dice: 650, bankGap: 250, trickHold: 0, banner: 2500, showdown: 1600 },
   // Tests (?tempo=test): keine Wartezeit, keine Animation
-  test: { think: 0, jitter: 0, slide: 0, hop: 0, pause: 0, fade: 0, dice: 0, bankGap: 0, trickHold: 0, banner: 2500 }
+  test: { think: 0, jitter: 0, slide: 0, hop: 0, pause: 0, fade: 0, dice: 0, bankGap: 0, trickHold: 0, banner: 2500, showdown: 0 }
 };
 // eigene Züge (auf diesem Gerät getippt): kurz wie bisher, man hat sie ja selbst gemacht
-export const OWN = { slide: 230, hop: 230, pause: 0, fade: 300, dice: 650, bankGap: 250, own: true };
+// (Hold'em: das Ergebnis einer Hand bleibt trotzdem lesbar liegen)
+export const OWN = { slide: 230, hop: 230, pause: 0, fade: 300, dice: 650, bankGap: 250, showdown: 2200, own: true };
 // Banner bleibt bis zum nächsten eigenen Zug, aber höchstens so lange (ms)
 export const BANNER_MAX = 15000;
 export const LEVELS = ['gemuetlich', 'normal', 'flott'];
@@ -112,8 +114,45 @@ export function animMs(game, move, prevGs, gs, a) {
       const n = bankReveal(prevGs, gs, move);
       return a.slide + (n ? n * a.bankGap + a.pause : 0);
     }
+    case 'holdem':
+      return holdemTimes(a, gs).total;
   }
   return 0;
+}
+
+// Hold'em: Ablauf nach einem Zug (ms ab Zug). Einsatz-Chips gleiten (chip); Ende der Setzrunde: Chips in den Pot,
+// neue Board-Karten nacheinander (card je Karte); Ende der Hand: zusätzlich Pot zum Gewinner, Ergebnis liegen lassen
+// (showdown), dann neue Karten austeilen (deal). Ohne Zustand oder im Test-Tempo: 0.
+export function holdemTimes(a, gs) {
+  const z = { chip: 0, toPot: 0, card: 0, runout: 0, toWinner: 0, hold: 0, deal: 0, total: 0 };
+  if (!a || !gs || a.slide <= 0 || !Array.isArray(gs.log)) return z;
+  const acts = gs.log.filter((e) => e.t !== 'sb' && e.t !== 'bb');
+  const lh = gs.lastHand;
+  const handEnd = !!lh && (gs.phase === 'over' || acts.length === 0);
+  z.chip = Math.round(a.slide * 0.6);
+  z.card = Math.max(220, Math.round(a.slide * 0.8));
+  if (handEnd) {
+    const last = (lh.log || []).filter((e) => e.t !== 'sb' && e.t !== 'bb').pop();
+    const n = Math.max(0, lh.board.length - [0, 3, 4, 5][last ? last.st : 0]);
+    z.toPot = a.slide;
+    z.runout = n * z.card + (n && lh.allin ? a.pause : 0);
+    z.toWinner = a.slide;
+    z.hold = a.showdown || 0;
+    const players = gs.holes ? gs.holes.filter((h) => h.length).length : 0;
+    z.deal = gs.phase === 'over' ? 0 : a.slide + players * 2 * Math.min(70, Math.round(a.slide / 8));
+    z.total = z.chip + z.toPot + z.runout + z.toWinner + z.hold + z.deal;
+    return z;
+  }
+  const last = acts[acts.length - 1];
+  if (last && last.st < gs.street) {
+    const n = gs.board.length - [0, 3, 4, 5][last.st];
+    z.toPot = a.slide;
+    z.runout = n * z.card;
+    z.total = z.chip + z.toPot + z.runout;
+    return z;
+  }
+  z.total = z.chip;
+  return z;
 }
 
 // Vier in einer Reihe: Stein fällt dist Reihen tief (immer sichtbar, auch eigene Züge; Test: 0)

@@ -170,7 +170,7 @@ function finish(s, winner, reason) {
 // neue Hand vorbereiten: Knopf, Blind-Stufe; Mischen steht aus
 function startHand(s) {
   const al = aliveSeats(s);
-  if (al.length <= 1) return finish(s, al.length ? al[0] : null, 'gewinnt das Turnier – alle Chips gewonnen');
+  if (al.length <= 1) return finish(s, al.length ? al[0] : null, 'Turniersieg – alle Chips gewonnen');
   if (s.hand >= MAX_HANDS) {
     // Sicherheitsgrenze: die meisten Chips gewinnen; Plätze nach Chips
     const order = al.slice().sort((a, b) => s.stacks[b] - s.stacks[a]);
@@ -598,6 +598,22 @@ export function describeMove(state, move) {
     }
   } catch { /* unten */ }
   return '?';
+}
+
+// Was hat der letzte Zug ausgelöst? (für Anzeige, Tempo, Meldungen; nur aus dem neuen Zustand ablesbar)
+//   { handEnd, showdown, runout: neu aufgedeckte Board-Karten, streetEnd }
+export function lastMoveEffect(gs) {
+  if (!gs || !Array.isArray(gs.log)) return {};
+  const acts = gs.log.filter((e) => e.t !== 'sb' && e.t !== 'bb');
+  if (gs.lastHand && (gs.phase === 'over' || acts.length === 0)) {
+    const lh = gs.lastHand;
+    const last = (lh.log || []).filter((e) => e.t !== 'sb' && e.t !== 'bb').pop();
+    const from = last ? last.st : 0;
+    return { handEnd: true, showdown: lh.uncontested === null, runout: Math.max(0, lh.board.length - [0, 3, 4, 5][from]) };
+  }
+  const last = acts[acts.length - 1];
+  if (last && last.st < gs.street) return { streetEnd: true, runout: gs.board.length - [0, 3, 4, 5][last.st] };
+  return {};
 }
 
 // ---------- Sicht ----------
