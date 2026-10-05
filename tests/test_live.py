@@ -66,6 +66,8 @@ with sync_playwright() as pw:
                 time.sleep(0.8)
                 ok_board = P.ev("!!document.querySelector('svg.board') && __box.table().gs.n === 10")
                 c.ok(ok_board, 'offline neu geladen (aus dem Cache), Dame 10×10 zu zweit offline spielbar')
+                cards = P.ev("Promise.all(['assets/cards/de/HA@2x.webp', 'assets/cards/fr/AS@2x.webp', 'assets/wood/light.webp'].map((u) => fetch(u).then((r) => r.ok, () => false)))")
+                c.ok(all(cards), f'offline: Karten und Holz aus dem Bilder-Cache {cards}')
                 P.pg.screenshot(path=os.path.join(ROOT, 'tests', 'shots', 'dev', 'live_offline.png'))
             except Exception as e:
                 c.ok(False, f'offline neu laden: {e}')

@@ -220,6 +220,8 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
 - `npm test -- --smoke` – Kurzlauf < 30 s (Wörter, Krypto, Fair Play, Tempo, Meldungen, Tisch ohne Langläufer).
 - CI: `.github/workflows/test.yml` (GitHub Actions, Node 24) – Schnell-Suite und `update_sw.py --check` bei jedem Push.
 - `python3 tests/test_nav.py` – Browser: schnelle Wechsel Lobby/Tisch ergeben eine Sitzung, Fehler beim Öffnen → Meldung.
+- `python3 tests/test_sw.py` – Service-Worker lokal: Kern-Cache je Version, Bilder-Cache versionslos (Update lädt nur
+  geänderte Bilder), offline mit Karten; `SW_ALT=<alter sw.js>` prüft zusätzlich den Umstieg vom alten Schema.
 - Debug-API im Browser: `window.__box` (Zustand, legale Züge, Züge, Tisch öffnen/beitreten).
 
 ## Credits
