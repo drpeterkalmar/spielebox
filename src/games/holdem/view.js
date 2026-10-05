@@ -8,6 +8,7 @@ import * as E from './engine.js';
 import { evaluate, handName, catName, draws, bestFive } from './eval.js';
 import { handClass, PERCENTILE } from './equity.js';
 import { s, ensureDefs, place, flyIn, fadeIn, toScreen, onTap, ball } from '../../ui/svg.js';
+import { spriteImage } from '../../ui/sprites.js';
 import { holdemTimes, OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
@@ -37,6 +38,8 @@ const chipColor = (amt) => (CHIP.find(([v]) => amt >= v * 4) || CHIP[CHIP.length
 // Deko: Chip mit Kante (Zylinder), Randstreifen, Innenring und Glanz – Farbe nach Wert
 const DK_CHIP = [[1000, '#d6a21e'], [500, '#7a4a9c'], [100, '#262626'], [25, '#2e8b57'], [5, '#c0392b'], [1, '#e8e2d4']];
 function dkChip(g, x, y, r, col) {
+  const img = spriteImage(s, 'chip:' + col, r, x, y);
+  if (img) { g.append(img); return; }
   const ry = r * 0.42, e = (a) => s('ellipse', { cx: x, rx: r, ry, ...a });
   g.append(e({ cy: y + 5, fill: 'rgba(0,0,0,.28)' }),
     e({ cy: y + 3.5, fill: col, stroke: 'rgba(0,0,0,.45)', 'stroke-width': 1.5 }),

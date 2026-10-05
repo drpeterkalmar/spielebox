@@ -3,6 +3,7 @@
 // nochmal antippen → einwerfen (Schutz vor Fehltipps, wie das Ausspielen bei Schnapsen). Gewinnreihe leuchtet.
 import { COLS, ROWS } from './engine.js';
 import { s, ensureDefs, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { spriteImage } from '../../ui/sprites.js';
 import { OWN, vierFall } from '../../tempo.js';
 import { DEKO, boardLayers } from '../../ui/deko.js';
 import { shadowUnder } from '../../ui/material.js';
@@ -50,6 +51,8 @@ export function createBoard(host, { onMove, onHint }) {
 
   function stone(seat, c, r, cls = '') {
     const g = s('g', { class: 'v4-stone ' + cls, transform: `translate(${cx(c)} ${cy(r)})`, 'data-c': c, 'data-r': r });
+    const img = L ? spriteImage(s, 'v4:' + COLORS[seat], R) : null;
+    if (img) { g.append(img); return g; }
     if (L) {
       // Deko: glänzende Kunststoff-Scheibe mit geprägtem Ring
       g.append(s('circle', { r: R, fill: COLORS[seat], stroke: 'rgba(0,0,0,.5)', 'stroke-width': 3 }),

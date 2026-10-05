@@ -3,7 +3,7 @@
 // Die Knöpfe (Ansagen, Austauschen, Zudrehen, Ausmelden) kommen aus gameui.js in die Aktionsleiste.
 // Rechts die Stichstapel: eigener unten (verdeckt gefächert, Anzahl, antippen = Stich-Blatt), gegnerischer oben (nur Anzahl).
 import { SUIT_NAMES, canDeclare, cardName } from './engine.js';
-import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap, flyCard } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
 import { deCard, backCard, ensureCardDefs, CARD_W, CARD_H } from '../../ui/cards.js';
 import { boardLayers } from '../../ui/deko.js';
@@ -57,7 +57,8 @@ export function createBoard(host, { onMove, onHint, onStiche }) {
     if (n) gTalon.append(s('text', { x: x - 20, y: y + h / 2 + 44, class: 'card-count', text: gs.closed ? 'zugedreht' : `Talon ${n}` }));
     else gTalon.append(s('text', { x: x, y: y + 20, class: 'card-count', text: gs.closed ? 'zugedreht' : '' }));
     if (gs.closed && n) gTalon.append(s('path', { d: `M ${x - 90} ${y - 120} L ${x + 70} ${y + 110}`, class: 'closed-bar' }));
-    // Atout-Farbe groß daneben, auch wenn die Karte weg ist
+    // Atout-Farbe groß daneben, auch wenn die Karte weg ist (Deko: auf einem dunklen Schild mit Goldrand)
+    if (L) gTalon.append(s('rect', { x: x - 128, y: 128 + 150 - 34, width: 256, height: 46, rx: 23, class: 'dk-badge' }));
     gTalon.append(s('text', { x: x, y: 128 + 150, class: 'atout-label', text: `Atout: ${SUIT_NAMES[gs.atout]}` }));
   }
 
@@ -246,7 +247,8 @@ export function createBoard(host, { onMove, onHint, onStiche }) {
         const el = gTrick.querySelector(`[data-trick="${info.move.card}"]`);
         if (el) {
           const from = info.by === me ? [SIZE / 2, HAND_Y] : [SIZE / 2, OPP_Y];
-          animateSteps(el, [from, [Number(el.dataset.x), Number(el.dataset.y)]], { hop: a.slide });
+          if (L) flyCard(el, from, [Number(el.dataset.x), Number(el.dataset.y)], a.slide, { spin: info.by === me ? -10 : 12 });
+          else animateSteps(el, [from, [Number(el.dataset.x), Number(el.dataset.y)]], { hop: a.slide });
         }
       }
     },

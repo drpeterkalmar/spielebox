@@ -804,3 +804,39 @@ html.deko .wg-die { overflow: visible; }
 html.deko .wg-die.held { background: rgba(255, 210, 74, .2); box-shadow: 0 0 0 2px rgba(255, 210, 74, .9), 0 0 16px rgba(255, 210, 74, .55); }
 html.deko .wg-cat { box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
 html.deko .wg-cat.can { background: linear-gradient(#fffdf7, #f3ead7); }
+
+/* Lobby: Karten wie Papier mit Licht von oben, Kacheln mit Tiefe und farbigem Lichtfleck je Spiel-Art */
+html.deko .lobby-head h1 { text-shadow: 0 2px 0 rgba(0,0,0,.22), 0 6px 18px rgba(0,0,0,.35); }
+html.deko .lobby-head .logo { box-shadow: 0 6px 18px rgba(0,0,0,.45), 0 0 0 2px rgba(255,230,180,.22); }
+html.deko .card { background: linear-gradient(180deg, #fbf7ee, #f1e7d4); box-shadow: inset 0 1px 0 rgba(255,255,255,.85), 0 2px 0 rgba(80,55,25,.18), 0 12px 28px rgba(0,0,0,.34); }
+html.deko .card h2 { display: flex; align-items: center; gap: 10px; }
+html.deko .card h2::after { content: ''; flex: 1; height: 2px; border-radius: 1px; background: linear-gradient(90deg, rgba(185,140,60,.6), rgba(185,140,60,0)); }
+html.deko .game { --acc: rgba(214, 150, 60, .2);
+  background: radial-gradient(70% 48% at 50% 30%, var(--acc), rgba(255,255,255,0) 72%), linear-gradient(180deg, #fffdf8 0%, #f5ecda 100%);
+  border-color: rgba(120, 85, 40, .2); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(90, 60, 25, .15), 0 5px 12px rgba(60, 40, 15, .13); transition: transform .12s, box-shadow .12s; }
+html.deko .game:active { transform: translateY(1px) scale(.985); box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(90, 60, 25, .15), 0 2px 5px rgba(60, 40, 15, .13); }
+html.deko .game[data-game=schnapsen], html.deko .game[data-game=blackjack], html.deko .game[data-game=maumau], html.deko .game[data-game=holdem] { --acc: rgba(40, 140, 90, .22); }
+html.deko .game[data-game=ludo] { --acc: rgba(216, 69, 59, .18); }
+html.deko .game[data-game=vier], html.deko .game[data-game=schiffe] { --acc: rgba(40, 100, 190, .2); }
+html.deko .game[data-game=wuerfel] { --acc: rgba(46, 150, 100, .2); }
+html.deko .game[data-game=paare] { --acc: rgba(47, 111, 143, .22); }
+html.deko .game.trainer-tile { --acc: rgba(40, 140, 90, .2); border-color: rgba(40, 140, 90, .4); }
+html.deko .game .mini, html.deko .resume-main .mini, html.deko .tr-card-main .mini { box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 1px 2px rgba(0,0,0,.35), 0 5px 12px rgba(0,0,0,.25); }
+html.deko .resume-main { background: linear-gradient(180deg, #fffdf8, #f5ecda); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(90, 60, 25, .12); }
+html.deko .input { box-shadow: inset 0 2px 3px rgba(60, 40, 15, .1); }
+html.deko .chip { background: linear-gradient(#fff, #f4ecdc); box-shadow: 0 1px 0 rgba(90, 60, 25, .2); }
+html.deko .sheet { background: linear-gradient(180deg, #fbf7ee, #f3eadb); }
+html.deko .sheet-head { background: #fbf7ee; }
+html.deko .ov-card { background: linear-gradient(180deg, #fbf7ee, #f1e7d4); box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 14px 34px rgba(0,0,0,.5); }
+html.deko .word-big { background: linear-gradient(#fff, #f7f0e2); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(90, 60, 25, .15); }
+html.deko .tr-card { background: linear-gradient(180deg, #fbf7ee, #f1e7d4); }
+/* einmal beim ersten Öffnen: Kacheln erscheinen nacheinander (nur mit Effekten, nicht bei reduzierter Bewegung) */
+html.deko-fx .games.enter > .game { animation: tile-in .34s cubic-bezier(.2, .7, .3, 1) backwards; animation-delay: calc(var(--i, 0) * 26ms + 60ms); }
+@keyframes tile-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
+html.deko .board .bj-bet.dk-bet { font-size: 26px; paint-order: stroke; stroke: rgba(0,0,0,.55); stroke-width: 4; }
+html.deko .board .dk-badge { fill: rgba(22, 14, 6, .55); stroke: rgba(240, 192, 77, .65); stroke-width: 2.5; }
+html.deko .board .atout-label { font-size: 29px; }
+/* „Wer gewinnt?“-Balken: gedrechselte Leiste statt flachem Strich; Meldungen mit warmem Rand */
+html.deko .evalbar { width: 8px; border-radius: 5px; background: linear-gradient(90deg, #1a1210, #3a2e28 55%, #1a1210); box-shadow: 0 0 0 1px rgba(255,236,200,.28), 0 2px 6px rgba(0,0,0,.4); }
+html.deko .evalbar .evalfill { background: linear-gradient(90deg, #d8ccb4, #fffaf0 50%, #d8ccb4); }
+html.deko .toast { background: linear-gradient(rgba(52, 36, 18, .97), rgba(30, 20, 10, .97)); box-shadow: inset 0 1px 0 rgba(255, 220, 150, .2), 0 6px 18px rgba(0,0,0,.4); }

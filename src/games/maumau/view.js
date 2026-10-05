@@ -3,7 +3,7 @@
 // Karte antippen hebt sie an, nochmal tippen legt sie. Unter: danach Farbe wählen (Knöpfe). „Mau!“ ist ein Knopf.
 // Bei vielen Karten wird die Hand enger; ein Tipp trifft dann die nächste passende Karte.
 import { SUIT_NAMES, cardName, topCard } from './engine.js';
-import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap, flyCard } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
 import { deCard, backCard, ensureCardDefs, CARD_W, CARD_H } from '../../ui/cards.js';
 import { boardLayers } from '../../ui/deko.js';
@@ -176,7 +176,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       if (m && m.type === 'play') {
         const el = gMid.querySelector(`[data-top="${m.card}"]`);
         const from = info.by === me && seated ? [500, HAND_Y] : oppPos[info.by] || [500, OPP_Y];
-        if (el) animateSteps(el, [from, PILE], { hop: a.slide });
+        if (el) { if (L) flyCard(el, from, PILE, a.slide, { spin: from[1] > PILE[1] ? -10 : 12 }); else animateSteps(el, [from, PILE], { hop: a.slide }); }
       } else if (m && m.type === 'draw' && gs.last && gs.last.n) {
         // gezogene Karte(n): Rücken fliegen vom Stapel zum Spieler
         const to = info.by === me && seated ? [500, HAND_Y] : oppPos[info.by] || [500, OPP_Y];
@@ -184,7 +184,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
         for (let i = 0; i < k; i++) {
           const b = place(backCard(110), ...to);
           gFx.append(b);
-          const an = animateSteps(b, [STOCK, to], { hop: a.slide, delay: i * Math.min(160, a.slide / 2) });
+          const an = L ? flyCard(b, STOCK, to, a.slide, { delay: i * Math.min(160, a.slide / 2), spin: 14 }) : animateSteps(b, [STOCK, to], { hop: a.slide, delay: i * Math.min(160, a.slide / 2) });
           if (an) an.onfinish = () => b.remove(); else b.remove();
         }
       }

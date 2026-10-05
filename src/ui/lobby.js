@@ -27,6 +27,7 @@ RULES.paare = () => rulesFromData(PAARE_RULES);
 import { openSettings } from './settings.js';
 import { rulesHoldem } from '../games/holdem/help.js';
 RULES.holdem = () => rulesHoldem();
+import { DEKO } from './deko.js';
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
 const COLORS = [{ v: 'weiss', t: 'Weiß' }, { v: 'schwarz', t: 'Schwarz' }, { v: 'zufall', t: 'Zufall' }];
@@ -123,7 +124,15 @@ export function miniBoard(game) {
       `<g fill="url(#sb-wood-dark)">${sq}</g>` +
       '<circle cx="30" cy="10" r="7.5" fill="url(#sb-st-b)"/><circle cx="70" cy="10" r="7.5" fill="url(#sb-st-b)"/><circle cx="50" cy="50" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="10" cy="90" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="90" cy="70" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/>';
   }
+  if (DEKO.on) dekoMini(svg);
   return svg;
+}
+
+// Deko: Steine im Bildchen mit Glanz, darüber Lack-Glanz und eine helle Kante (einmal gezeichnet, statisch)
+function dekoMini(svg) {
+  svg.innerHTML = svg.innerHTML.replace(/url\(#sb-st-w\)/g, 'url(#dk-st-w)').replace(/url\(#sb-st-b\)/g, 'url(#dk-st-b)') +
+    '<rect width="100" height="100" rx="12" fill="url(#dk-sheen)"/>' +
+    '<rect x="1.2" y="1.2" width="97.6" height="97.6" rx="11" fill="none" stroke="url(#dk-bevel)" stroke-width="2.4"/>';
 }
 
 function segmented(label, items, value, onChange) {
@@ -194,6 +203,7 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
   return sh;
 }
 
+let lobbyShown = false;
 export function renderLobby(root, handlers) {
   const me = store.profile();
   const nameInput = h('input', {
@@ -212,7 +222,7 @@ export function renderLobby(root, handlers) {
   };
 
   // --- Neuer Tisch ---
-  const games = h('div', { class: 'games' }, ...liveGames().flatMap((g) => [
+  const games = h('div', { class: 'games' + (DEKO.on && !lobbyShown ? ' enter' : '') }, ...liveGames().flatMap((g) => [
     h('button', { class: 'game', data: { game: g.id }, on: { click: () => openGameSheet(g.id, {
       onOnline: (...a) => { if (needName()) handlers.onCreate(...a); },
       onLocal: (...a) => handlers.onLocal(...a)
@@ -362,6 +372,9 @@ export function renderLobby(root, handlers) {
       h('span', { class: 'version', text: 'Version ' + BUILD })));
 
   clear(root).appendChild(screen);
+  // Deko: Kacheln erscheinen beim ersten Öffnen nacheinander (einmal je Sitzung, kurz)
+  if (DEKO.on) [...games.children].forEach((el, i) => el.style.setProperty('--i', i));
+  lobbyShown = true;
   return {
     // Wörter aus einem Link vorbelegen
     prefill(ws) {

@@ -1,0 +1,180 @@
+// Vorgezeichnete Bildchen („Sprites“) für die Deko: Steine, Kugeln, Chips, Bohnen, Würfel – je Sorte einmal per Canvas
+// gezeichnet (Blob-URL, kein Netz) und dann als ein einziges <image> je Stein benutzt. Das spart gegenüber Vektor-Steinen
+// (bis zu 7 Formen mit Verläufen) Arbeit im Hauptthread und beim Rastern. Erzeugt wird erst bei Bedarf (nur die Sorten
+// des gerade gespielten Spiels); bis ein Bild fertig ist (wenige ms), zeichnet die Ansicht die gleiche Form als Vektor.
+// Licht wie überall von links oben, Schatten nach rechts unten. Maße: Kachel S × S Pixel, Objekt-Radius RS.
+import { DEKO } from './deko.js';
+
+export const S = 168;          // Kachelgröße (px)
+export const RS = S * 0.36;    // Radius des Objekts in der Kachel (Platz für Schatten rechts unten)
+const cache = new Map();       // Schlüssel → URL | null (wird gezeichnet) | false (geht nicht)
+let pending = 0, readyTimer = 0;
+const readyFns = new Set();
+// Bescheid geben, wenn neue Bildchen fertig sind (die Ansicht zeichnet dann einmal neu – nur wenn gerade nichts läuft)
+export function onSprites(fn) { readyFns.add(fn); return () => readyFns.delete(fn); }
+
+function make(key, draw) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d');
+    x.translate(S / 2, S / 2);
+    draw(x);
+    pending++;
+    c.toBlob((b) => {
+      cache.set(key, b ? URL.createObjectURL(b) : false);
+      if (--pending === 0) {
+        clearTimeout(readyTimer);
+        readyTimer = setTimeout(() => { for (const fn of readyFns) { try { fn(); } catch { /* egal */ } } }, 30);
+      }
+    }, 'image/png');
+  } catch { cache.set(key, false); }
+}
+
+// URL des Bildchens oder null (dann bitte als Vektor zeichnen); stößt das Zeichnen beim ersten Aufruf an
+export function sprite(key) {
+  if (!DEKO.on || typeof document === 'undefined') return null;
+  const v = cache.get(key);
+  if (v) return v;
+  if (v === undefined) {
+    cache.set(key, null);
+    const [kind, a, b] = key.split(':');
+    const fn = DRAW[kind];
+    if (fn) make(key, (x) => fn(x, a, b)); else cache.set(key, false);
+  }
+  return null;
+}
+
+// Sorten vorab anstoßen (z. B. beim Öffnen eines Tisches)
+export function prepare(keys) { for (const k of keys) sprite(k); }
+
+// ---------- Zeichnen ----------
+const rg = (x, cx, cy, r0, r1, stops, fx = cx, fy = cy) => {
+  const g = x.createRadialGradient(fx, fy, r0, cx, cy, r1);
+  for (const [o, c] of stops) g.addColorStop(o, c);
+  return g;
+};
+const circle = (x, cx, cy, r) => { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); };
+function shadow(x, r, dx = 0.14, dy = 0.24, k = 1.1) {
+  x.save();
+  x.translate(r * dx, r * dy);
+  x.scale(1, 0.93);
+  x.fillStyle = rg(x, 0, 0, 0, r * k, [[0, 'rgba(0,0,0,.55)'], [0.55, 'rgba(0,0,0,.3)'], [1, 'rgba(0,0,0,0)']]);
+  circle(x, 0, 0, r * k); x.fill();
+  x.restore();
+}
+function spec(x, r, a = 0.9, big = 0.7) {
+  x.save(); x.translate(-r * 0.28, -r * 0.34); x.rotate(-0.52); x.scale(1, 0.6);
+  x.fillStyle = rg(x, 0, 0, 0, r * 0.5, [[0, `rgba(255,255,255,${big})`], [0.55, `rgba(255,255,255,${big * 0.38})`], [1, 'rgba(255,255,255,0)']]);
+  circle(x, 0, 0, r * 0.5); x.fill(); x.restore();
+  x.save(); x.translate(-r * 0.4, -r * 0.46); x.rotate(-0.56); x.scale(1, 0.6);
+  x.fillStyle = `rgba(255,255,255,${a})`; circle(x, 0, 0, r * 0.17); x.fill(); x.restore();
+}
+function edge(x, r, w, a) {
+  const g = x.createLinearGradient(-r * 0.6, -r, r * 0.6, r);
+  g.addColorStop(0, `rgba(255,255,255,${0.75 * a})`); g.addColorStop(0.35, `rgba(255,255,255,${0.05 * a})`);
+  g.addColorStop(0.65, `rgba(0,0,0,${0.05 * a})`); g.addColorStop(1, `rgba(0,0,0,${0.6 * a})`);
+  x.strokeStyle = g; x.lineWidth = w; circle(x, 0, 0, r * 0.93); x.stroke();
+}
+function crown(x, k) {
+  const g = x.createLinearGradient(0, -k * 0.62, 0, k * 0.7);
+  g.addColorStop(0, '#fff4c4'); g.addColorStop(0.38, '#f2c64e'); g.addColorStop(1, '#a8741a');
+  x.fillStyle = g; x.strokeStyle = '#8a6412'; x.lineJoin = 'round'; x.lineWidth = k * 0.09;
+  x.beginPath();
+  for (const [px, py] of [[-0.82, 0.42], [-0.95, -0.38], [-0.45, 0.02], [0, -0.62], [0.45, 0.02], [0.95, -0.38], [0.82, 0.42]]) x.lineTo(px * k, py * k);
+  x.closePath(); x.fill(); x.stroke();
+  x.lineWidth = k * 0.07; x.beginPath(); x.rect(-0.82 * k, 0.5 * k, 1.64 * k, 0.2 * k); x.fill(); x.stroke();
+  x.fillStyle = '#fff3c4';
+  for (const [px, py, pr] of [[0, -0.62, 0.13], [-0.95, -0.38, 0.11], [0.95, -0.38, 0.11]]) { circle(x, px * k, py * k, pr * k); x.fill(); }
+}
+
+const DRAW = {
+  // gedrechselter Stein (Mühle, Dame, Reversi, Backgammon): a = 'w' | 'b', b = 'k' (Dame mit Krone)
+  st(x, col, king) {
+    const r = RS, w = col === 'w';
+    shadow(x, r);
+    x.fillStyle = w ? rg(x, -r * 0.08, -r * 0.12, 0, r * 1.3, [[0, '#fffef8'], [0.4, '#f2e6ce'], [0.78, '#d3bc93'], [1, '#9c8259']], -r * 0.32, -r * 0.44)
+      : rg(x, -r * 0.08, -r * 0.12, 0, r * 1.3, [[0, '#7d6858'], [0.3, '#3d2d22'], [0.78, '#160d08'], [1, '#050302']], -r * 0.32, -r * 0.44);
+    circle(x, 0, 0, r); x.fill();
+    x.strokeStyle = w ? '#8d7651' : '#020101'; x.lineWidth = r * 0.05; x.stroke();
+    edge(x, r, r * 0.1, w ? 0.75 : 0.6);
+    x.strokeStyle = w ? 'rgba(120,90,50,.36)' : 'rgba(255,232,200,.17)'; x.lineWidth = r * 0.07; circle(x, 0, 0, r * 0.7); x.stroke();
+    x.strokeStyle = w ? 'rgba(120,90,50,.2)' : 'rgba(255,232,200,.1)'; x.lineWidth = r * 0.05; circle(x, 0, 0, r * 0.36); x.stroke();
+    spec(x, r, w ? 0.95 : 0.55, w ? 0.7 : 0.3);
+    if (king === 'k') crown(x, r * 0.62);
+  },
+  // glänzende Kugel/Scheibe in Farbe a (Halma-Murmel, Ludo, Hold'em-Marke); b = 'r' mit hellem Ring
+  ball(x, col, ring) {
+    const r = RS;
+    shadow(x, r, 0.16, 0.26);
+    x.fillStyle = col; circle(x, 0, 0, r); x.fill();
+    x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = r * 0.07; x.stroke();
+    x.fillStyle = rg(x, -r * 0.07, -r * 0.12, 0, r * 1.2, [[0, 'rgba(255,255,255,.55)'], [0.35, 'rgba(255,255,255,.08)'], [0.7, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,.42)']], -r * 0.38, -r * 0.5);
+    circle(x, 0, 0, r * 0.965); x.fill();
+    if (ring === 'r') { x.strokeStyle = 'rgba(255,255,255,.3)'; x.lineWidth = r * 0.08; circle(x, 0, 0, r * 0.66); x.stroke(); }
+    spec(x, r, 0.9, 0.55);
+  },
+  // Vier-Stein (Kunststoff-Scheibe mit geprägtem Ring), ohne Schatten (liegt hinter der Platte)
+  v4(x, col) {
+    const r = RS;
+    x.fillStyle = col; circle(x, 0, 0, r); x.fill();
+    x.strokeStyle = 'rgba(0,0,0,.5)'; x.lineWidth = r * 0.073; x.stroke();
+    x.fillStyle = rg(x, -r * 0.07, -r * 0.12, 0, r * 1.2, [[0, 'rgba(255,255,255,.55)'], [0.35, 'rgba(255,255,255,.08)'], [0.7, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,.42)']], -r * 0.38, -r * 0.5);
+    circle(x, 0, 0, r * 0.97); x.fill();
+    x.strokeStyle = 'rgba(0,0,0,.22)'; x.lineWidth = r * 0.12; circle(x, r * 0.036, r * 0.05, r * 0.66); x.stroke();
+    x.strokeStyle = 'rgba(255,255,255,.42)'; x.lineWidth = r * 0.1; circle(x, 0, 0, r * 0.66); x.stroke();
+    x.save(); x.translate(-r * 0.34, -r * 0.42); x.rotate(-0.52); x.scale(1, 0.53);
+    x.fillStyle = 'rgba(255,255,255,.6)'; circle(x, 0, 0, r * 0.34); x.fill(); x.restore();
+  },
+  // Casino-Chip in Draufsicht (schräg: Höhe 0,42 der Breite) mit Kante, Randstreifen, Innenring, Glanz
+  chip(x, col) {
+    const r = RS, ry = r * 0.42, e = (cy, rx = r, ryy = ry) => { x.beginPath(); x.ellipse(0, cy, rx, ryy, 0, 0, Math.PI * 2); };
+    x.fillStyle = 'rgba(0,0,0,.28)'; e(5 * r / 20); x.fill();
+    x.fillStyle = col; e(3.5 * r / 20); x.fill(); x.strokeStyle = 'rgba(0,0,0,.45)'; x.lineWidth = r * 0.075; x.stroke();
+    const side = x.createLinearGradient(-r, 0, r, 0);
+    side.addColorStop(0, 'rgba(0,0,0,.1)'); side.addColorStop(0.5, 'rgba(255,255,255,.12)'); side.addColorStop(1, 'rgba(0,0,0,.45)');
+    x.fillStyle = side; e(3.5 * r / 20); x.fill();
+    x.fillStyle = col; e(0); x.fill(); x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = r * 0.06; x.stroke();
+    x.save(); x.setLineDash([r * 0.42, r * 0.36]); x.strokeStyle = '#fff7e6'; x.lineWidth = r * 0.13; e(0); x.stroke(); x.restore();
+    x.strokeStyle = 'rgba(255,247,230,.55)'; x.lineWidth = r * 0.08; e(0, r * 0.62, ry * 0.62); x.stroke();
+    x.fillStyle = 'rgba(255,255,255,.22)'; e(-ry * 0.35, r * 0.45, ry * 0.32); x.save(); x.translate(-r * 0.25, 0); x.fill(); x.restore();
+  },
+  // Kaffeebohne (Blackjack-Einsatz)
+  bean(x) {
+    const k = RS / 13.5;
+    x.scale(k, k);
+    x.fillStyle = 'rgba(0,0,0,.3)'; x.beginPath(); x.ellipse(1.2, 2, 13.5, 9, 0, 0, 7); x.fill();
+    x.fillStyle = rg(x, -2, -2.5, 0, 13, [[0, '#b8642e'], [0.55, '#8a3f1a'], [1, '#5a2510']], -4, -4);
+    x.beginPath(); x.ellipse(0, 0, 13.5, 9, 0, 0, 7); x.fill(); x.strokeStyle = '#3d1708'; x.lineWidth = 1; x.stroke();
+    x.strokeStyle = 'rgba(45,15,4,.75)'; x.lineWidth = 1.8; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(-8, 1.5); x.bezierCurveTo(-3, -4, 3, 4.5, 8, -1); x.stroke();
+    x.save(); x.translate(-4.5, -4); x.rotate(-0.31); x.fillStyle = 'rgba(255,226,196,.45)'; x.beginPath(); x.ellipse(0, 0, 4.5, 2, 0, 0, 7); x.fill(); x.restore();
+  },
+  // Würfel mit Tiefe: a = Augen 0–6 (0 = leer)
+  die(x, v) {
+    v = Number(v);
+    const size = RS * 1.62, h = size / 2, rx = size * 0.2;
+    const rr = (a, b, w, hh, r) => { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + hh, r); x.arcTo(a + w, b + hh, a, b + hh, r); x.arcTo(a, b + hh, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); };
+    x.fillStyle = `rgba(0,0,0,${v ? 0.3 : 0.12})`; rr(-h + size * 0.05, -h + size * 0.09, size, size, rx); x.fill();
+    x.fillStyle = v ? rg(x, -size * 0.1, -size * 0.15, 0, size * 0.8, [[0, '#ffffff'], [0.55, '#f8f1e3'], [1, '#d9ccb2']]) : 'rgba(255,253,246,.55)';
+    rr(-h, -h, size, size, rx); x.fill(); x.strokeStyle = '#6b5238'; x.lineWidth = size * 0.03; x.stroke();
+    const gl = x.createLinearGradient(0, -h, 0, -h + size * 0.48);
+    gl.addColorStop(0, 'rgba(255,255,255,.85)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = gl; rr(-h + size * 0.08, -h + size * 0.06, size * 0.84, size * 0.42, rx * 0.75); x.fill();
+    const o = size * 0.26;
+    const P = { 1: [[0, 0]], 2: [[-o, -o], [o, o]], 3: [[-o, -o], [0, 0], [o, o]], 4: [[-o, -o], [o, -o], [-o, o], [o, o]], 5: [[-o, -o], [o, -o], [0, 0], [-o, o], [o, o]], 6: [[-o, -o], [o, -o], [-o, 0], [o, 0], [-o, o], [o, o]] }[v] || [];
+    for (const [px, py] of P) {
+      x.fillStyle = rg(x, px - size * 0.02, py - size * 0.02, 0, size * 0.1, [[0, '#000'], [0.7, '#24170e'], [1, '#5a4636']]);
+      circle(x, px, py, size * 0.092); x.fill();
+      x.fillStyle = 'rgba(255,255,255,.18)'; circle(x, px + size * 0.022, py + size * 0.026, size * 0.05); x.fill();
+    }
+  }
+};
+
+// Bild-Element für eine Sorte, zentriert auf (0, 0); r = gewünschter Objekt-Radius in Brett-Einheiten
+export function spriteImage(s, key, r, cx = 0, cy = 0) {
+  const url = sprite(key);
+  if (!url) return null;
+  const w = (S * r) / RS;
+  return s('image', { href: url, x: cx - w / 2, y: cy - w / 2, width: w, height: w, class: 'dk-spr' });
+}

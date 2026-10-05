@@ -6,7 +6,8 @@ import { s, ensureDefs, place, flyIn, fadeIn, toScreen, onTap } from '../../ui/s
 import { OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
-import { boardLayers } from '../../ui/deko.js';
+import { DEKO, boardLayers } from '../../ui/deko.js';
+import { spriteImage } from '../../ui/sprites.js';
 import { woodFrame, feltRect } from '../../ui/material.js';
 
 const SIZE = 1000;
@@ -69,6 +70,25 @@ export function createBoard(host, { onHint }) {
     }
   }
 
+  // Deko: Einsatz als Bohnen-Häufchen (Spirale, immer gleich gelegt – kein Zittern beim Neuzeichnen)
+  function beans(g, cx, cy, amount, k = 1) {
+    const n = Math.max(1, Math.min(14, Math.round(amount)));
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const r = 9.5 * Math.sqrt(i) * k, a = i * 2.39996;
+      pts.push([cx + Math.cos(a) * r * 1.25, cy + Math.sin(a) * r * 0.72, (i * 53) % 180 - 90]);
+    }
+    pts.sort((p, q) => p[1] - q[1]);
+    const pile = s('g', { class: 'dk-beans' });
+    for (const [x, y, rot] of pts) {
+      const tr = `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot})`;
+      const img = spriteImage(s, 'bean', 13.5 * k);
+      if (img) { img.setAttribute('transform', tr); pile.append(img); }
+      else pile.append(s('use', { href: '#dk-bean', x: -15 * k, y: -11 * k, width: 30 * k, height: 22 * k, transform: tr }));
+    }
+    g.append(pile);
+  }
+
   const total = (cards) => {
     if (!cards.length || cards.some((c) => !c)) return '';
     const v = handValue(cards);
@@ -109,6 +129,7 @@ export function createBoard(host, { onHint }) {
       others.push(seat);
     }
     const w = others.length > 3 ? 84 : 100;
+    gOthers.dataset.room = others.length > 3 ? 'eng' : '';
     others.forEach((seat, i) => {
       const cx = (SIZE / (others.length + 1)) * (i + 1);
       drawSpot(gOthers, seat, cx, 500, w, true);
@@ -124,7 +145,10 @@ export function createBoard(host, { onHint }) {
     if (!sp.hands.length) {
       const bet = gs.bets[seat];
       g.append(s('circle', { cx, cy, r: small ? 34 : 44, class: 'bj-spot', stroke: col }));
-      g.append(s('text', { x: cx, y: cy + 8, class: 'bj-bet', text: bet ? fmtBeans(bet) : '' }));
+      if (DEKO.on && bet) {
+        beans(g, cx, cy - 4, bet, small ? 1 : 1.25);
+        g.append(s('text', { x: cx, y: cy + (small ? 30 : 38), class: 'bj-bet dk-bet', text: fmtBeans(bet) }));
+      } else g.append(s('text', { x: cx, y: cy + 8, class: 'bj-bet', text: bet ? fmtBeans(bet) : '' }));
       g.append(s('text', { x: cx, y: cy + (small ? 72 : 90), class: 'bj-label', text: seat === me ? 'Du' : name }));
       g.append(s('text', { x: cx, y: cy + (small ? 104 : 124), class: 'bj-sub', text: `${fmtBeans(gs.beans[seat])} Bohnen` }));
       return;
@@ -138,6 +162,11 @@ export function createBoard(host, { onHint }) {
       const res = sp.done && hd.result ? { text: small ? `${hd.result === 'bj' ? 'BJ ' : ''}${winTxt}` : `${RES[hd.result]} ${winTxt}`, cls: hd.win > 0 ? 'plus' : hd.win < 0 ? 'minus' : 'even' } : null;
       const mine = `${j === 0 ? 'Du · ' : ''}${total(hd.cards)}${hd.bet ? ` · Einsatz ${fmtBeans(hd.bet)}${hd.doubled ? ' ×2' : ''}` : ''}`;
       cardsRow(g, hd.cards, hx, cy, w, { key: `${sp.round}|${seat}|${j}`, label: small ? (j === 0 ? name : '') : mine, sub: small ? total(hd.cards) : '', dim: sp.done, badge: res, active });
+      // Deko: Einsatz liegt als Häufchen links neben den Karten (bei den anderen nur, wenn Platz ist)
+      if (DEKO.on && hd.bet && !sp.done && (!small || k === 1 && g.dataset.room !== 'eng')) {
+        const kk = small ? 0.95 : 1.35;
+        beans(g, hx - ((hd.cards.length - 1) * w * 0.42) / 2 - w / 2 - 34 * kk, cy + (small ? 30 : 24), hd.bet * (hd.doubled ? 2 : 1), kk);
+      }
     });
     if (small) g.append(s('text', { x: cx, y: cy + frHeight(w) / 2 + 98, class: 'bj-sub', text: `${fmtBeans(gs.beans[seat])} Bohnen` }));
   }

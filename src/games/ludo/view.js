@@ -59,7 +59,10 @@ export function createBoard(host, { onMove, onHint }) {
       const col = SEAT_COLORS[c];
       // Ecke der Farbe leicht getönt
       const [x0, y0] = cxy([0, 7], c), [x1, y1] = cxy([3, 10], c);
-      gBoard.append(s('rect', { x: Math.min(x0, x1) - U / 2 + 6, y: Math.min(y0, y1) - U / 2 + 6, width: Math.abs(x1 - x0) + U - 12, height: Math.abs(y1 - y0) + U - 12, rx: 30, fill: col, opacity: used.has(c) ? 0.2 : 0.07 }));
+      const zx = Math.min(x0, x1) - U / 2 + 6, zy = Math.min(y0, y1) - U / 2 + 6, zw = Math.abs(x1 - x0) + U - 12, zh = Math.abs(y1 - y0) + U - 12;
+      gBoard.append(s('rect', { x: zx, y: zy, width: zw, height: zh, rx: 30, fill: col, opacity: used.has(c) ? 0.2 : 0.07 }));
+      if (L) gBoard.append(s('rect', { x: zx, y: zy, width: zw, height: zh, rx: 30, fill: 'url(#dk-vig)', opacity: 0.8 }),
+        s('rect', { x: zx + 2, y: zy + 2, width: zw - 4, height: zh - 4, rx: 28, fill: 'none', stroke: 'url(#dk-hole)', 'stroke-width': 5, opacity: 0.8 }));
     }
     // Bahn als verbundene Linie, dann die Felder
     const pts = TRACK.map((f) => cxy(f, 0));

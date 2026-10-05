@@ -1,6 +1,7 @@
 // SVG-Helfer für die Bretter: Holzmuster (Poly Haven, CC0), Stein-Verläufe, Schatten, Krone, Animation.
 // Mit Deko (src/ui/deko.js): Steine mit Glanzlicht und weichem Schatten, Krone mit Goldverlauf, Züge mit leichtem Anheben.
 import { DEKO, whenNoise } from './deko.js';
+import { spriteImage } from './sprites.js';
 export const NS = 'http://www.w3.org/2000/svg';
 
 export function s(tag, attrs = {}, ...children) {
@@ -91,6 +92,13 @@ export function ensureDekoDefs() {
     s('filter', { id: 'dk-soft-s', x: '-30%', y: '-30%', width: '160%', height: '160%' }, s('feGaussianBlur', { stdDeviation: 5 })));
   defs.append(s('pattern', { id: 'dk-waves', patternUnits: 'userSpaceOnUse', width: 60, height: 34 },
     s('path', { d: 'M0 10 q 7.5 -7 15 0 t 15 0 M30 27 q 7.5 -7 15 0 t 15 0 M-30 27 q 7.5 -7 15 0 t 15 0', fill: 'none', stroke: '#fff', 'stroke-opacity': 0.13, 'stroke-width': 2, 'stroke-linecap': 'round' })));
+  // Bohne (Blackjack-Einsätze): als Symbol, jede Bohne ist dann nur ein <use>
+  defs.append(radial('dk-beanfill', [['0%', '#b8642e'], ['55%', '#8a3f1a'], ['100%', '#5a2510']], { cx: '38%', cy: '35%', r: '70%' }),
+    s('symbol', { id: 'dk-bean', viewBox: '-15 -11 30 22', overflow: 'visible' },
+      s('ellipse', { cx: 1.2, cy: 2, rx: 13.5, ry: 9, fill: '#000', opacity: 0.3 }),
+      s('ellipse', { rx: 13.5, ry: 9, fill: 'url(#dk-beanfill)', stroke: '#3d1708', 'stroke-width': 1 }),
+      s('path', { d: 'M-8 1.5 C-3 -4 3 4.5 8 -1', fill: 'none', stroke: 'rgba(45,15,4,.75)', 'stroke-width': 1.8, 'stroke-linecap': 'round' }),
+      s('ellipse', { cx: -4.5, cy: -4, rx: 4.5, ry: 2, transform: 'rotate(-18 -4.5 -4)', fill: '#ffe2c4', opacity: 0.45 })));
   // Filz-Rauschen als Muster (Kachel kommt asynchron aus deko.js)
   const noise = s('pattern', { id: 'dk-noise', patternUnits: 'userSpaceOnUse', width: 256, height: 256 });
   const img = s('image', { width: 256, height: 256 });
@@ -116,6 +124,9 @@ export function piece(color, r, { king = false } = {}) {
 function dekoPiece(color, r, king) {
   const white = color === 0;
   const g = s('g', { class: 'pc ' + (white ? 'pc-w' : 'pc-b') });
+  // vorgezeichnetes Bild (ein Element statt sieben); bis es fertig ist, dieselbe Form als Vektor
+  const img = spriteImage(s, `st:${white ? 'w' : 'b'}:${king ? 'k' : ''}`, r);
+  if (img) { g.append(img); return g; }
   g.append(
     s('ellipse', { class: 'pc-sh', cx: r * 0.14, cy: r * 0.24, rx: r * 1.12, ry: r * 1.04, fill: 'url(#dk-shadow)' }),
     s('circle', { r, fill: white ? 'url(#dk-st-w)' : 'url(#dk-st-b)', stroke: white ? '#8d7651' : '#020101', 'stroke-width': r * 0.05 }),
@@ -134,6 +145,8 @@ function dekoPiece(color, r, king) {
 const PIPS = (o) => ({ 1: [[0, 0]], 2: [[-o, -o], [o, o]], 3: [[-o, -o], [0, 0], [o, o]], 4: [[-o, -o], [o, -o], [-o, o], [o, o]], 5: [[-o, -o], [o, -o], [0, 0], [-o, o], [o, o]], 6: [[-o, -o], [o, -o], [-o, 0], [o, 0], [-o, o], [o, o]] });
 export function die3d(v, size, { used = false, blank = false, cls = '' } = {}) {
   const g = s('g', { class: 'die dk-die' + (used ? ' used' : '') + (blank ? ' blank' : '') + (cls ? ' ' + cls : '') });
+  const img = spriteImage(s, `die:${blank ? 0 : v}`, size / 1.62);
+  if (img) { g.append(img); if (used) g.setAttribute('opacity', 0.55); return g; }
   const h = size / 2, rx = size * 0.2;
   g.append(
     s('rect', { x: -h + size * 0.05, y: -h + size * 0.09, width: size, height: size, rx, fill: '#000', opacity: blank ? 0.12 : 0.3 }),
@@ -151,6 +164,8 @@ export function die3d(v, size, { used = false, blank = false, cls = '' } = {}) {
 // farbige Kugel/Scheibe (Halma-Murmel, Ludo-Figur von oben, Vier-Stein): Grundfarbe + Licht + Glanzpunkt + Schatten
 export function ball(col, r, { shadow = true, ring = false } = {}) {
   const g = s('g', { class: 'pc dk-ball' });
+  const img = shadow ? spriteImage(s, `ball:${col}:${ring ? 'r' : ''}`, r) : null;
+  if (img) { g.append(img); return g; }
   if (shadow) g.append(s('ellipse', { class: 'pc-sh', cx: r * 0.16, cy: r * 0.26, rx: r * 1.1, ry: r * 1.02, fill: 'url(#dk-shadow)' }));
   g.append(s('circle', { r, fill: col, stroke: 'rgba(0,0,0,.55)', 'stroke-width': r * 0.07 }),
     s('circle', { r: r * 0.965, fill: 'url(#dk-ball)' }));
@@ -209,6 +224,20 @@ export function animateSteps(el, pts, { hop = 230, pause = 0, delay = 0, lift = 
   }
   frames[frames.length - 1].offset = 1;
   return el.animate(frames, { duration: total, delay, fill: delay > 0 ? 'backwards' : 'none', easing: 'linear' });
+}
+
+// Deko: Karte fliegt im flachen Bogen, dreht sich dabei leicht und hebt sich (gleiche Dauer wie bisher)
+export function flyCard(el, from, to, dur, { spin = -9, delay = 0 } = {}) {
+  if (!el || !el.animate || reduced() || dur <= 0) return null;
+  const lift = Math.min(90, Math.hypot(to[0] - from[0], to[1] - from[1]) * 0.2);
+  const cx = (from[0] + to[0]) / 2, cy = (from[1] + to[1]) / 2 - lift * 2;   // Kontrollpunkt (quadratischer Bogen)
+  const frames = [0, 0.25, 0.5, 0.75, 1].map((t) => {
+    const u = 1 - t;
+    const x = u * u * from[0] + 2 * u * t * cx + t * t * to[0], y = u * u * from[1] + 2 * u * t * cy + t * t * to[1];
+    const k = 1 + 0.1 * Math.sin(Math.PI * t), r = spin * (1 - t) * (1 - t);
+    return { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${k.toFixed(3)})`, offset: t };
+  });
+  return el.animate(frames, { duration: dur, delay, easing: 'cubic-bezier(.3,.55,.35,1)', fill: delay > 0 ? 'backwards' : 'none' });
 }
 
 // Karte/Stein kommt von from herein (erst unsichtbar, dann eingeblendet), z. B. Karte vom Schuh

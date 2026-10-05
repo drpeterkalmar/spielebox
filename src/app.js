@@ -13,6 +13,7 @@ import { ensureDefs } from './ui/svg.js';
 import { DEKO, readDeko, applyDeko } from './ui/deko.js';
 import { fxState, freeze } from './ui/fx.js';
 import { prepareCardArt } from './ui/cards.js';
+import { prepare as prepareSprites } from './ui/sprites.js';
 import { BUILD } from './build.js';
 import { botDelay, levelFrom } from './tempo.js';
 
@@ -316,4 +317,6 @@ readDeko();
 applyDeko();
 ensureDefs();
 setTimeout(prepareCardArt, 300);   // Deko-Kartenrücken vorzeichnen, solange man noch in der Lobby ist
+// häufige Steine und Würfel vorzeichnen (je ein paar ms, in Ruhe nach dem Start)
+setTimeout(() => prepareSprites(['st:w:', 'st:b:', 'st:w:k', 'st:b:k', 'die:0', 'die:1', 'die:2', 'die:3', 'die:4', 'die:5', 'die:6']), 600);
 route().then(() => { window.__box.ready = true; document.body.dataset.ready = '1'; });
