@@ -6,7 +6,7 @@ import { NetLink } from './net/netlink.js';
 import { roomIdFor } from './net/crypto.js';
 import { parseWords, randomWords, formatWords, findWord } from './words.js';
 import * as store from './store.js';
-import { chooseBotMove, quickMove } from './botclient.js';
+import { chooseBotMove, quickMove, warmUp } from './botclient.js';
 import { gameOf, GAME_LIST, LIVE, seatCount } from './games/registry.js';
 import { h, sheet } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
@@ -63,6 +63,8 @@ function leaveTrainer() {
 async function showLobby(prefill) {
   await leaveTable();
   leaveTrainer();
+  // neue App-Version ist schon aktiv (Service-Worker): jetzt, zwischen zwei Partien, neu laden
+  if (window.__updateReady) { location.reload(); return; }
   document.body.dataset.screen = 'lobby';
   lobby = renderLobby(root, { onCreate, onLocal, onJoin, onResume, onTrainer: () => { setHash('trainer'); openTrainer('trainer'); } });
   if (prefill) lobby.prefill(prefill);
@@ -316,6 +318,7 @@ window.__box = {
 readDeko();
 applyDeko();
 ensureDefs();
+warmUp();   // Computer-Worker gleich mit der Seite laden (gleiche Version wie die Seite)
 setTimeout(prepareCardArt, 300);   // Deko-Kartenrücken vorzeichnen, solange man noch in der Lobby ist
 // häufige Steine und Würfel vorzeichnen (je ein paar ms, in Ruhe nach dem Start)
 setTimeout(() => prepareSprites(['st:w:', 'st:b:', 'st:w:k', 'st:b:k', 'die:0', 'die:1', 'die:2', 'die:3', 'die:4', 'die:5', 'die:6']), 600);

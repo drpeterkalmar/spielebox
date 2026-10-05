@@ -627,7 +627,7 @@ export class TableSession {
     const t0 = this.now();
     const eng = this.engine;
     const gs = eng.HIDDEN ? eng.viewFor(t.gs, seat) : t.gs;   // Computer sieht nur, was ihm zusteht
-    Promise.resolve(this.bot.choose(t.game, gs, t.seats[seat].bot)).then((move) => {
+    Promise.resolve(this.bot.choose(t.game, gs, t.seats[seat].bot, { note: (x) => this._note(x) })).then((move) => {
       const wait = Math.max(0, (this.botDelayFor ? this.botDelayFor(t, move) : TIMING.botDelay) - (this.now() - t0));
       this._botTimer = this.timers.setTimeout(() => {
         this.botBusy = false;

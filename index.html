@@ -28,9 +28,12 @@
   if ('serviceWorker' in navigator && !/[?&]nosw/.test(location.search) && location.protocol === 'https:') {
     var hadCtl = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('sw.js').catch(function () {});
-    // neue Version: nur in der Lobby neu laden (nie mitten in einer Partie oder Eingabe)
+    // neue Version: nur in der Lobby neu laden (nie mitten in einer Partie oder Eingabe); sonst merken –
+    // app.js lädt beim nächsten Wechsel in die Lobby neu (bis dahin keine neuen Module in die alte Seite)
     navigator.serviceWorker.addEventListener('controllerchange', function () {
-      if (hadCtl && document.body.dataset.screen === 'lobby' && !document.querySelector('input:focus')) location.reload();
+      if (!hadCtl) return;
+      window.__updateReady = true;
+      if (document.body.dataset.screen === 'lobby' && !document.querySelector('input:focus')) location.reload();
     });
   }
 </script>
