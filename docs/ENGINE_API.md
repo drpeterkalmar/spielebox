@@ -29,6 +29,9 @@ Züge sind kleine JSON-Objekte (z. B. `{ type: 'play', card: 'H-A' }`). `isLegal
 - Solange `chance(state) !== null`, ist `currentPlayer(state) === null` und `legalMoves` leer.
 - Der Tisch (Host) ruft nach jedem Zug so lange `applyChance`, bis `chance` null ist. Lokal mit `crypto`-Zufall,
   online über `src/net/fair.js` (Hash-Ketten). Tests nutzen `mulberry32` aus `src/rng.js`.
+- Mischungen bleiben online geheim, bis ihre Karten keine Rolle mehr spielen: Der Host veröffentlicht frühere Mischungen,
+  sobald eine neue fällt und `publishShuffleWhen(state)` (optional) wahr ist; ohne das Feld gilt wie bisher
+  `phase(state)` ist `'deal'` oder `'bet'` (ohne `phase`: immer). Umsetzung: `src/net/fairhost.js`.
 
 ## Verdeckte Information (Kartenspiele)
 - `HIDDEN = true` exportieren.

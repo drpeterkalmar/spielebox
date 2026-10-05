@@ -3,7 +3,7 @@
 // - spielebox-core-<VERSION>: HTML/CSS/JS/Icons, bei jeder Version neu (in Gruppen à 40 mit Wiederholung)
 // - spielebox-assets: Karten, Holz, Figuren – versionslos, beim Aktivieren nicht gelöscht. Schlüssel = Pfad + Inhalts-Hash
 //   (?h=…), so lädt ein Update nur fehlende oder geänderte Bilder nach; alte Fassungen werden beim Aktivieren entfernt.
-const VERSION = '3210acd431';
+const VERSION = 'f30305b444';
 const CORE = 'spielebox-core-' + VERSION;
 const ASSETS = 'spielebox-assets';
 const CORE_FILES = [
@@ -98,10 +98,13 @@ const CORE_FILES = [
   'src/games/wuerfel/view.js',
   'src/net/crypto.js',
   'src/net/fair.js',
+  'src/net/fairhost.js',
   'src/net/netlink.js',
   'src/net/relaychannel.js',
   'src/net/relays.js',
   'src/net/table.js',
+  'src/net/tablebase.js',
+  'src/net/takeover.js',
   'src/rng.js',
   'src/store.js',
   'src/tempo.js',
