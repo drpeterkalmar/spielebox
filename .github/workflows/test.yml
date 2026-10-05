@@ -1,0 +1,20 @@
+# Tests bei jedem Push und Pull Request: Node-Schnell-Suite und Prüfung, ob sw.js/build.js zum Inhalt passen
+name: Tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Node-Tests (Schnell-Suite)
+        run: node tests/node/run_all.mjs --schnell
+      - name: Service-Worker-Version passt zum Inhalt
+        run: python3 tools/update_sw.py --check

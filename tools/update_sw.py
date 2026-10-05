@@ -1,6 +1,8 @@
 # Schreibt sw.js neu: Precache-Liste aller App-Dateien + Inhalts-Hash als Version (Cache-Busting),
 # dazu src/build.js (Version in der App). Nach jeder Änderung an App-Dateien: python3 tools/update_sw.py
-import hashlib, os, subprocess
+# Prüfmodus (CI): python3 tools/update_sw.py --check – rechnet nur nach, schreibt nichts, Exit 1 bei Abweichung.
+import hashlib, os, subprocess, sys
+CHECK = '--check' in sys.argv
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Nur Dateien, die im Git-Index stehen (eingecheckt oder mit git add vorgemerkt): halbfertige Dateien (z. B. neue
 # Spiele, an denen noch gearbeitet wird) kämen sonst in die Precache-Liste, fehlten live → Installation scheitert.
@@ -25,8 +27,16 @@ for f in files:
 ver = h.hexdigest()[:10]
 tpl = open(os.path.join(ROOT, 'tools', 'sw.template.js')).read()
 out = tpl.replace('__VERSION__', ver).replace('__ASSETS__', ',\n  '.join("'" + f + "'" for f in files))
+build = f"export const BUILD = '{ver}';\n"
+if CHECK:
+    bad = [n for n, want in (('sw.js', out), ('src/build.js', build)) if open(os.path.join(ROOT, n)).read() != want]
+    if bad:
+        print('sw.js/build.js passen nicht zum Inhalt (Version ' + ver + '): ' + ', '.join(bad) + ' – python3 tools/update_sw.py ausführen')
+        sys.exit(1)
+    print('sw.js Version', ver, 'stimmt')
+    sys.exit(0)
 open(os.path.join(ROOT, 'sw.js'), 'w').write(out)
-open(os.path.join(ROOT, 'src', 'build.js'), 'w').write(f"export const BUILD = '{ver}';\n")
+open(os.path.join(ROOT, 'src', 'build.js'), 'w').write(build)
 size = sum(os.path.getsize(os.path.join(ROOT, f)) for f in files)
 print('sw.js Version', ver, len(files), 'Dateien', round(size / 1e6, 2), 'MB')
 if skipped: print('nicht im Git-Index (nicht vorab geladen):', ', '.join(skipped[:12]) + (' …' if len(skipped) > 12 else ''))

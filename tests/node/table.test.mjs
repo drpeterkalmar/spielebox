@@ -695,7 +695,8 @@ await ok("Hold'em online: 3 Geräte + Computer + Zuschauer – jede Nachricht nu
   h.close(); a.close(); b.close(); z.close();
 });
 
-await ok("Hold'em: Zeitlimit checkt/foldet automatisch, abwesender Spieler ebenso, „show“ zeigt weggelegte Karten", async () => {
+// Langläufer (≈ 12 s): in der Smoke-Stufe übersprungen
+if (!process.env.SB_SMOKE) await ok("Hold'em: Zeitlimit checkt/foldet automatisch, abwesender Spieler ebenso, „show“ zeigt weggelegte Karten", async () => {
   const save = { ...TIMING };
   Object.assign(TIMING, { timerUnit: 10, timerGrace: 20, awayMove: 60, awayStart: 0 });
   try {

@@ -215,7 +215,11 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
 - `python3 tests/e2e_net.py` – Netz-E2E über die echten öffentlichen Relays: direkt, automatischer Fallback, `?relay=1`,
   Partie Mühle bis zum Ende, Zuschauer, Wiederaufnahme nach Reload.
 - `python3 tests/test_live.py` – Live-Seite: HTTP 200, Version, PWA installierbar, offline, Teilen-Link, Live-Beitritt.
-- Nach Änderungen an App-Dateien: `python3 tools/update_sw.py` (Service-Worker-Version = Inhalts-Hash).
+- Nach Änderungen an App-Dateien: `python3 tools/update_sw.py` (Service-Worker-Version = Inhalts-Hash);
+  `python3 tools/update_sw.py --check` prüft nur (Exit 1, wenn `sw.js`/`src/build.js` nicht zum Inhalt passen).
+- `npm test -- --smoke` – Kurzlauf < 30 s (Wörter, Krypto, Fair Play, Tempo, Meldungen, Tisch ohne Langläufer).
+- CI: `.github/workflows/test.yml` (GitHub Actions, Node 24) – Schnell-Suite und `update_sw.py --check` bei jedem Push.
+- `python3 tests/test_nav.py` – Browser: schnelle Wechsel Lobby/Tisch ergeben eine Sitzung, Fehler beim Öffnen → Meldung.
 - Debug-API im Browser: `window.__box` (Zustand, legale Züge, Züge, Tisch öffnen/beitreten).
 
 ## Credits
