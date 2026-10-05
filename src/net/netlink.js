@@ -3,7 +3,7 @@
 // AES-GCM-verschlüsselte Kurznachrichten über dieselben öffentlichen Nostr-Relays.
 // Die Relays sehen nur Hashes (Raum-ID, Relay-Topic) und verschlüsselte Nutzlast.
 // Umschlag jeder Nachricht: { v: 1, f: pid, n: name, s: Sitzung, i: laufende Nr., ts, to?, m: Nachricht }
-import { joinRoom } from '../../lib/trystero.js';
+import { joinRoom as trysteroJoin } from '../../lib/trystero.js';
 import { RelayChannel } from './relaychannel.js';
 import { RELAYS } from './relays.js';
 import { deriveKey, seal, open, relayTopicFor } from './crypto.js';
@@ -21,7 +21,10 @@ const MAX_SEEN = 4000;
 const rand = () => Math.random().toString(36).slice(2, 10);
 
 export class NetLink {
-  constructor({ words, roomId, pid, name, relayOnly = false, log = () => {} }) {
+  // joinRoom/makeRelay: Standard Trystero bzw. RelayChannel; Tests setzen Attrappen ein (tests/node/netlink.test.mjs)
+  constructor({ words, roomId, pid, name, relayOnly = false, log = () => {}, joinRoom = trysteroJoin, makeRelay = (o) => new RelayChannel(o) }) {
+    this.joinRoom = joinRoom;
+    this.makeRelay = makeRelay;
     this.words = words;
     this.roomId = roomId;
     this.pid = pid;
@@ -60,7 +63,7 @@ export class NetLink {
 
   _startDirect() {
     try {
-      this.room = joinRoom({ appId: APP_ID, password: this.words.join(' '), relayConfig: { urls: RELAYS } }, this.roomId, {
+      this.room = this.joinRoom({ appId: APP_ID, password: this.words.join(' '), relayConfig: { urls: RELAYS } }, this.roomId, {
         onJoinError: (e) => {
           this.joinError = e && e.error;
           this.log('Trystero: ' + this.joinError);
@@ -99,7 +102,7 @@ export class NetLink {
     if (this.relay) return;
     this.relayReason = reason;
     this.log('Relay-Fallback an: ' + reason);
-    this.relay = new RelayChannel({
+    this.relay = this.makeRelay({
       urls: RELAYS,
       topic: this.topic,
       onMessage: (content) => this._fromRelay(content),
