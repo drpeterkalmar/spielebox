@@ -5,10 +5,12 @@
 //   { v, game, opts, hostPid, epoch, seq, round, seats: [{pid,name,bot?}|null, …], gs (Engine-Zustand),
 //     status: 'wait'|'play'|'over', result: null|{winner,reason}, drawOffer: null|Sitz,
 //     last: null|{m, by, d}, hist: [{m, by, d}] (letzte Züge), nmoves, score: {pid: Punkte}, created, updated,
-//     id (Tisch-Kennung), fair: null|{ round, commits: [je Sitz], log: [öffentliche Zufallsereignisse], k },
+//     id (Tisch-Kennung), fair: null|{ round, gen?, commits: [je Sitz], log: [öffentliche Zufallsereignisse], k },
 //     fairNeed: null|{ k, kind, missing: [Sitze] }, fairPriv (nur beim Host, wird nie verschickt) }
 // Kartenspiele (Engine mit HIDDEN): Jeder Empfänger bekommt nur viewFor(gs, sein Sitz); Zuschauer sehen keine Hand.
 // Zufall (Engine mit chance): lokal crypto-Zufall, online Hash-Ketten aller Sitze (src/net/fair.js).
+//   Wechselt mitten in der Partie, wer eine Kette hält (Host-Übernahme, Computer übernimmt einen Sitz), beginnt eine
+//   neue Zufallsrunde derselben Partie (fair.gen + 1, neue Commits aller Sitze, eigene Kettenglieder).
 // Zeitlimit (Engine mit timeoutMove, nur online): Wer opts.timer Sekunden nicht handelt oder nicht erreichbar ist,
 // macht automatisch den Zug der Engine (Hold'em: checken bzw. aussteigen), bis er wieder da ist.
 // Tisch-Kommandos außerhalb der Reihe (Engine mit ACTS/applyAct, z. B. Hold'em „show“) laufen über act().
@@ -280,6 +282,7 @@ export class TableSession {
         // mehr als zwei: der Computer übernimmt den Platz, die Partie geht weiter
         const old = t.seats[seat];
         t.seats[seat] = { pid: 'bot' + seat, name: `Computer (für ${old ? old.name : 'Spieler'})`, bot: 2 };
+        this._restartFair();
         this._commit({ kind: 'act', a, by: seat });
         this._maybeBot();
         return { ok: true };
@@ -363,19 +366,43 @@ export class TableSession {
     const t = this.table;
     const p = t.seats[seat];
     const who = p && p.bot ? `bot${seat}|${this.me.pid}` : this.me.pid;
-    return sha256(`${this.secret}|${t.id || t.created}|${t.round}|${who}`);
+    const gen = t.fair && t.fair.round === t.round ? t.fair.gen || 0 : 0;
+    return sha256(`${this.secret}|${t.id || t.created}|${t.round}|${who}${gen ? '|g' + gen : ''}`);
   }
 
   // Host: Protokoll der Runde anlegen (eigene und Computer-Commits sofort)
-  _ensureFair() {
+  _ensureFair(gen = 0) {
     const t = this.table;
     if (!this._needsFair() || this.role !== 'host') return;
     if (t.fair && t.fair.round === t.round) return;
     t.fair = { round: t.round, commits: t.seats.map(() => null), log: [], k: 0 };
-    t.fairPriv = { last: t.seats.map(() => null), pending: {}, secret: [] };
+    if (gen) t.fair.gen = gen;
+    t.fairPriv = null;
+    this._priv();
     t.seats.forEach((p, i) => {
       if (p && (p.bot || p.pid === this.me.pid)) t.fair.commits[i] = chainLink(this._seed(i), 0);
     });
+  }
+
+  // private Host-Daten des Zufalls-Protokolls (nie verschickt); fehlen z. B. nach einer Übernahme → neu anlegen
+  _priv() {
+    const t = this.table;
+    if (!t.fairPriv) t.fairPriv = { last: t.seats.map(() => null), pending: {}, secret: [] };
+    return t.fairPriv;
+  }
+
+  // Host: neue Zufallsrunde derselben Partie (Übernahme, Sitzwechsel durch Aufgeben). Die alten Ketten passen nicht mehr
+  // (Computer-Ketten hängen an der Host-pid, der Commit eines Sitzes am Menschen, der ihn hielt). Unveröffentlichte
+  // Mischungen der alten Runde bleiben ungeprüft; die Anzeige zählt die schon geprüften weiter (_clientFair).
+  _restartFair() {
+    const t = this.table;
+    if (!this._needsFair() || this.role !== 'host' || t.status !== 'play') return;
+    const gen = t.fair && t.fair.round === t.round ? (t.fair.gen || 0) + 1 : 0;
+    t.fair = null;
+    t.fairPriv = null;
+    t.fairNeed = null;
+    this._ensureFair(gen);
+    this._resolveChance();
   }
 
   // Kettenglied k eines Sitzes, wenn bekannt (eigene/Computer sofort, Mitspieler aus ihren Nachrichten)
@@ -384,7 +411,7 @@ export class TableSession {
     const p = t.seats[seat];
     if (!p) return null;
     if (p.bot || p.pid === this.me.pid) return chainLink(this._seed(seat), k);
-    const pend = t.fairPriv.pending[seat];
+    const pend = this._priv().pending[seat];
     return pend && pend[k] ? pend[k] : null;
   }
 
@@ -420,17 +447,18 @@ export class TableSession {
         } else {
           entry.links = links;
           v = valueFor(c, mixLinks(links, k, c.kind));
-          links.forEach((l, s) => { t.fairPriv.last[s] = { k, link: l }; });
+          links.forEach((l, s) => { this._priv().last[s] = { k, link: l }; });
         }
         entry.value = v;
-        for (const s of Object.keys(t.fairPriv.pending)) delete t.fairPriv.pending[s][k];
+        const priv = this._priv();
+        for (const s of Object.keys(priv.pending)) delete priv.pending[s][k];
         t.fair.k = k;
         t.fairNeed = null;
         if (c.kind === 'shuffle') {
           // alte Mischungen veröffentlichen, sobald ihre Karten keine Rolle mehr spielen (neues Spiel/Runde)
           const ph = eng.phase ? eng.phase(t.gs) : 'deal';
           if (ph === 'deal' || ph === 'bet') this._publishFair(false);
-          t.fairPriv.secret.push(entry);
+          priv.secret.push(entry);
         } else {
           t.fair.log.push(entry);
         }
@@ -443,18 +471,19 @@ export class TableSession {
   _publishFair(all) {
     const t = this.table;
     if (!t.fair || !t.fairPriv) return;
-    const sec = t.fairPriv.secret;
+    const priv = this._priv();
+    const sec = priv.secret;
     if (!sec.length) return;
     t.fair.log.push(...sec);
     t.fair.log.sort((a, b) => a.k - b.k);
-    t.fairPriv.secret = [];
+    priv.secret = [];
   }
 
   // Host: Nachricht mit Commit bzw. Kettenglied eines Mitspielers
   _hostOnFair(from, msg) {
     const t = this.table;
     const seat = seatOf(t, from.pid);
-    if (seat === null || !t.fair || msg.round !== t.round) return;
+    if (seat === null || !t.fair || msg.round !== t.round || (msg.gen || 0) !== (t.fair.gen || 0)) return;
     let changed = false;
     if (typeof msg.commit === 'string' && !t.fair.commits[seat] && /^[0-9a-f]{64}$/.test(msg.commit)) {
       t.fair.commits[seat] = msg.commit;
@@ -471,11 +500,12 @@ export class TableSession {
   _takeReveal(seat, { k, link }) {
     const t = this.table;
     if (!t.fair || !t.fair.commits[seat] || !Number.isInteger(k) || k !== t.fair.k + 1) return false;
-    const last = t.fairPriv.last[seat] || { k: 0, link: t.fair.commits[seat] };
+    const priv = this._priv();
+    const last = priv.last[seat] || { k: 0, link: t.fair.commits[seat] };
     let x = link;
     for (let i = last.k; i < k - 1; i++) x = sha256(x);
     if (!verifyLink(last.link, x)) { this._note(`Falsches Kettenglied von Sitz ${seat}`); return false; }
-    (t.fairPriv.pending[seat] ||= {})[k] = link;
+    (priv.pending[seat] ||= {})[k] = link;
     return true;
   }
 
@@ -497,13 +527,15 @@ export class TableSession {
     const t = this.table;
     if (!t || !t.fair || t.fair.round !== t.round) return;
     const seat = seatOf(t, this.me.pid);
+    const gen = t.fair.gen || 0;
     if (seat !== null) {
       const msg = { t: 'fair', round: t.round };
+      if (gen) msg.gen = gen;
       if (!t.fair.commits[seat]) msg.commit = chainLink(this._seed(seat), 0);
       if (t.fairNeed && t.fairNeed.missing.includes(seat) && t.fair.commits[seat]) {
         msg.reveal = { k: t.fairNeed.k, link: chainLink(this._seed(seat), t.fairNeed.k) };
       }
-      const key = `${t.round}|${msg.commit ? 'c' : ''}|${msg.reveal ? msg.reveal.k : ''}`;
+      const key = `${t.round}|${gen}|${msg.commit ? 'c' : ''}|${msg.reveal ? msg.reveal.k : ''}`;
       const now = this.now();
       if ((msg.commit || msg.reveal) && (!this._sentFair[key] || now - this._sentFair[key] > 3000)) {
         this._sentFair[key] = now;
@@ -511,9 +543,17 @@ export class TableSession {
       }
     }
     const n = (t.fair.log || []).length;
-    if (!this.fairCheck || this.fairCheck.n !== n || this.fairCheck.round !== t.round) {
+    // neue Zufallsrunde derselben Partie: bisher Geprüftes weiterzählen (Abzeichen springt nicht auf 0)
+    const fc0 = this.fairCheck;
+    if (fc0 && fc0.round === t.round && (fc0.gen || 0) !== gen) this._fairPrior = (fc0.gen || 0) < gen ? fc0 : null;
+    else if (!fc0 || fc0.round !== t.round) this._fairPrior = null;
+    if (!fc0 || fc0.n !== n || fc0.round !== t.round || (fc0.gen || 0) !== gen) {
       const r = verifyFair({ commits: t.fair.commits, log: t.fair.log.filter((e) => !e.fallback && e.links && e.links.every(Boolean)) });
-      this.fairCheck = { ...r, n, round: t.round, fallback: t.fair.log.filter((e) => e.fallback).length };
+      const pr = this._fairPrior;
+      const fallback = t.fair.log.filter((e) => e.fallback).length;
+      this.fairCheck = pr
+        ? { ...r, ok: r.ok && pr.ok, checked: r.checked + pr.checked, bad: [...pr.bad, ...r.bad], n, round: t.round, gen, fallback: fallback + pr.fallback }
+        : { ...r, n, round: t.round, gen, fallback };
     }
   }
 
@@ -839,6 +879,8 @@ export class TableSession {
         this.link.send({ t: 'hb', epoch: t.epoch, seq: t.seq, round: t.round, here });
       }
       // Mitspieler liefert kein Kettenglied (weg, alte Version) → nach fairWait Host-Zufall, als ungeprüft markiert
+      // (_needSince fehlt nach Neuladen oder Übernahme mit gespeichertem fairNeed → ab jetzt zählen)
+      if (t.fairNeed) this._needSince ||= now;
       if (t.fairNeed && t.status === 'play' && now - (this._needSince || now) > TIMING.fairWait) {
         this._note('Zufall ohne Mitspieler-Glied (Zeitüberschreitung)');
         this._resolveChance(true);
@@ -883,9 +925,11 @@ export class TableSession {
     this.table = clone(base);
     this.table.hostPid = this.me.pid;
     this.table.epoch++;
+    this._restartFair();
     this._note('Schiedsrichter-Rolle übernommen (Host fehlt)');
     this._emit('toast', 'Gastgeber ist weg – du leitest jetzt den Tisch');
     this._commit({ kind: 'takeover' });
+    this._maybeBot();
   }
 
   // Verbindungsstatus aus Sicht dieses Spielers (für die Anzeige)
