@@ -985,7 +985,8 @@ await ok("Gutachten P2-10: Hold'em – Direktweg weg, aber Spieler meldet sich n
     assert.equal(h.table.nmoves, n, 'kein automatischer Zug, solange sie sich meldet');
     clearInterval(talk);                               // jetzt stumm
     await until(() => h.table.nmoves > n, 3000, 'automatischer Zug, wenn stumm');
-    assert.match(h.table.last.d, /nicht da/);
+    // (danach zieht ggf. sofort der Computer → im Verlauf suchen)
+    assert.ok(h.table.hist.slice(-(h.table.nmoves - n)).some((e) => e.by === aSeat() && /nicht da/.test(e.d)), JSON.stringify(h.table.hist.slice(-3)));
     noErrors('Fehler');
     h.close(); a.close();
   } finally { Object.assign(TIMING, keep); }

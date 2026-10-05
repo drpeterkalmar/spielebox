@@ -8,7 +8,7 @@ import { parseWords, randomWords, formatWords, findWord } from './words.js';
 import * as store from './store.js';
 import { chooseBotMove, quickMove, warmUp } from './botclient.js';
 import { gameOf, GAME_LIST, LIVE, seatCount } from './games/registry.js';
-import { h, sheet } from './ui/dom.js';
+import { h, sheet, toast } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
 import { DEKO, readDeko, applyDeko } from './ui/deko.js';
 import { fxState, freeze } from './ui/fx.js';
@@ -25,6 +25,7 @@ let cur = null;        // { session, screen, link, words, roomId, mode }
 let lobby = null;
 let routed = null;
 let trainer = null;     // Schach-Trainer (erst beim Öffnen geladen)
+const mounted = new Set();   // alle je gezeigten Tisch-Sitzungen (Debug: __box.liveSessions)
 
 // Wörter vereinheitlichen: Reihenfolge egal (sortiert → gleicher Raum)
 const canon = (ws) => ws.map((w) => findWord(w)).sort();
@@ -47,6 +48,27 @@ function setHash(h, push = true) {
   routed = location.hash;
 }
 
+// Navigation nacheinander: ein Wechsel (Lobby, Tisch, Trainer) beginnt erst, wenn der vorige fertig ist – sonst
+// entstehen bei schnellen Taps oder hashchange während des Öffnens zwei Sitzungen (Gutachten P2-8).
+let nav = Promise.resolve();
+function queued(fn) {
+  return (...args) => {
+    const run = nav.then(() => fn(...args));
+    nav = run.catch(() => {});
+    return run;
+  };
+}
+
+// Öffnen gescheitert: Meldung und zurück zur Lobby
+async function navFailed(e) {
+  console.warn('Navigation:', e);   // behandelt (Meldung + Lobby) → Warnung, kein Fehler
+  toast('Konnte nicht öffnen: ' + (e && e.message || e));
+  try {
+    setHash('', false);
+    await showLobby();
+  } catch (e2) { console.error(e2); }
+}
+
 async function leaveTable() {
   if (!cur) return;
   const c = cur;
@@ -61,31 +83,31 @@ function leaveTrainer() {
   if (trainer) { trainer.destroy(); trainer = null; }
 }
 
-async function showLobby(prefill) {
+const showLobby = queued(async (prefill) => {
   await leaveTable();
   leaveTrainer();
   // neue App-Version ist schon aktiv (Service-Worker): jetzt, zwischen zwei Partien, neu laden
   if (window.__updateReady) { location.reload(); return; }
   document.body.dataset.screen = 'lobby';
-  lobby = renderLobby(root, { onCreate, onLocal, onJoin, onResume, onTrainer: () => { setHash('trainer'); openTrainer('trainer'); } });
+  lobby = renderLobby(root, { onCreate, onLocal, onJoin, onResume, onTrainer: () => { setHash('trainer'); openTrainer('trainer').catch(navFailed); } });
   if (prefill) lobby.prefill(prefill);
-}
+});
 
 function goLobby() {
   setHash('', true);
-  showLobby();
+  showLobby().catch(navFailed);
 }
 
 async function onCreate(game, opts, color) {
   const words = canon(randomWords(3));
-  await openOnline({ words, want: 'play', create: { game, opts, color } });
+  await openOnline({ words, want: 'play', create: { game, opts, color } }).catch(navFailed);
 }
 
 async function onJoin(words, want) {
-  await openOnline({ words: canon(words), want });
+  await openOnline({ words: canon(words), want }).catch(navFailed);
 }
 
-async function openOnline({ words, want, create, resume = false }) {
+const openOnline = queued(async ({ words, want, create, resume = false }) => {
   await leaveTable();
   const roomId = await roomIdFor(words);
   const saved = store.loadTable(roomId);
@@ -104,7 +126,7 @@ async function openOnline({ words, want, create, resume = false }) {
   mount(session, { words, roomId, link });
   session.start();
   await link.start();
-}
+});
 
 function onLocal(mode, game, opts, color, level = 2) {
   const m = me();
@@ -122,17 +144,17 @@ function onLocal(mode, game, opts, color, level = 2) {
   }
   table.status = 'play';
   store.saveLocal(mode, table);
-  openLocal(mode, table);
+  openLocal(mode, table).catch(navFailed);
 }
 
-async function openLocal(mode, table) {
+const openLocal = queued(async (mode, table) => {
   await leaveTable();
   leaveTrainer();
   const session = new TableSession({ mode, me: me(), table, bot: { choose: chooseBotMove }, save: (t) => store.saveLocal(mode, t) });
   setHash(mode === 'bot' ? 'solo' : 'zuzweit');
   mount(session, {});
   session.start();
-}
+});
 
 // Denkzeit des Computers aus der Einstellung „Computer-Tempo“ (am Gastgeber-Gerät), plus Zeit zum Ausspielen des
 // vorigen Zugs; ein fertiger Stich bleibt liegen (tempo.js)
@@ -152,6 +174,8 @@ function mount(session, { words = null, roomId = null, link = null }) {
     onNewLocal: () => newLocal()
   });
   cur = { session, screen, link, words, roomId, mode: session.mode };
+  for (const s of mounted) if (s.closed) mounted.delete(s);
+  mounted.add(session);
 }
 
 // Spiel-Auswahl (nach Partieende): online am selben Tisch, lokal neu
@@ -180,7 +204,7 @@ function newLocal() {
 }
 
 // Schach-Trainer: eigener Bereich unter #trainer…, Modul wird erst hier geladen
-async function openTrainer(path) {
+const openTrainer = queued(async (path) => {
   await leaveTable();
   const mod = await import('./trainer/ui.js');
   if (!trainer) {
@@ -199,20 +223,28 @@ async function openTrainer(path) {
         table.status = 'play';
         leaveTrainer();
         store.saveLocal('bot', table);
-        openLocal('bot', table);
+        openLocal('bot', table).catch(navFailed);
       }
     });
   }
   trainer.show(path);
-}
+});
 
 async function onResume(item) {
-  if (item.kind === 'online') return openOnline({ words: item.e.words, want: 'play', resume: true });
+  if (item.kind === 'online') return openOnline({ words: item.e.words, want: 'play', resume: true }).catch(navFailed);
   const t = store.loadLocal(item.kind);
-  if (t) openLocal(item.kind, t);
+  if (t) openLocal(item.kind, t).catch(navFailed);
 }
 
 async function route() {
+  try {
+    await routeTo();
+  } catch (e) {
+    await navFailed(e);
+  }
+}
+
+async function routeTo() {
   if (routed === location.hash) return;
   routed = location.hash;
   const hash = decodeURIComponent(location.hash.slice(1));
@@ -308,6 +340,7 @@ window.__box = {
   netlog: () => netlog.slice(-80),
   sessionLog: () => (cur ? cur.session.log.slice(-80) : []),
   errors: () => window.__errors || [],
+  liveSessions: () => [...mounted].filter((s) => !s.closed).length,
   trainer: () => trainer,
   openTrainer: (p = 'trainer') => { setHash(p); return openTrainer(p); },
   // Verzierungen (Deko-Stufe, Effekte)
