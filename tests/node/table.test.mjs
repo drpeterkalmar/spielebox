@@ -725,5 +725,169 @@ await ok("Hold'em: Zeitlimit checkt/foldet automatisch, abwesender Spieler ebens
   } finally { Object.assign(TIMING, save); }
 });
 
+// ---------- Netz-Szenarien aus dem Gutachten 2026-10-05 (P1-1, P1-2, P2-1, P2-2, P2-16) ----------
+// Ausnahmen in Nachrichten-Rückrufen (im Browser: unbehandelt, Tisch hängt) werden gesammelt statt den Lauf zu beenden.
+const uncaught = [];
+process.on('uncaughtException', (e) => { uncaught.push(String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')); });
+const noErrors = (what) => assert.equal(uncaught.length, 0, `${what}: ${uncaught.join(' ‖ ')}`);
+const bgBot = await import('../../src/games/backgammon/bot.js');
+const halmaE = gameOf('halma').engine;
+const ludoE = gameOf('ludo').engine;
+
+// Zug für den, der dran ist (Backgammon/Ludo: Würfeln bevorzugt), über dessen eigene Sitzung
+async function stepAny(all, eng, rng) {
+  const ref = all.find((s) => s.role === 'host');
+  const t = ref.table;
+  const turn = eng.currentPlayer(t.gs);
+  const p = turn === null ? null : t.seats[turn];
+  if (!p || p.bot) { await sleep(5); return false; }
+  const s = all.find((x) => x.me.pid === p.pid);
+  if (!s || s.pendingMove || s.table.seq !== t.seq) { await sleep(5); return false; }
+  const legal = eng.legalMoves(s.table.gs).filter((m) => m.type !== 'double');
+  if (!legal.length) { await sleep(5); return false; }
+  const m = legal.find((x) => x.type === 'roll') || pick(rng, legal);
+  const r = s.submitMove(m);
+  assert.ok(r.ok, 'Zug angenommen: ' + JSON.stringify(m) + ' ' + r.reason);
+  return true;
+}
+
+await ok('Gutachten P1-1: Backgammon, Host trennt → Gast übernimmt → beide ziehen, zwei Würfe, alle prüfen fair', async () => {
+  uncaught.length = 0;
+  const keep = { ...TIMING };
+  Object.assign(TIMING, { fairWait: 600 });
+  try {
+    const hub = new Hub(), hs = {};
+    let h = player(hub, 'H', 'Peter', { table: newTable({ game: 'backgammon', opts: { cube: false }, host: { pid: 'H', name: 'Peter' } }), store: hs });
+    const g = player(hub, 'G', 'Anna');
+    const w = player(hub, 'W', 'Oma', { want: 'watch' });
+    await until(() => g.table && g.table.status === 'play' && w.table && backgammon.currentPlayer(h.table.gs) !== null, 3000, 'Eröffnungswurf');
+    await sleep(60);
+    h.close(); h.link.disconnect();
+    await until(() => g.role === 'host', 3000, 'Gast übernimmt');
+    h = player(hub, 'H', 'Peter', { table: hs.t, store: hs });
+    await until(() => h.role === 'client' && h.table.epoch === g.table.epoch, 3000, 'alter Host ordnet sich unter');
+    const k0 = g.table.fair ? g.table.fair.log.filter((e) => e.kind === 'dice').length : 0;
+    const rng = mulberry32(13);
+    const all = [g, h];
+    for (let i = 0; i < 400; i++) {
+      noErrors('Fehler im Netz-Ablauf');
+      const rolls = g.table.fair ? g.table.fair.log.filter((e) => e.kind === 'dice' && !e.fallback).length - k0 : 0;
+      if (rolls >= 2 || g.table.status !== 'play') break;
+      await stepAny(all, backgammon, rng);
+      await sleep(10);
+    }
+    noErrors('Fehler im Netz-Ablauf');
+    await until(() => g.table.fair.log.filter((e) => !e.fallback).length >= k0 + 2, 3000, 'zwei geprüfte Würfe nach der Übernahme');
+    await until(() => h.table.seq === g.table.seq && w.table.seq === g.table.seq && !h.pendingMove, 3000, 'alle gleich');
+    assert.ok(same(g, h) && same(g, w), 'Stände gleich');
+    for (const x of [g, h, w]) {
+      await until(() => x.fairCheck && x.fairCheck.n === g.table.fair.log.length, 3000, 'Prüfung bei ' + x.me.name);
+      assert.equal(x.fairCheck.ok, true, x.me.name + ' ' + JSON.stringify(x.fairCheck));
+    }
+    h.close(); g.close(); w.close();
+  } finally { Object.assign(TIMING, keep); }
+});
+
+await ok('Gutachten P1-2: Halma zu dritt, Host trennt → nach 2 s genau ein Host, beide Tische gleich', async () => {
+  uncaught.length = 0;
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'halma', opts: { players: 3 }, host: { pid: 'H', name: 'Peter' } }) });
+  const g1 = player(hub, 'G1', 'Anna');
+  const g2 = player(hub, 'G2', 'Bert');
+  await until(() => g1.table && g1.table.status === 'play' && g2.table && g2.table.status === 'play', 3000, 'Partie läuft');
+  await sleep(60);
+  h.close(); h.link.disconnect();
+  await until(() => g1.role === 'host' || g2.role === 'host', 3000, 'jemand übernimmt');
+  await sleep(2000);
+  assert.equal([g1, g2].filter((s) => s.role === 'host').length, 1, `Hosts: G1 ${g1.role}, G2 ${g2.role}`);
+  assert.equal(g1.table.hostPid, g2.table.hostPid);
+  assert.ok(same(g1, g2), 'Tische gleich');
+  // Zug geht beim einen Host an
+  const turn = halmaE.currentPlayer(g1.table.gs);
+  const who = [g1, g2].find((s) => s.mySeat === turn);
+  if (who) {
+    const n = g1.table.nmoves;
+    assert.ok(who.submitMove(halmaE.legalMoves(who.table.gs)[0]).ok);
+    await until(() => g1.table.nmoves === n + 1 && g2.table.nmoves === n + 1 && !who.pendingMove, 3000, 'Zug nach Übernahme');
+  }
+  noErrors('Fehler');
+  g1.close(); g2.close();
+});
+
+await ok('Gutachten P2-1: Ludo zu dritt, Gast gibt auf → Computer übernimmt → nach 6 Würfen fair bei Host und G2', async () => {
+  uncaught.length = 0;
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'ludo', opts: { players: 3 }, host: { pid: 'H', name: 'Peter' } }) });
+  const g1 = player(hub, 'G1', 'Anna');
+  const g2 = player(hub, 'G2', 'Bert');
+  await until(() => g1.table && g1.table.status === 'play' && g2.table && g2.table.status === 'play', 3000, 'Partie läuft');
+  const all = [h, g1, g2];
+  const rng = mulberry32(17);
+  for (let i = 0; i < 400 && h.table.fair.k < 4; i++) await stepAny(all, ludoE, rng);
+  await until(() => g2.fairCheck && g2.fairCheck.checked > 0, 3000, 'erste Würfe geprüft');
+  assert.ok(g2.fairCheck.ok);
+  await until(() => !g1.pendingMove && g1.table.seq === h.table.seq, 3000, 'G1 ruhig');
+  g1.act('resign');
+  await until(() => h.table.seats.some((x) => x && x.bot), 3000, 'Computer übernimmt');
+  const done = () => h.table.fair.log.filter((e) => !e.fallback).length;
+  const before = done();
+  for (let i = 0; i < 2000 && done() < before + 6 && h.table.status === 'play'; i++) await stepAny([h, g2], ludoE, rng);
+  assert.ok(done() >= before + 6 || h.table.status !== 'play', 'sechs Würfe nach der Aufgabe');
+  await until(() => g2.table.seq === h.table.seq && g2.fairCheck && g2.fairCheck.n === g2.table.fair.log.length, 3000, 'G2 aktuell');
+  assert.equal(h.fairCheck.ok, true, 'Host ' + JSON.stringify(h.fairCheck));
+  assert.equal(g2.fairCheck.ok, true, 'G2 ' + JSON.stringify(g2.fairCheck));
+  noErrors('Fehler');
+  h.close(); g1.close(); g2.close();
+});
+
+await ok('Gutachten P2-2: Host committet, während ein Gastzug unterwegs ist → Zug kommt an (oder Meldung), nie still weg', async () => {
+  uncaught.length = 0;
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'muehle', host: { pid: 'H', name: 'Peter' } }) });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play');
+  h.submitMove({ to: 0 });
+  await until(() => g.table.nmoves === 1 && g.table.seq === h.table.seq);
+  const toasts = [];
+  g.on('toast', (x) => toasts.push(x));
+  assert.ok(g.submitMove({ to: 23 }).ok);
+  h._commit({ kind: 'fair' });   // Host ändert gleichzeitig etwas anderes (wie _hostOnFair eines dritten Spielers)
+  await until(() => (h.table.nmoves === 2 && !g.pendingMove && g.table.seq === h.table.seq) || toasts.length > 0, 3000, 'Zug angekommen oder gemeldet');
+  if (!toasts.length) {
+    assert.deepEqual(h.table.last.m, { to: 23 });
+    assert.ok(same(h, g));
+  }
+  // sicherheitshalber: nicht beides verschluckt
+  assert.ok(h.table.nmoves === 2 || toasts.length > 0);
+  noErrors('Fehler');
+  h.close(); g.close();
+});
+
+await ok('Gutachten P2-16: Übernahme, während ein Wurf aussteht → spätestens nach fairWait geht es weiter', async () => {
+  uncaught.length = 0;
+  const keep = { ...TIMING };
+  Object.assign(TIMING, { fairWait: 300 });
+  try {
+    const hub = new Hub();
+    const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'backgammon', opts: { cube: false }, host: { pid: 'H', name: 'Peter' } }) });
+    // Host bekommt die Glieder des Gastes nicht → Eröffnungswurf bleibt offen (Host-fairWait ist hier egal: Host geht gleich)
+    const orig = h.link.onMessage;
+    h.link.onMessage = (m, f) => { if (m.t !== 'fair') orig(m, f); };
+    TIMING.fairWait = 60000;
+    const g = player(hub, 'G', 'Anna');
+    const w = player(hub, 'W', 'Oma', { want: 'watch' });
+    await until(() => g.table && g.table.status === 'play' && g.table.fairNeed && w.table, 3000, 'Wurf steht aus');
+    await sleep(100);
+    assert.equal(backgammon.currentPlayer(g.table.gs), null, 'Eröffnung offen');
+    TIMING.fairWait = 300;
+    h.close(); h.link.disconnect();
+    await until(() => g.role === 'host', 3000, 'Gast übernimmt');
+    await until(() => backgammon.currentPlayer(g.table.gs) !== null, TIMING.fairWait + 2000, 'Wurf nach fairWait');
+    await until(() => w.table.seq === g.table.seq, 2000, 'Zuschauer folgt');
+    noErrors('Fehler');
+    g.close(); w.close();
+  } finally { Object.assign(TIMING, keep); }
+});
+
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
 process.exit(fails ? 1 : 0);
