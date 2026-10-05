@@ -6,6 +6,9 @@ import { SUIT_NAMES, canDeclare, cardName } from './engine.js';
 import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
 import { deCard, backCard, ensureCardDefs, CARD_W, CARD_H } from '../../ui/cards.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, feltRect } from '../../ui/material.js';
+import { confetti, stars } from '../../ui/fx.js';
 
 const SIZE = 1000;
 const HAND_Y = 812, HAND_W = 182, HAND_GAP = 196;
@@ -19,9 +22,6 @@ export function createBoard(host, { onMove, onHint, onStiche }) {
   ensureCardDefs();
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-cards board-schnapsen', role: 'img', 'aria-label': 'Schnapsen-Tisch' });
   const felt = s('g');
-  felt.append(
-    s('rect', { width: SIZE, height: SIZE, rx: 26, fill: 'url(#sb-wood-frame)' }),
-    s('rect', { x: 14, y: 14, width: SIZE - 28, height: SIZE - 28, rx: 18, class: 'felt' }));
   const gTalon = s('g', { class: 'talon' });
   const gTrick = s('g', { class: 'trick' });
   const gOpp = s('g', { class: 'opp' });
@@ -30,6 +30,10 @@ export function createBoard(host, { onMove, onHint, onStiche }) {
   const gPiles = s('g', { class: 'piles' });
   svg.append(felt, gTalon, gOpp, gPiles, gTrick, gHand, gInfo);
   host.appendChild(svg);
+  // Deko: Tisch (Holzrand, Filz mit Licht und Ziernaht) in der statischen Ebene darunter
+  const L = boardLayers(svg, host);
+  if (L) { const b = L.under.appendChild(s('g')); woodFrame(b, 0, 0, SIZE, SIZE, 26); feltRect(b, 14, 14, SIZE - 28, SIZE - 28, 18); }
+  else felt.append(s('rect', { width: SIZE, height: SIZE, rx: 26, fill: 'url(#sb-wood-frame)' }), s('rect', { x: 14, y: 14, width: SIZE - 28, height: SIZE - 28, rx: 18, class: 'felt' }));
 
   let table = null, gs = null, me = 0, legal = null, sel = null, hint = '', seated = true;
   let handPos = [];   // [{card, x, y}]
@@ -226,6 +230,16 @@ export function createBoard(host, { onMove, onHint, onStiche }) {
       legal = ctx.legal && ctx.legal.length ? ctx.legal : null;
       if (!legal || legal !== prevLegal) sel = null;
       render();
+      // Deko: eigenes Spiel gewonnen (Ergebnis-Karte erscheint) → Sterne und ein wenig Konfetti
+      const a0 = ctx.anim || OWN;
+      if (info.kind === 'move' && a0.slide > 0 && gs.phase === 'spielende' && gs.spiel && gs.spiel.winner === me && seated && info.prevGs && info.prevGs.phase !== 'spielende') {
+        setTimeout(() => {
+          if (!svg.isConnected) return;
+          const r = svg.getBoundingClientRect();
+          stars([r.left + r.width / 2, r.top + r.height * 0.35], { count: 9, spread: 6, size: 24 });
+          confetti({ rect: { left: r.left, top: r.top, width: r.width, height: r.height }, count: 45, life: 2200 });
+        }, a0.slide + 150);
+      }
       // Animation: gespielte Karte fliegt aus der Hand in die Mitte (Gegner: langsam von seiner Hand)
       if (info.kind === 'move' && info.move && info.move.type === 'play') {
         const a = ctx.anim || OWN;

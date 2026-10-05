@@ -6,6 +6,9 @@
 import { ROWS, FLEETS, cells, validFleet, randomFleet, grid, cellName, revealedShips, shipName } from './engine.js';
 import { s, ensureDefs, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame } from '../../ui/material.js';
+import * as FXS from '../../ui/fxsvg.js';
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -13,8 +16,21 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   ensureDefs();
   const svg = s('svg', { class: 'board board-schiffe', role: 'img', 'aria-label': 'Schiffe versenken' });
   const gBig = s('g'), gSmall = s('g'), gInfo = s('g'), gFx = s('g');
-  svg.append(gBig, gSmall, gInfo, gFx);
+  const gFx2 = s('g', { class: 'fx' });
+  svg.append(gBig, gSmall, gInfo, gFx, gFx2);
   host.appendChild(svg);
+  // Deko: Meere (Rahmen, Wasser, Wellen, Gitter, Beschriftung) in der statischen Ebene darunter
+  const L = boardLayers(svg, host);
+  const uBig = L ? L.under.appendChild(s('g')) : null, uSmall = L ? L.under.appendChild(s('g')) : null;
+  let seaKey = '';
+  function staticSeas(small) {
+    const key = `${portrait}|${small}`;
+    if (!L || key === seaKey) return;
+    seaKey = key;
+    uBig.textContent = ''; uSmall.textContent = '';
+    sea(uBig, BIG, true, true);
+    if (small) sea(uSmall, SMALL, !portrait, true);
+  }
 
   let portrait = null, gs = null, me = 0, seated = true, legal = null, aim = null, hint = '', names = ['Du', 'Gegner'];
   let ships = null, pickK = null, shipsKey = '';
@@ -37,10 +53,18 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   const shooting = () => !!(legal && legal.some((m) => m.type === 'shot'));
   const opp = () => 1 - me;
 
-  function sea(g, G, labels = true) {
+  function sea(g, G, labels = true, deko = false) {
     const n = 10 * G.cell;
-    g.append(s('rect', { x: G.x - 6, y: G.y - 6, width: n + 12, height: n + 12, rx: 12, class: 'sv-frame' }),
-      s('rect', { x: G.x, y: G.y, width: n, height: n, class: 'sv-sea' }));
+    if (deko) {
+      woodFrame(g, G.x - 7, G.y - 7, n + 14, n + 14, 12, { shadow: G === BIG });
+      g.append(s('rect', { x: G.x, y: G.y, width: n, height: n, class: 'sv-sea' }),
+        s('rect', { x: G.x, y: G.y, width: n, height: n, fill: 'url(#dk-waves)' }),
+        s('rect', { x: G.x, y: G.y, width: n, height: n, fill: 'url(#dk-water)' }),
+        s('rect', { x: G.x, y: G.y, width: n, height: n, fill: 'url(#dk-vig)' }));
+    } else {
+      g.append(s('rect', { x: G.x - 6, y: G.y - 6, width: n + 12, height: n + 12, rx: 12, class: 'sv-frame' }),
+        s('rect', { x: G.x, y: G.y, width: n, height: n, class: 'sv-sea' }));
+    }
     for (let k = 1; k < 10; k++) {
       g.append(s('line', { x1: G.x + k * G.cell, y1: G.y, x2: G.x + k * G.cell, y2: G.y + n, class: 'sv-line' }),
         s('line', { x1: G.x, y1: G.y + k * G.cell, x2: G.x + n, y2: G.y + k * G.cell, class: 'sv-line' }));
@@ -55,7 +79,19 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     const [x0, y0] = cxy(G, sh.r * 10 + sh.c);
     const pad = G.cell * 0.14;
     const w = (sh.dir === 'h' ? sh.len : 1) * G.cell - 2 * pad, h2 = (sh.dir === 'v' ? sh.len : 1) * G.cell - 2 * pad;
-    g.append(s('rect', { x: x0 - G.cell / 2 + pad, y: y0 - G.cell / 2 + pad, width: w, height: h2, rx: Math.min(w, h2) / 2, class: 'sv-ship ' + cls }));
+    const x = x0 - G.cell / 2 + pad, y = y0 - G.cell / 2 + pad, r = Math.min(w, h2) / 2;
+    if (L) g.append(s('rect', { x: x + 3, y: y + 5, width: w, height: h2, rx: r, fill: 'rgba(0,20,40,.35)' }));
+    g.append(s('rect', { x, y, width: w, height: h2, rx: r, class: 'sv-ship ' + cls }));
+    if (!L || /bad|pick/.test(cls)) return;
+    // Deko: Stahl-Glanz, Deck-Linie und Aufbauten (je Feld ein Turm, nicht an den Enden)
+    g.append(s('rect', { x, y, width: w, height: h2, rx: r, fill: 'url(#dk-steel)' }),
+      s('rect', { x: x + r * 0.45, y: y + r * 0.45, width: w - r * 0.9, height: h2 - r * 0.9, rx: r * 0.55, fill: 'none', stroke: 'rgba(30,40,50,.28)', 'stroke-width': Math.max(1, G.cell * 0.025) }));
+    for (let k = 1; k < sh.len - 1 || (sh.len === 2 && k === 1); k++) {
+      const t = sh.len === 2 ? 0.5 : k / (sh.len - 1);
+      const tx = sh.dir === 'h' ? x + r + (w - 2 * r) * t : x + w / 2, ty = sh.dir === 'v' ? y + r + (h2 - 2 * r) * t : y + h2 / 2;
+      g.append(s('circle', { cx: tx, cy: ty, r: G.cell * 0.13, fill: cls.includes('sunk') ? '#3e302b' : '#8d99a3', stroke: 'rgba(20,30,40,.5)', 'stroke-width': Math.max(1, G.cell * 0.02) }));
+      if (sh.len === 2) break;
+    }
   }
 
   function marks(g, G, cellsInfo) {
@@ -63,9 +99,15 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       const [x, y] = cxy(G, i);
       const r = G.cell * 0.3;
       if (c.shot === 'hit') {
-        g.append(s('circle', { cx: x, cy: y, r: r * 1.1, class: 'sv-hit' + (c.sunk ? ' sunk' : '') }),
-          s('path', { d: `M ${x - r * 0.6} ${y - r * 0.6} L ${x + r * 0.6} ${y + r * 0.6} M ${x + r * 0.6} ${y - r * 0.6} L ${x - r * 0.6} ${y + r * 0.6}`, class: 'sv-x' }));
-      } else if (c.shot === 'miss') g.append(s('circle', { cx: x, cy: y, r: r * 0.42, class: 'sv-miss' }));
+        // Deko: Glut (heller Kern, roter Rand) statt flacher Scheibe
+        if (L && !c.sunk) g.append(s('circle', { cx: x, cy: y, r: r * 1.5, fill: 'url(#dk-glow)' }));
+        g.append(s('circle', { cx: x, cy: y, r: r * 1.1, class: 'sv-hit' + (c.sunk ? ' sunk' : '') }));
+        if (L) g.append(s('circle', { cx: x, cy: y, r: r * 1.05, fill: 'url(#dk-ball)' }));
+        g.append(s('path', { d: `M ${x - r * 0.6} ${y - r * 0.6} L ${x + r * 0.6} ${y + r * 0.6} M ${x + r * 0.6} ${y - r * 0.6} L ${x - r * 0.6} ${y + r * 0.6}`, class: 'sv-x' }));
+      } else if (c.shot === 'miss') {
+        if (L) g.append(s('circle', { cx: x, cy: y, r: r * 0.85, fill: 'none', stroke: 'rgba(255,255,255,.35)', 'stroke-width': Math.max(1, G.cell * 0.03) }));
+        g.append(s('circle', { cx: x, cy: y, r: r * 0.42, class: 'sv-miss' }));
+      }
       else if (c.ship === false && !c.own) g.append(s('circle', { cx: x, cy: y, r: r * 0.16, class: 'sv-water' }));
     });
   }
@@ -73,7 +115,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   // ein Meer zeichnen: owner = wessen Flotte, G = Lage
   function drawSea(g, G, owner, big) {
     g.textContent = '';
-    sea(g, G, big || !portrait);
+    if (!L) sea(g, G, big || !portrait);
     if (!gs) return;
     const info = grid(gs, owner, seated ? me : null);
     const fleet = gs.fleets[owner];
@@ -91,7 +133,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   // Aufstellen: eigene Flotte groß zum Verschieben
   function drawEditor() {
     gBig.textContent = '';
-    sea(gBig, BIG, true);
+    if (!L) sea(gBig, BIG, true);
     const ok = validFleet(gs.opts, ships);
     const bad = new Set();
     if (!ok) {
@@ -138,6 +180,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   function render() {
     layout();
     gFx.textContent = '';
+    staticSeas(!placing());
     if (placing()) {
       const key = `${gs.opts.flotte}|${gs.opts.beruehren}|${me}`;
       if (!ships || shipsKey !== key) { ships = randomFleet(gs.opts, Math.random); shipsKey = key; pickK = null; }
@@ -175,6 +218,9 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     gFx.append(ring);
     const an = ring.animate([{ r: G.cell * 0.15, opacity: 1 }, { r: G.cell * 1.1, opacity: 0 }], { duration: a.slide + 200, easing: 'ease-out', fill: 'forwards' });
     if (an) an.onfinish = () => ring.remove();
+    // Deko: Explosion bzw. Spritzer (Partikel), dazu das große Wort wie bisher
+    if (hit) FXS.boom(gFx2, x, y, G.cell * 0.34, { big: sunk });
+    else FXS.splash(gFx2, x, y, G.cell * 0.34);
     const word = sunk ? 'Versenkt!' : hit ? 'Treffer!' : 'Wasser';
     const tx = onBig ? BIG.x + 5 * BIG.cell : SMALL.x + 5 * SMALL.cell, ty = onBig ? BIG.y + 5 * BIG.cell : SMALL.y + 5 * SMALL.cell;
     const t = s('text', { x: tx, y: ty + 30, class: 'sv-word' + (hit ? ' hit' : '') + (onBig ? '' : ' small'), text: word });

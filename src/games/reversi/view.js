@@ -3,6 +3,9 @@
 // Rahmen schmal, damit jedes Feld auch am Handy hochkant ≥ 48 px bleibt; Koordinaten klein in den Randfeldern.
 import { s, ensureDefs, piece, place, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN, reversiTimes } from '../../tempo.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, feltRect } from '../../ui/material.js';
+import { hopWave } from '../../ui/sieg.js';
 
 const Q = 100, F = 8, N = 8, R = 41;
 const SIZE = N * Q + 2 * F;
@@ -14,22 +17,34 @@ export function createBoard(host, { onMove, onHint }) {
   const gBoard = s('g'), gLast = s('g', { class: 'last' }), gPieces = s('g', { class: 'pieces' }), gFx = s('g'), gHints = s('g', { class: 'hints' });
   svg.append(gBoard, gLast, gPieces, gFx, gHints);
   host.appendChild(svg);
+  const L = boardLayers(svg, host);
+  const gB = L ? L.under.appendChild(s('g')) : gBoard;
 
   let gs = null, legal = null, hint = '';
   const setHint = (t) => { if (t !== hint) { hint = t; onHint && onHint(t); } };
   const center = (i) => [F + (i % N) * Q + Q / 2, F + Math.floor(i / N) * Q + Q / 2];
 
   (function drawBoard() {
-    gBoard.append(s('rect', { width: SIZE, height: SIZE, rx: 14, fill: 'url(#sb-wood-frame)' }),
-      s('rect', { x: F, y: F, width: N * Q, height: N * Q, class: 'rv-felt' }));
+    if (L) {
+      // Deko: Holzrahmen mit Schliff, Filz mit Licht, Linien mit heller Kante (eingeprägt)
+      woodFrame(gB, 0, 0, SIZE, SIZE, 14);
+      feltRect(gB, F, F, N * Q, N * Q, 4, { cls: 'rv-felt', stitch: false });
+      for (let k = 1; k < N; k++) {
+        gB.append(s('line', { x1: F + k * Q + 1.5, y1: F, x2: F + k * Q + 1.5, y2: F + N * Q, stroke: 'rgba(170,230,190,.16)', 'stroke-width': 2 }),
+          s('line', { x1: F, y1: F + k * Q + 1.5, x2: F + N * Q, y2: F + k * Q + 1.5, stroke: 'rgba(170,230,190,.16)', 'stroke-width': 2 }));
+      }
+    } else {
+      gB.append(s('rect', { width: SIZE, height: SIZE, rx: 14, fill: 'url(#sb-wood-frame)' }),
+        s('rect', { x: F, y: F, width: N * Q, height: N * Q, class: 'rv-felt' }));
+    }
     for (let k = 1; k < N; k++) {
-      gBoard.append(s('line', { x1: F + k * Q, y1: F, x2: F + k * Q, y2: F + N * Q, class: 'rv-line' }),
+      gB.append(s('line', { x1: F + k * Q, y1: F, x2: F + k * Q, y2: F + N * Q, class: 'rv-line' }),
         s('line', { x1: F, y1: F + k * Q, x2: F + N * Q, y2: F + k * Q, class: 'rv-line' }));
     }
-    for (const [a, b] of [[2, 2], [6, 2], [2, 6], [6, 6]]) gBoard.append(s('circle', { cx: F + a * Q, cy: F + b * Q, r: 8, class: 'rv-dot' }));
+    for (const [a, b] of [[2, 2], [6, 2], [2, 6], [6, 6]]) gB.append(s('circle', { cx: F + a * Q, cy: F + b * Q, r: 8, class: 'rv-dot' }));
     for (let k = 0; k < N; k++) {
-      gBoard.append(s('text', { x: F + k * Q + 8, y: F + N * Q - 8, class: 'rv-coord', text: String.fromCharCode(97 + k) }));
-      gBoard.append(s('text', { x: F + N * Q - 8, y: F + k * Q + 24, class: 'rv-coord end', text: String(k + 1) }));
+      gB.append(s('text', { x: F + k * Q + 8, y: F + N * Q - 8, class: 'rv-coord', text: String.fromCharCode(97 + k) }));
+      gB.append(s('text', { x: F + N * Q - 8, y: F + k * Q + 24, class: 'rv-coord end', text: String(k + 1) }));
     }
   })();
 
@@ -113,6 +128,12 @@ export function createBoard(host, { onMove, onHint }) {
       return { minTargetPx: Q * scale, boardPx: SIZE * scale };
     },
     tap: tapAt,
+    // Deko: Sieg – die Steine des Gewinners hüpfen als Welle (von der Mitte nach außen)
+    celebrate({ winner }) {
+      const c = F + 4 * Q;
+      const els = [...gPieces.querySelectorAll(winner === 0 ? '.pc-b' : '.pc-w')].sort((a, b) => Math.hypot(a.dataset.x - c, a.dataset.y - c) - Math.hypot(b.dataset.x - c, b.dataset.y - c));
+      hopWave(els, { step: 28, up: 1.15 });
+    },
     destroy() { svg.remove(); }
   };
 }

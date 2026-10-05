@@ -15,6 +15,9 @@ import { gameUi } from './gameui.js';
 import { evaluateBoard } from '../botclient.js';
 import { EVAL } from '../evalpos.js';
 import * as store from '../store.js';
+import { onDeko } from './deko.js';
+import { clear as clearFx } from './fx.js';
+import { celebrate } from './sieg.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -424,6 +427,12 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const st = animBy !== null && animBy !== undefined && t.status === 'play' ? `${nameOf(t, animBy)} ${animVerb} …` : statusText(t);
     statusTextEl.textContent = st;
     if (t.status === 'over' && shownStatus !== 'over') addEvent(st);
+    // Deko: Sieg-Animation, wenn die Partie gerade hier zu Ende gespielt wurde (nicht nach dem Neuladen)
+    if (t.status === 'over' && shownStatus === 'play' && info.kind === 'move' && dur > 0) {
+      const w = t.result && t.result.winner;
+      // erst nach dem Nachzeichnen am Ende des Zugs (sonst ersetzt das Brett die hüpfenden Steine)
+      celebrate({ t, view, wrap: boardWrap, game: t.game, delay: dur + 120, mine: w !== null && w !== undefined && (mode === 'hotseat' || w === session.mySeat) });
+    }
     shownStatus = t.status;
     renderFair(t);
     requestEval(t);
@@ -671,6 +680,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const offNet = session.on('net', () => { renderStatusPill(); if (session.table && lastTable) renderPlayers(session.table); if (!session.table) renderOverlay(null); });
   const offToast = session.on('toast', (text) => toast(text));
   const offToastLog = onToast((text) => addEvent(text));
+  // Optik umgestellt (Einstellungen): Brett neu aufbauen
+  const offDeko = onDeko(() => { if (view) { view.destroy(); view = null; viewGame = null; } render({ kind: 'state' }); });
   render({ kind: 'start' });
 
   return {
@@ -683,7 +694,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     banner: () => (banner ? banner.text : null),
     destroy() {
       clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); removeEventListener('resize', onResize);
-      offChange(); offNet(); offToast(); offToastLog(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
+      offChange(); offNet(); offToast(); offToastLog(); offDeko(); clearFx(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
     }
   };
 }

@@ -1,4 +1,6 @@
 // SVG-Helfer für die Bretter: Holzmuster (Poly Haven, CC0), Stein-Verläufe, Schatten, Krone, Animation.
+// Mit Deko (src/ui/deko.js): Steine mit Glanzlicht und weichem Schatten, Krone mit Goldverlauf, Züge mit leichtem Anheben.
+import { DEKO, whenNoise } from './deko.js';
 export const NS = 'http://www.w3.org/2000/svg';
 
 export function s(tag, attrs = {}, ...children) {
@@ -32,10 +34,74 @@ export function ensureDefs() {
       radial('sb-glow', [['0%', '#ffe08a', 0.9], ['100%', '#ffe08a', 0]], '50%', '50%', '50%')
     ));
   document.body.prepend(svg);
+  ensureDekoDefs();
+}
+
+// Deko-Verläufe (einmal ins Dokument): Licht kommt immer von links oben
+export function ensureDekoDefs() {
+  if (!DEKO.on || document.getElementById('dk-st-w')) return;
+  const defs = document.querySelector('#sb-defs defs');
+  if (!defs) return;
+  const stops = (list) => list.map(([o, c, a = 1]) => s('stop', { offset: o, 'stop-color': c, 'stop-opacity': a }));
+  const radial = (id, list, a = {}) => s('radialGradient', { id, cx: '50%', cy: '50%', r: '50%', ...a }, ...stops(list));
+  const linear = (id, list, a = {}) => s('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1, ...a }, ...stops(list));
+  defs.append(
+    // Steine: Körper mit Brennpunkt links oben, Glanzlicht, Kontaktschatten
+    radial('dk-st-w', [['0%', '#fffef8'], ['40%', '#f2e6ce'], ['78%', '#d3bc93'], ['100%', '#9c8259']], { cx: '42%', cy: '38%', r: '66%', fx: '34%', fy: '28%' }),
+    radial('dk-st-b', [['0%', '#7d6858'], ['30%', '#3d2d22'], ['78%', '#160d08'], ['100%', '#050302']], { cx: '42%', cy: '38%', r: '66%', fx: '34%', fy: '28%' }),
+    radial('dk-spec', [['0%', '#fff', 0.95], ['55%', '#fff', 0.35], ['100%', '#fff', 0]]),
+    radial('dk-shadow', [['0%', '#000', 0.55], ['55%', '#000', 0.3], ['100%', '#000', 0]]),
+    radial('dk-dust', [['0%', '#e2cfa8', 0.85], ['60%', '#c8ad84', 0.4], ['100%', '#c8ad84', 0]]),
+    radial('dk-spark', [['0%', '#fffbe8', 1], ['30%', '#ffd166', 0.75], ['100%', '#ffaa2a', 0]]),
+    radial('dk-sparkw', [['0%', '#ffffff', 1], ['30%', '#bfe6ff', 0.7], ['100%', '#96d2ff', 0]]),
+    radial('dk-fire', [['0%', '#fff4c0', 0.95], ['35%', '#ffb347', 0.8], ['70%', '#ff5a1f', 0.35], ['100%', '#ff3a10', 0]]),
+    radial('dk-smoke', [['0%', '#4a4644', 0.6], ['60%', '#3c3836', 0.3], ['100%', '#3c3836', 0]]),
+    radial('dk-drop', [['0%', '#ffffff', 1], ['45%', '#d2ebff', 0.9], ['100%', '#78b4f0', 0]], { cx: '40%', cy: '35%' }),
+    // Farbige Steine (Halma-Murmeln, Ludo, Vier): heller Fleck + dunkler Rand über der Grundfarbe
+    radial('dk-ball', [['0%', '#fff', 0.55], ['35%', '#fff', 0.08], ['70%', '#000', 0], ['100%', '#000', 0.42]], { cx: '44%', cy: '40%', r: '62%', fx: '32%', fy: '26%' }),
+    linear('dk-gold', [['0%', '#fff4c4'], ['38%', '#f2c64e'], ['100%', '#a8741a']]),
+    linear('dk-edge', [['0%', '#fff', 0.75], ['35%', '#fff', 0.05], ['65%', '#000', 0.05], ['100%', '#000', 0.6]], { x1: 0.2, y1: 0, x2: 0.8, y2: 1 }),
+    // Würfel: gewölbte Elfenbein-Fläche, Glanz oben, eingelassene Augen
+    radial('dk-die', [['0%', '#ffffff'], ['55%', '#f8f1e3'], ['100%', '#d9ccb2']], { cx: '40%', cy: '35%', r: '80%' }),
+    linear('dk-die-gloss', [['0%', '#fff', 0.85], ['100%', '#fff', 0]]),
+    radial('dk-pip', [['0%', '#000'], ['70%', '#24170e'], ['100%', '#5a4636']], { cx: '40%', cy: '38%', r: '60%' }),
+    // Backgammon-Zungen: zur Spitze hin heller
+    linear('dk-pt-up', [['0%', '#fff', 0.14], ['100%', '#000', 0.2]]),
+    linear('dk-pt-down', [['0%', '#000', 0.2], ['100%', '#fff', 0.14]]),
+    linear('dk-steel', [['0%', '#fff', 0.45], ['40%', '#fff', 0.05], ['100%', '#000', 0.25]]),
+    linear('dk-water', [['0%', '#7fd0ff', 0.18], ['45%', '#000', 0], ['100%', '#001a33', 0.35]]),
+    radial('dk-glow', [['0%', '#ffd27a', 0.8], ['45%', '#ff7a2a', 0.35], ['100%', '#ff5a1a', 0]]),
+    linear('dk-chipedge', [['0%', '#000', 0.1], ['50%', '#fff', 0.12], ['100%', '#000', 0.45]], { x2: 1, y2: 0 }),
+    radial('dk-leather', [['0%', '#fff', 0.16], ['50%', '#fff', 0.02], ['80%', '#000', 0.1], ['100%', '#000', 0.4]], { cx: '50%', cy: '30%', r: '75%' }),
+    linear('dk-cardgloss', [['0%', '#fff', 0.22], ['35%', '#fff', 0.02], ['100%', '#fff', 0]], { x2: 0.6, y2: 1 }),
+    linear('dk-plastic', [['0%', '#fff', 0.2], ['30%', '#fff', 0.04], ['70%', '#000', 0.04], ['100%', '#000', 0.22]], { x2: 0.35, y2: 1 }),
+    linear('dk-rim', [['0%', '#000', 0.45], ['45%', '#000', 0.1], ['60%', '#fff', 0.05], ['100%', '#fff', 0.4]]),
+    linear('dk-hole', [['0%', '#000', 0.32], ['50%', '#000', 0.04], ['100%', '#fff', 0.35]]),
+    linear('dk-bar', [['0%', '#000', 0.45], ['22%', '#000', 0.05], ['78%', '#000', 0.05], ['100%', '#000', 0.45]], { x2: 1, y2: 0 }),
+    radial('dk-brass', [['0%', '#fbe7a6'], ['45%', '#c99a3e'], ['100%', '#6e4b14']], { cx: '40%', cy: '35%', r: '70%' }),
+    // Holz: Schliff am Rahmen (oben hell, unten dunkel), Lack-Glanz schräg, Innenschatten
+    linear('dk-bevel', [['0%', '#fff2d8', 0.6], ['18%', '#fff2d8', 0.08], ['82%', '#000', 0.05], ['100%', '#000', 0.55]]),
+    linear('dk-sheen', [['0%', '#fff', 0.2], ['38%', '#fff', 0.03], ['62%', '#000', 0], ['100%', '#000', 0.16]], { x2: 1, y2: 1 }),
+    radial('dk-vig', [['0%', '#000', 0], ['68%', '#000', 0], ['100%', '#000', 0.3]], { r: '72%' }),
+    // Filz: warmes Licht von oben (Spot) und Rand-Abdunklung
+    radial('dk-spot', [['0%', '#fff1c8', 0.2], ['55%', '#fff1c8', 0.05], ['100%', '#fff1c8', 0]], { cx: '50%', cy: '38%', r: '62%' }),
+    radial('dk-feltvig', [['0%', '#000', 0], ['62%', '#000', 0.04], ['100%', '#000', 0.38]], { r: '71%' }),
+    // weicher Schatten für Bretter (nur in der statischen Ebene: wird einmal gerastert)
+    s('filter', { id: 'dk-soft', x: '-20%', y: '-20%', width: '140%', height: '140%' }, s('feGaussianBlur', { stdDeviation: 14 })),
+    s('filter', { id: 'dk-soft-s', x: '-30%', y: '-30%', width: '160%', height: '160%' }, s('feGaussianBlur', { stdDeviation: 5 })));
+  defs.append(s('pattern', { id: 'dk-waves', patternUnits: 'userSpaceOnUse', width: 60, height: 34 },
+    s('path', { d: 'M0 10 q 7.5 -7 15 0 t 15 0 M30 27 q 7.5 -7 15 0 t 15 0 M-30 27 q 7.5 -7 15 0 t 15 0', fill: 'none', stroke: '#fff', 'stroke-opacity': 0.13, 'stroke-width': 2, 'stroke-linecap': 'round' })));
+  // Filz-Rauschen als Muster (Kachel kommt asynchron aus deko.js)
+  const noise = s('pattern', { id: 'dk-noise', patternUnits: 'userSpaceOnUse', width: 256, height: 256 });
+  const img = s('image', { width: 256, height: 256 });
+  noise.append(img);
+  defs.append(noise);
+  whenNoise((url) => img.setAttribute('href', url));
 }
 
 // Spielstein (Mühle und Dame): Schatten, gedrechselter Stein mit Rille, optional Krone
 export function piece(color, r, { king = false } = {}) {
+  if (DEKO.on) return dekoPiece(color, r, king);
   const white = color === 0;
   const g = s('g', { class: 'pc ' + (white ? 'pc-w' : 'pc-b') });
   g.appendChild(s('circle', { class: 'pc-sh', cx: r * 0.1, cy: r * 0.18, r: r * 1.08, fill: 'url(#sb-shadow)' }));
@@ -46,12 +112,60 @@ export function piece(color, r, { king = false } = {}) {
   return g;
 }
 
+// Deko-Stein: weicher Kontaktschatten (rechts unten), Körper mit Lichtverlauf, gedrechselte Rillen, Glanzlicht
+function dekoPiece(color, r, king) {
+  const white = color === 0;
+  const g = s('g', { class: 'pc ' + (white ? 'pc-w' : 'pc-b') });
+  g.append(
+    s('ellipse', { class: 'pc-sh', cx: r * 0.14, cy: r * 0.24, rx: r * 1.12, ry: r * 1.04, fill: 'url(#dk-shadow)' }),
+    s('circle', { r, fill: white ? 'url(#dk-st-w)' : 'url(#dk-st-b)', stroke: white ? '#8d7651' : '#020101', 'stroke-width': r * 0.05 }),
+    // gedrechselte Kante: oben Licht, unten Schatten
+    s('circle', { r: r * 0.93, fill: 'none', stroke: 'url(#dk-edge)', 'stroke-width': r * 0.1, opacity: white ? 0.75 : 0.6 }),
+    s('circle', { r: r * 0.7, fill: 'none', stroke: white ? 'rgba(120,90,50,.36)' : 'rgba(255,232,200,.17)', 'stroke-width': r * 0.07 }),
+    s('circle', { r: r * 0.36, fill: 'none', stroke: white ? 'rgba(120,90,50,.2)' : 'rgba(255,232,200,.1)', 'stroke-width': r * 0.05 }),
+    // Glanz: breit und weich, dazu ein kleiner scharfer Lichtpunkt
+    s('ellipse', { cx: -r * 0.28, cy: -r * 0.34, rx: r * 0.5, ry: r * 0.3, transform: `rotate(-30 ${-r * 0.28} ${-r * 0.34})`, fill: 'url(#dk-spec)', opacity: white ? 0.7 : 0.3 }),
+    s('ellipse', { cx: -r * 0.4, cy: -r * 0.46, rx: r * 0.17, ry: r * 0.1, transform: `rotate(-32 ${-r * 0.4} ${-r * 0.46})`, fill: '#fff', opacity: white ? 0.95 : 0.55 }));
+  if (king) g.appendChild(crown(r * 0.62));
+  return g;
+}
+
+// Würfel mit Tiefe (Deko): Schatten, gewölbte Fläche, Glanz oben, eingelassene Augen. Mitte = (0, 0).
+const PIPS = (o) => ({ 1: [[0, 0]], 2: [[-o, -o], [o, o]], 3: [[-o, -o], [0, 0], [o, o]], 4: [[-o, -o], [o, -o], [-o, o], [o, o]], 5: [[-o, -o], [o, -o], [0, 0], [-o, o], [o, o]], 6: [[-o, -o], [o, -o], [-o, 0], [o, 0], [-o, o], [o, o]] });
+export function die3d(v, size, { used = false, blank = false, cls = '' } = {}) {
+  const g = s('g', { class: 'die dk-die' + (used ? ' used' : '') + (blank ? ' blank' : '') + (cls ? ' ' + cls : '') });
+  const h = size / 2, rx = size * 0.2;
+  g.append(
+    s('rect', { x: -h + size * 0.05, y: -h + size * 0.09, width: size, height: size, rx, fill: '#000', opacity: blank ? 0.12 : 0.3 }),
+    s('rect', { x: -h, y: -h, width: size, height: size, rx, class: 'dk-die-face', fill: blank ? 'rgba(255,253,246,.55)' : 'url(#dk-die)', stroke: '#6b5238', 'stroke-width': size * 0.03 }),
+    s('rect', { x: -h + size * 0.08, y: -h + size * 0.06, width: size * 0.84, height: size * 0.42, rx: rx * 0.75, fill: 'url(#dk-die-gloss)' }));
+  const o = size * 0.26;
+  for (const [px, py] of PIPS(o)[v] || []) {
+    g.append(s('circle', { cx: px, cy: py, r: size * 0.092, fill: 'url(#dk-pip)', class: 'dk-pip' }),
+      s('circle', { cx: px + size * 0.022, cy: py + size * 0.026, r: size * 0.05, fill: '#fff', opacity: 0.18 }));
+  }
+  if (used) g.setAttribute('opacity', 0.55);
+  return g;
+}
+
+// farbige Kugel/Scheibe (Halma-Murmel, Ludo-Figur von oben, Vier-Stein): Grundfarbe + Licht + Glanzpunkt + Schatten
+export function ball(col, r, { shadow = true, ring = false } = {}) {
+  const g = s('g', { class: 'pc dk-ball' });
+  if (shadow) g.append(s('ellipse', { class: 'pc-sh', cx: r * 0.16, cy: r * 0.26, rx: r * 1.1, ry: r * 1.02, fill: 'url(#dk-shadow)' }));
+  g.append(s('circle', { r, fill: col, stroke: 'rgba(0,0,0,.55)', 'stroke-width': r * 0.07 }),
+    s('circle', { r: r * 0.965, fill: 'url(#dk-ball)' }));
+  if (ring) g.append(s('circle', { r: r * 0.66, fill: 'none', stroke: 'rgba(255,255,255,.3)', 'stroke-width': r * 0.08 }));
+  g.append(s('ellipse', { cx: -r * 0.32, cy: -r * 0.4, rx: r * 0.36, ry: r * 0.22, transform: `rotate(-30 ${-r * 0.32} ${-r * 0.4})`, fill: 'url(#dk-spec)', opacity: 0.9 }));
+  return g;
+}
+
 export function crown(size) {
   const k = size;
   const d = `M ${-0.82 * k} ${0.42 * k} L ${-0.95 * k} ${-0.38 * k} L ${-0.45 * k} ${0.02 * k} L 0 ${-0.62 * k} L ${0.45 * k} ${0.02 * k} L ${0.95 * k} ${-0.38 * k} L ${0.82 * k} ${0.42 * k} Z`;
+  const gold = DEKO.on ? 'url(#dk-gold)' : '#f0c24b';
   return s('g', { class: 'crown' },
-    s('path', { d, fill: '#f0c24b', stroke: '#8a6412', 'stroke-width': k * 0.09, 'stroke-linejoin': 'round' }),
-    s('rect', { x: -0.82 * k, y: 0.5 * k, width: 1.64 * k, height: 0.2 * k, rx: 0.06 * k, fill: '#f0c24b', stroke: '#8a6412', 'stroke-width': k * 0.07 }),
+    s('path', { d, fill: gold, stroke: '#8a6412', 'stroke-width': k * 0.09, 'stroke-linejoin': 'round' }),
+    s('rect', { x: -0.82 * k, y: 0.5 * k, width: 1.64 * k, height: 0.2 * k, rx: 0.06 * k, fill: gold, stroke: '#8a6412', 'stroke-width': k * 0.07 }),
     s('circle', { cx: 0, cy: -0.62 * k, r: 0.13 * k, fill: '#fff3c4' }),
     s('circle', { cx: -0.95 * k, cy: -0.38 * k, r: 0.11 * k, fill: '#fff3c4' }),
     s('circle', { cx: 0.95 * k, cy: -0.38 * k, r: 0.11 * k, fill: '#fff3c4' }));
@@ -83,10 +197,12 @@ export function animateSteps(el, pts, { hop = 230, pause = 0, delay = 0, lift = 
   const total = n * hop + (n - 1) * pause;
   const tf = ([x, y], k = 1) => `translate(${x}px, ${y}px)${k !== 1 ? ` scale(${k})` : ''}`;
   const frames = [{ transform: tf(pts[0]), offset: 0, ...(fromOpacity !== null ? { opacity: fromOpacity } : {}) }];
+  // Deko: auch beim Gleiten hebt sich der Stein ein wenig (wirkt weicher, gleiche Dauer)
+  const up = lift ? 1.16 : DEKO.on ? 1.07 : 0;
   let t = 0;
   for (let i = 1; i <= n; i++) {
     const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
-    if (lift) frames.push({ transform: tf([(ax + bx) / 2, (ay + by) / 2], 1.16), offset: (t + hop / 2) / total, easing: 'ease-in' });
+    if (up) frames.push({ transform: tf([(ax + bx) / 2, (ay + by) / 2], up), offset: (t + hop / 2) / total, easing: lift ? 'ease-in' : 'ease-in-out' });
     t += hop;
     frames.push({ transform: tf(pts[i]), offset: t / total, easing: 'ease-in-out', ...(fromOpacity !== null ? { opacity: 1 } : {}) });
     if (i < n && pause > 0) { t += pause; frames.push({ transform: tf(pts[i]), offset: t / total, easing: 'ease-in-out' }); }

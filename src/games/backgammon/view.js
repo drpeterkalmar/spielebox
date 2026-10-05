@@ -3,8 +3,11 @@
 // Im Hochformat wird das Brett um 90° gedreht (Heimfeld unten), damit jeder Punkt ≥ 48 px breit bleibt.
 // Bedienung: Stein antippen → Ziele leuchten → Ziel antippen; „Zurück“/„Fertig“/„Abtragen“ kommen als Knöpfe.
 import { partialSteps, applySteps, isComplete } from './engine.js';
-import { s, ensureDefs, piece, place, animatePath, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, piece, place, animatePath, animateSteps, toBoard, toScreen, onTap, die3d } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, inset } from '../../ui/material.js';
+import * as FXS from '../../ui/fxsvg.js';
 
 const W = 1000, H = 640, M = 10, BAR = 40;
 const PW = (W - 2 * M - BAR) / 12;
@@ -17,9 +20,14 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   const svg = s('svg', { class: 'board board-bg', role: 'img', 'aria-label': 'Backgammon-Brett' });
   const root = s('g');
   const gBoard = s('g'), gHi = s('g', { class: 'hints' }), gPieces = s('g', { class: 'pieces' }), gDice = s('g', { class: 'dice' }), gTop = s('g', { class: 'hints' });
-  root.append(gBoard, gHi, gPieces, gDice, gTop);
+  const gFx = s('g', { class: 'fx' });
+  root.append(gBoard, gHi, gPieces, gDice, gTop, gFx);
   svg.append(root);
   host.appendChild(svg);
+  // Deko: Brett in der statischen Ebene darunter (eigene Wurzel mit derselben Drehung)
+  const LY = boardLayers(svg, host);
+  const rootU = LY ? LY.under.appendChild(s('g')) : null;
+  const gB = rootU ? rootU.appendChild(s('g')) : gBoard;
 
   let portrait = null, table = null, gs = null, shown = null, me = 0, legal = null, steps = [], sel = null, hint = '', lastDice = '';
   let anim = OWN;          // Zeiten des gerade gezeigten Zugs (tempo.js)
@@ -58,27 +66,37 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     portrait = p;
     svg.setAttribute('viewBox', portrait ? `0 0 ${H} ${W}` : `0 0 ${W} ${H}`);
     root.setAttribute('transform', portrait ? `translate(${H} 0) rotate(90)` : '');
+    if (rootU) rootU.setAttribute('transform', portrait ? `translate(${H} 0) rotate(90)` : '');
     drawBoard();
     return true;
   }
 
   function drawBoard() {
-    gBoard.textContent = '';
-    gBoard.append(
-      s('rect', { width: W, height: H, rx: 18, fill: 'url(#sb-wood-frame)' }),
-      s('rect', { x: M, y: M, width: W - 2 * M, height: H - 2 * M, rx: 6, fill: 'url(#sb-wood-light)' }),
-      s('rect', { x: BARX - BAR / 2, y: M, width: BAR, height: H - 2 * M, fill: 'url(#sb-wood-frame)' }));
+    gB.textContent = '';
+    if (LY) {
+      // Deko: Rahmen mit Schliff, eingelassene Felder, Mittelsteg mit Schatten, Zungen mit Licht zur Spitze
+      woodFrame(gB, 0, 0, W, H, 18);
+      inset(gB, M, M, W - 2 * M, H - 2 * M, 6, 'url(#sb-wood-light)');
+    } else {
+      gB.append(
+        s('rect', { width: W, height: H, rx: 18, fill: 'url(#sb-wood-frame)' }),
+        s('rect', { x: M, y: M, width: W - 2 * M, height: H - 2 * M, rx: 6, fill: 'url(#sb-wood-light)' }));
+    }
+    gB.append(s('rect', { x: BARX - BAR / 2, y: M, width: BAR, height: H - 2 * M, fill: 'url(#sb-wood-frame)' }));
+    if (LY) gB.append(s('rect', { x: BARX - BAR / 2, y: M, width: BAR, height: H - 2 * M, fill: 'url(#dk-bar)' }));
     for (let c = 0; c < 12; c++) {
       const x = colX(c);
       const dark = c % 2 === 0;
-      gBoard.append(s('path', { d: `M ${x - PW / 2 + 2} ${H - M} L ${x} ${H - M - L} L ${x + PW / 2 - 2} ${H - M} Z`, class: dark ? 'pt-a' : 'pt-b' }));
-      gBoard.append(s('path', { d: `M ${x - PW / 2 + 2} ${M} L ${x} ${M + L} L ${x + PW / 2 - 2} ${M} Z`, class: dark ? 'pt-b' : 'pt-a' }));
+      const lo = `M ${x - PW / 2 + 2} ${H - M} L ${x} ${H - M - L} L ${x + PW / 2 - 2} ${H - M} Z`, hi = `M ${x - PW / 2 + 2} ${M} L ${x} ${M + L} L ${x + PW / 2 - 2} ${M} Z`;
+      gB.append(s('path', { d: lo, class: dark ? 'pt-a' : 'pt-b' }));
+      gB.append(s('path', { d: hi, class: dark ? 'pt-b' : 'pt-a' }));
+      if (LY) gB.append(s('path', { d: lo, fill: 'url(#dk-pt-up)' }), s('path', { d: hi, fill: 'url(#dk-pt-down)' }));
     }
     // Punktnummern aus Sicht des Spielers (klein am Rand)
     for (let d = 1; d <= 24; d++) {
       const p = me === 1 ? 25 - d : d;
       const { c, bottom } = colOf(p);
-      gBoard.append(txt(colX(c), bottom ? H - M - L - 14 : M + L + 22, 'pt-num', String(d)));
+      gB.append(txt(colX(c), bottom ? H - M - L - 14 : M + L + 22, 'pt-num', String(d)));
     }
   }
 
@@ -114,6 +132,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   const fromModelPiece = (x, y) => [x, y];
 
   function die(x, y, v, used, size = 58) {
+    if (LY) { const d = die3d(v, size, { used }); d.setAttribute('transform', `translate(${x} ${y})`); return d; }
     const g = s('g', { class: 'die' + (used ? ' used' : ''), transform: `translate(${x} ${y})` });
     g.append(s('rect', { x: -size / 2, y: -size / 2, width: size, height: size, rx: 11, class: 'die-face' }));
     const o = size * 0.26;
@@ -300,6 +319,12 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
             if (st.from === 'bar') from = barXY(prev.turn, Math.max(0, before.bar[prev.turn] - 1), before.bar[prev.turn]);
             else { const n0 = Math.abs(before.points[st.from - 1]); from = stackXY(st.from, n0 - 1, n0); }
             animateSteps(el, [from, [Number(el.dataset.x), Number(el.dataset.y)]], { hop: anim.slide });
+            // Deko: Treffer (einzelner gegnerischer Stein) → Staub, wenn der Stein ankommt
+            const v0 = before.points[st.to - 1];
+            if (anim.slide > 0 && Math.abs(v0) === 1 && (v0 > 0 ? 0 : 1) !== prev.turn) {
+              const [mx, my] = stackXY(st.to, 0, 1);
+              FXS.puff(gFx, mx, my, R * 1.1, anim.slide * 0.85);
+            }
           };
           if (k === 0 || stepMs <= 0) show(); else timers.push(setTimeout(show, k * stepMs));
         });

@@ -6,6 +6,8 @@ import { SUIT_NAMES, cardName, topCard } from './engine.js';
 import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
 import { deCard, backCard, ensureCardDefs, CARD_W, CARD_H } from '../../ui/cards.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, feltRect } from '../../ui/material.js';
 
 const SIZE = 1000, RATIO = CARD_H / CARD_W;
 const HAND_Y = 815, HAND_W = 160, OPP_Y = 120, OPP_W = 84;
@@ -16,11 +18,13 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   ensureCardDefs();
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-cards board-maumau', role: 'img', 'aria-label': 'Mau-Mau-Tisch' });
   const felt = s('g');
-  felt.append(s('rect', { width: SIZE, height: SIZE, rx: 26, fill: 'url(#sb-wood-frame)' }),
-    s('rect', { x: 14, y: 14, width: SIZE - 28, height: SIZE - 28, rx: 18, class: 'felt' }));
   const gOpp = s('g'), gMid = s('g'), gHand = s('g', { class: 'hand' }), gFx = s('g');
   svg.append(felt, gOpp, gMid, gHand, gFx);
   host.appendChild(svg);
+  // Deko: Tisch in der statischen Ebene darunter
+  const L = boardLayers(svg, host);
+  if (L) { const b = L.under.appendChild(s('g')); woodFrame(b, 0, 0, SIZE, SIZE, 26); feltRect(b, 14, 14, SIZE - 28, SIZE - 28, 18); }
+  else felt.append(s('rect', { width: SIZE, height: SIZE, rx: 26, fill: 'url(#sb-wood-frame)' }), s('rect', { x: 14, y: 14, width: SIZE - 28, height: SIZE - 28, rx: 18, class: 'felt' }));
 
   let table = null, gs = null, me = 0, legal = null, sel = null, hint = '', mau = false, seated = true, handPos = [], oppPos = {};
   const setHint = (t) => { if (t !== hint) { hint = t; onHint && onHint(t); } };

@@ -4,8 +4,10 @@
 // 121 Löcher sind am Handy eng (Lochabstand ≈ 28 px): Ein Tipp trifft deshalb immer den NÄCHSTEN sinnvollen
 // Kandidaten (eigener ziehbarer Stein bzw. erlaubtes Ziel), nicht das nächste Loch.
 import { HOLES, CAMP, CAMPS, CAMP_OF, OPPOSITE } from './engine.js';
-import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap, ball } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
+import { boardLayers } from '../../ui/deko.js';
+import { hopWave } from '../../ui/sieg.js';
 import { SEAT_COLORS, SEAT_SYMBOLS } from '../../ui/seatcolors.js';
 
 const U = 100;
@@ -20,6 +22,10 @@ export function createBoard(host, { onMove, onHint }) {
   root.append(gBoard, gLast, gPieces, gHints);
   svg.append(root);
   host.appendChild(svg);
+  // Deko: Sternbrett in der statischen Ebene darunter (eigene Wurzel mit derselben Drehung)
+  const L = boardLayers(svg, host);
+  const rootU = L ? L.under.appendChild(s('g')) : null;
+  const gB = rootU ? rootU.appendChild(s('g')) : gBoard;
 
   let table = null, gs = null, legal = null, sel = null, rot = 0, n = 0, hint = '';
   const setHint = (t) => { if (t !== hint) { hint = t; onHint && onHint(t); } };
@@ -48,22 +54,44 @@ export function createBoard(host, { onMove, onHint }) {
   }
 
   function drawBoard() {
-    gBoard.textContent = '';
+    gB.textContent = '';
     // Sechseck + 6 Zacken als ein Stern: erst Rahmen (dick), dann Holz, dann Farbe der Zacken
     const shapes = [hexPoly(), ...[0, 1, 2, 3, 4, 5].map(campPoly)];
-    for (const sh of shapes) gBoard.append(s('polygon', { points: poly(sh), fill: 'url(#sb-wood-frame)', stroke: 'url(#sb-wood-frame)', 'stroke-width': 40, 'stroke-linejoin': 'round' }));
-    for (const sh of shapes) gBoard.append(s('polygon', { points: poly(sh), fill: 'url(#sb-wood-light)', stroke: 'url(#sb-wood-light)', 'stroke-width': 8, 'stroke-linejoin': 'round' }));
+    if (L) {
+      // Deko: gebackener weicher Schatten unter dem ganzen Stern (Licht von links oben → Schatten nach rechts unten)
+      const a = (rot * Math.PI) / 180, dx = 16 * Math.sin(a), dy = 16 * Math.cos(a);   // im Bild immer nach unten
+      const sh = s('g', { transform: `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`, filter: 'url(#dk-soft)', opacity: 0.5 });
+      for (const p of shapes) sh.append(s('polygon', { points: poly(p), fill: '#000', stroke: '#000', 'stroke-width': 40, 'stroke-linejoin': 'round' }));
+      gB.append(sh);
+    }
+    for (const sh of shapes) gB.append(s('polygon', { points: poly(sh), fill: 'url(#sb-wood-frame)', stroke: 'url(#sb-wood-frame)', 'stroke-width': 40, 'stroke-linejoin': 'round' }));
+    for (const sh of shapes) gB.append(s('polygon', { points: poly(sh), fill: 'url(#sb-wood-light)', stroke: 'url(#sb-wood-light)', 'stroke-width': 8, 'stroke-linejoin': 'round' }));
+    if (L) for (const sh of shapes) gB.append(s('polygon', { points: poly(sh), fill: 'none', stroke: 'rgba(30,14,4,.45)', 'stroke-width': 5, 'stroke-linejoin': 'round' }));
     for (let k = 0; k < 6; k++) {
       const seat = seatOfCamp(k), tseat = seatOfCamp(OPPOSITE[k]);
       const col = seat >= 0 ? SEAT_COLORS[seat] : tseat >= 0 ? SEAT_COLORS[tseat] : null;
-      if (col) gBoard.append(s('polygon', { points: poly(grow(campPoly(k), -24)), fill: col, opacity: seat >= 0 ? 0.3 : 0.15 }));
+      if (col) gB.append(s('polygon', { points: poly(grow(campPoly(k), -24)), fill: col, opacity: seat >= 0 ? 0.3 : 0.15 }));
     }
+    if (L) gB.append(s('circle', { cx: 0, cy: 0, r: 760, fill: 'url(#dk-vig)', opacity: 0.6 }));
     const holes = s('g', { class: 'holes' });
-    HOLES.forEach((_, i) => { const [x, y] = xy(i); holes.append(s('circle', { cx: x, cy: y, r: 17, class: 'hole' })); });
-    gBoard.append(holes);
+    HOLES.forEach((_, i) => {
+      const [x, y] = xy(i);
+      holes.append(s('circle', { cx: x, cy: y, r: 17, class: 'hole' }));
+      // Deko: Loch eingelassen (oben Schatten, unten heller Rand) – Drehung der Wurzel ausgleichen
+      if (L) holes.append(s('circle', { cx: x, cy: y, r: 15, fill: 'none', stroke: 'url(#dk-hole)', 'stroke-width': 5, transform: `rotate(${-rot} ${x} ${y})` }));
+    });
+    gB.append(holes);
   }
 
   function stone(seat) {
+    if (L) {
+      // Deko: glänzende Murmel, Symbol bleibt (farbenblind)
+      const g = s('g', { class: 'pc hs dk-ball' });
+      const b = ball(SEAT_COLORS[seat], PR, { ring: false });
+      b.setAttribute('transform', `rotate(${-rot})`);   // Licht im Bild immer von links oben
+      g.append(b, s('text', { y: 13, class: 'hs-sym', transform: `rotate(${-rot})`, text: SEAT_SYMBOLS[seat] }));
+      return g;
+    }
     const g = s('g', { class: 'pc hs' });
     g.append(s('circle', { cx: 5, cy: 8, r: PR, fill: 'url(#sb-shadow)' }),
       s('circle', { r: PR, fill: SEAT_COLORS[seat], stroke: 'rgba(0,0,0,.55)', 'stroke-width': 3 }),
@@ -162,6 +190,7 @@ export function createBoard(host, { onMove, onHint }) {
         n = newN;
         rot = newRot;
         root.setAttribute('transform', `rotate(${rot})`);
+        if (rootU) rootU.setAttribute('transform', `rotate(${rot})`);
         drawBoard();
       }
       legal = ctx.legal && ctx.legal.length ? ctx.legal : null;
@@ -195,6 +224,9 @@ export function createBoard(host, { onMove, onHint }) {
       return { minTargetPx: U * scale, holePx: U * scale, candPx: (isFinite(minCand) ? minCand : U) * scale, boardPx: 1380 * scale };
     },
     select(i) { sel = i; renderHints(); },
+    celebrate({ winner }) {
+      hopWave([...gPieces.children].filter((el) => gs.board[Number(el.dataset.i)] === winner), { step: 60 });
+    },
     tap: tapAt,
     destroy() { svg.remove(); }
   };

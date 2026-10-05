@@ -4,6 +4,9 @@
 import { COLS, ROWS } from './engine.js';
 import { s, ensureDefs, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN, vierFall } from '../../tempo.js';
+import { DEKO, boardLayers } from '../../ui/deko.js';
+import { shadowUnder } from '../../ui/material.js';
+import * as FXS from '../../ui/fxsvg.js';
 
 const U = 100, F = 20, R = 41;
 const W = COLS * U + 2 * F, H = (ROWS + 1) * U + 2 * F;
@@ -18,21 +21,44 @@ export function createBoard(host, { onMove, onHint }) {
   const gBack = s('g'), gStones = s('g', { class: 'pieces' }), gPlate = s('g'), gTop = s('g', { class: 'hints' });
   svg.append(gBack, gStones, gPlate, gTop);
   host.appendChild(svg);
+  // Deko: Schatten in der Ebene darunter, Platte (mit Löchern) und Hinweise in der Ebene darüber – fallende Steine
+  // rastern so nur sich selbst neu, nicht die Platte mit 42 Löchern
+  const L = boardLayers(svg, host, { over: true });
+  const gFx = s('g', { class: 'fx' });
+  if (L) { svg.insertBefore(s('g'), gBack); L.under.append(gBack); svg.append(s('g'), s('g')); L.over.append(gPlate, gTop, gFx); }
 
   let gs = null, legal = null, sel = null, hint = '', me = 0;
   const setHint = (t) => { if (t !== hint) { hint = t; onHint && onHint(t); } };
 
   // Platte mit Löchern (evenodd), Rahmen, Füße
   (function drawPlate() {
-    gBack.append(s('rect', { x: F - 6, y: F + U - 6, width: COLS * U + 12, height: ROWS * U + 12, rx: 18, fill: 'rgba(10,30,70,.55)' }));
+    const back = s('rect', { x: F - 6, y: F + U - 6, width: COLS * U + 12, height: ROWS * U + 12, rx: 18, fill: 'rgba(10,30,70,.55)' });
+    if (L) shadowUnder(gBack, back, { dy: 14, op: 0.55 });
+    gBack.append(back);
     let d = `M ${F - 8} ${F + U - 8} h ${COLS * U + 16} v ${ROWS * U + 16} h ${-(COLS * U + 16)} Z`;
     for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) d += ` M ${cx(c) - R - 3} ${cy(r)} a ${R + 3} ${R + 3} 0 1 0 ${2 * R + 6} 0 a ${R + 3} ${R + 3} 0 1 0 ${-(2 * R + 6)} 0`;
     gPlate.append(s('path', { d, class: 'v4-plate', 'fill-rule': 'evenodd' }));
-    for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) gPlate.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 3, class: 'v4-rim' }));
+    if (L) {
+      // Deko: Kunststoff mit Licht von oben, Lochränder abgeschrägt (oben Schatten, unten Licht), helle Oberkante
+      gPlate.append(s('path', { d, fill: 'url(#dk-plastic)', 'fill-rule': 'evenodd' }));
+      for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) gPlate.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 1, fill: 'none', stroke: 'url(#dk-rim)', 'stroke-width': 6 }));
+      gPlate.append(s('rect', { x: F - 8, y: F + U - 8, width: COLS * U + 16, height: ROWS * U + 16, rx: 6, fill: 'none', stroke: 'url(#dk-bevel)', 'stroke-width': 5 }));
+    } else {
+      for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) gPlate.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 3, class: 'v4-rim' }));
+    }
   })();
 
   function stone(seat, c, r, cls = '') {
     const g = s('g', { class: 'v4-stone ' + cls, transform: `translate(${cx(c)} ${cy(r)})`, 'data-c': c, 'data-r': r });
+    if (L) {
+      // Deko: glänzende Kunststoff-Scheibe mit geprägtem Ring
+      g.append(s('circle', { r: R, fill: COLORS[seat], stroke: 'rgba(0,0,0,.5)', 'stroke-width': 3 }),
+        s('circle', { r: R * 0.97, fill: 'url(#dk-ball)' }),
+        s('circle', { r: R * 0.66, fill: 'none', stroke: 'rgba(0,0,0,.22)', 'stroke-width': 5, transform: 'translate(1.5 2)' }),
+        s('circle', { r: R * 0.66, fill: 'none', stroke: 'rgba(255,255,255,.42)', 'stroke-width': 4 }),
+        s('ellipse', { cx: -R * 0.34, cy: -R * 0.42, rx: R * 0.34, ry: R * 0.18, transform: `rotate(-30 ${-R * 0.34} ${-R * 0.42})`, fill: '#fff', opacity: 0.6 }));
+      return g;
+    }
     g.append(s('circle', { r: R, fill: COLORS[seat], stroke: 'rgba(0,0,0,.45)', 'stroke-width': 3 }),
       s('circle', { r: R * 0.68, fill: 'none', stroke: 'rgba(255,255,255,.35)', 'stroke-width': 4 }),
       s('circle', { r: R * 0.36, fill: 'rgba(0,0,0,.08)' }));
@@ -107,11 +133,27 @@ export function createBoard(host, { onMove, onHint }) {
       render({ lastCol }, ctx);
       if (info.kind === 'move' && info.move && Number.isInteger(info.move.col)) {
         const c = info.move.col, r = gs.cols[c].length - 1;
-        fall(c, r, vierFall(ctx.anim || OWN, ROWS - r));
+        const dur = vierFall(ctx.anim || OWN, ROWS - r);
+        fall(c, r, dur);
+        // Deko: Gewinnreihe funkelt, sobald der letzte Stein liegt
+        if (dur > 0 && gs.win && gs.win.line) {
+          const ln = gs.win.line;
+          FXS.sweep(gFx, cx(ln[0][0]), cy(ln[0][1]), cx(ln[ln.length - 1][0]), cy(ln[ln.length - 1][1]), { delay: dur * 0.8, n: 16, size: 22 });
+        }
       }
     },
     // Tests: Bildschirmpunkt über Spalte c (Einwurf-Reihe)
     target(c) { return toScreen(svg, cx(c), cy(ROWS)); },
+    // Deko: Sieg – die vier Steine der Gewinnreihe hüpfen nacheinander
+    celebrate() {
+      if (!gs || !gs.win || !gs.win.line) return;
+      gs.win.line.forEach(([c, r], k) => {
+        const el = gStones.querySelector(`[data-c="${c}"][data-r="${r}"]`);
+        if (!el || !el.animate) return;
+        const t = `translate(${cx(c)}px, ${cy(r)}px)`;
+        el.animate([{ transform: `${t} scale(1)` }, { transform: `${t} scale(1.16)`, offset: 0.45 }, { transform: `${t} scale(.97)`, offset: 0.8 }, { transform: `${t} scale(1)` }], { duration: 520, delay: k * 110, easing: 'ease-out' });
+      });
+    },
     metrics() {
       const scale = svg.getScreenCTM().a;
       return { minTargetPx: U * scale, boardPx: W * scale };

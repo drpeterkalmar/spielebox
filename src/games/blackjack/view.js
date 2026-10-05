@@ -6,6 +6,8 @@ import { s, ensureDefs, place, flyIn, fadeIn, toScreen, onTap } from '../../ui/s
 import { OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, feltRect } from '../../ui/material.js';
 
 const SIZE = 1000;
 const RES = { bj: 'Black Jack!', win: 'gewonnen', push: 'unentschieden', lose: 'verloren', bust: 'überkauft' };
@@ -15,14 +17,30 @@ export function createBoard(host, { onHint }) {
   ensureCardDefs();
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-cards board-bj', role: 'img', 'aria-label': 'Blackjack-Tisch' });
   const felt = s('g');
-  felt.append(
-    s('rect', { width: SIZE, height: SIZE, rx: 26, fill: 'url(#sb-wood-frame)' }),
-    s('rect', { x: 14, y: 14, width: SIZE - 28, height: SIZE - 28, rx: 18, class: 'felt' }),
-    s('path', { d: 'M 90 330 Q 500 520 910 330', class: 'bj-arc' }),
-    s('text', { x: 500, y: 372, class: 'bj-rule', text: 'BANK ZIEHT BIS 16 · STEHT AB 17 · BLACK JACK ZAHLT 3:2' }));
   const gBank = s('g'), gOthers = s('g'), gMe = s('g');
   svg.append(felt, gBank, gOthers, gMe);
   host.appendChild(svg);
+  // Deko: Tisch mit gedrucktem Bogen und Regel in Gold, Kartenschuh rechts oben – statische Ebene darunter
+  const L = boardLayers(svg, host);
+  const fb = L ? L.under.appendChild(s('g')) : felt;
+  if (L) {
+    woodFrame(fb, 0, 0, SIZE, SIZE, 26);
+    feltRect(fb, 14, 14, SIZE - 28, SIZE - 28, 18);
+    fb.append(s('path', { d: 'M 90 330 Q 500 520 910 330', class: 'bj-arc dk-print' }), s('path', { d: 'M 104 352 Q 500 548 896 352', class: 'bj-arc dk-print thin' }),
+      s('text', { x: 500, y: 372, class: 'bj-rule dk-print', text: 'BANK ZIEHT BIS 16 · STEHT AB 17 · BLACK JACK ZAHLT 3:2' }));
+    // Kartenschuh (dort kommen die Karten her)
+    fb.append(s('g', { class: 'dk-shoe' },
+      s('rect', { x: 846, y: 30, width: 112, height: 70, rx: 12, fill: 'rgba(0,0,0,.3)', transform: 'translate(4 8)' }),
+      s('rect', { x: 846, y: 30, width: 112, height: 70, rx: 12, fill: 'url(#sb-wood-frame)', stroke: '#2a160b', 'stroke-width': 3 }),
+      s('rect', { x: 846, y: 30, width: 112, height: 70, rx: 12, fill: 'url(#dk-sheen)' }),
+      s('rect', { x: 862, y: 44, width: 80, height: 16, rx: 4, fill: '#7a1622', stroke: '#e9c46a', 'stroke-width': 2 })));
+  } else {
+    fb.append(
+      s('rect', { width: SIZE, height: SIZE, rx: 26, fill: 'url(#sb-wood-frame)' }),
+      s('rect', { x: 14, y: 14, width: SIZE - 28, height: SIZE - 28, rx: 18, class: 'felt' }),
+      s('path', { d: 'M 90 330 Q 500 520 910 330', class: 'bj-arc' }),
+      s('text', { x: 500, y: 372, class: 'bj-rule', text: 'BANK ZIEHT BIS 16 · STEHT AB 17 · BLACK JACK ZAHLT 3:2' }));
+  }
   onTap(svg, () => {});
 
   let table = null, gs = null, me = 0, seen = new Set(), anim = OWN, tempo = OWN;

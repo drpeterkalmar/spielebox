@@ -7,11 +7,14 @@
 import * as E from './engine.js';
 import { evaluate, handName, catName, draws, bestFive } from './eval.js';
 import { handClass, PERCENTILE } from './equity.js';
-import { s, ensureDefs, place, flyIn, fadeIn, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, flyIn, fadeIn, toScreen, onTap, ball } from '../../ui/svg.js';
 import { holdemTimes, OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
 import { chipSound, winSound } from '../../ui/sound.js';
+import { DEKO, boardLayers } from '../../ui/deko.js';
+import { woodFrame, feltRect, feltEllipse, shadowUnder } from '../../ui/material.js';
+import * as FXS from '../../ui/fxsvg.js';
 
 // Zwei Formate: quadratisch (Querformat, 1000 × 1000) und hoch (Hochformat, 1000 × 1150) – Maße in layout()
 const SIZE = 1000;
@@ -31,8 +34,42 @@ const fmt = E.fmtChips;
 const CHIP = [[5000, '#6b3fa0'], [1000, '#d6a21e'], [500, '#7a4a9c'], [100, '#222'], [25, '#2e8b57'], [5, '#c0392b'], [1, '#e8e2d4']];
 const chipColor = (amt) => (CHIP.find(([v]) => amt >= v * 4) || CHIP[CHIP.length - 1])[1];
 
+// Deko: Chip mit Kante (Zylinder), Randstreifen, Innenring und Glanz – Farbe nach Wert
+const DK_CHIP = [[1000, '#d6a21e'], [500, '#7a4a9c'], [100, '#262626'], [25, '#2e8b57'], [5, '#c0392b'], [1, '#e8e2d4']];
+function dkChip(g, x, y, r, col) {
+  const ry = r * 0.42, e = (a) => s('ellipse', { cx: x, rx: r, ry, ...a });
+  g.append(e({ cy: y + 5, fill: 'rgba(0,0,0,.28)' }),
+    e({ cy: y + 3.5, fill: col, stroke: 'rgba(0,0,0,.45)', 'stroke-width': 1.5 }),
+    e({ cy: y + 3.5, fill: 'url(#dk-chipedge)' }),
+    e({ cy: y, fill: col, stroke: 'rgba(0,0,0,.35)', 'stroke-width': 1.2 }),
+    e({ cy: y, fill: 'none', stroke: '#fff7e6', 'stroke-width': 2.6, 'stroke-dasharray': `${r * 0.42} ${r * 0.36}` }),
+    s('ellipse', { cx: x, cy: y, rx: r * 0.62, ry: ry * 0.62, fill: 'none', stroke: 'rgba(255,247,230,.55)', 'stroke-width': 1.6 }),
+    s('ellipse', { cx: x - r * 0.25, cy: y - ry * 0.35, rx: r * 0.45, ry: ry * 0.32, fill: '#fff', opacity: 0.22 }));
+}
+// Betrag in Chips zerlegen (größte zuerst), höchstens 3 Stapel × 6 Chips
+function dkStacks(amount) {
+  const out = [];
+  let rest = amount;
+  for (const [v, col] of DK_CHIP) {
+    let k = Math.floor(rest / v);
+    if (!k) continue;
+    rest -= k * v;
+    out.push([col, Math.min(6, k)]);
+    if (out.length >= 3) break;
+  }
+  return out.length ? out : [[DK_CHIP[DK_CHIP.length - 1][1], 1]];
+}
+
 function chipStack(amount, { label = true, big = false, left = false } = {}) {
   const g = s('g', { class: 'he-chips' });
+  if (DEKO.on) {
+    const r = big ? 24 : 18, st = dkStacks(amount), gap = r * 1.75, h = big ? 6.5 : 5.5;
+    const x0 = -((st.length - 1) * gap) / 2;
+    st.forEach(([col, k], j) => { for (let i = 0; i < k; i++) dkChip(g, x0 + j * gap, -i * h, r, col); });
+    const wide = ((st.length - 1) * gap) / 2 + r;
+    if (label) g.append(s('text', { x: left ? -wide - 8 : wide + 8, y: 9, class: 'he-amt' + (big ? ' big' : '') + (left ? ' left' : ''), text: fmt(amount) }));
+    return g;
+  }
   const n = Math.max(1, Math.min(4, Math.ceil(Math.log10(Math.max(1, amount)) - 0.5)));
   const r = big ? 26 : 20;
   const col = chipColor(amount);
@@ -51,9 +88,26 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   layout(isTall());
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${H}`, class: 'board board-cards board-holdem', role: 'img', 'aria-label': "Hold'em-Tisch" });
   const felt = s('g');
+  let L = null, fu = null;
   const drawFelt = () => {
     felt.textContent = '';
     svg.setAttribute('viewBox', `0 0 ${SIZE} ${H}`);
+    if (fu) {
+      // Deko: Raum mit Licht, Tisch mit Schatten, gepolsterte Lederbande mit Naht, Holzleiste, Filz mit Lichtkegel
+      fu.textContent = '';
+      woodFrame(fu, 0, 0, SIZE, H, 26);
+      feltRect(fu, 14, 14, SIZE - 28, H - 28, 18, { cls: 'he-room', stitch: false });
+      const rail = s('ellipse', { cx: CX, cy: CY, rx: FRX + 26, ry: FRY + 26 });
+      shadowUnder(fu, rail, { dy: 16, op: 0.6 });
+      fu.append(s('ellipse', { cx: CX, cy: CY, rx: FRX + 26, ry: FRY + 26, fill: '#3b1f10', stroke: '#1f0f06', 'stroke-width': 4 }),
+        s('ellipse', { cx: CX, cy: CY, rx: FRX + 26, ry: FRY + 26, fill: 'url(#dk-leather)' }),
+        s('ellipse', { cx: CX, cy: CY, rx: FRX + 15, ry: FRY + 15, fill: 'none', stroke: 'rgba(255,226,180,.32)', 'stroke-width': 2, 'stroke-dasharray': '7 6' }),
+        s('ellipse', { cx: CX, cy: CY, rx: FRX + 4, ry: FRY + 4, fill: 'none', stroke: 'url(#sb-wood-light)', 'stroke-width': 7 }),
+        s('ellipse', { cx: CX, cy: CY, rx: FRX + 4, ry: FRY + 4, fill: 'none', stroke: 'url(#dk-bevel)', 'stroke-width': 7 }));
+      feltEllipse(fu, CX, CY, FRX, FRY, { cls: 'felt he-felt' });
+      fu.append(s('ellipse', { cx: CX, cy: CY, rx: FRX - 40, ry: FRY - 40, class: 'he-line dk-print' }));
+      return;
+    }
     felt.append(
       s('rect', { width: SIZE, height: H, rx: 26, fill: 'url(#sb-wood-frame)' }),
       s('rect', { x: 14, y: 14, width: SIZE - 28, height: H - 28, rx: 18, class: 'he-room' }),
@@ -61,10 +115,12 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       s('ellipse', { cx: CX, cy: CY, rx: FRX, ry: FRY, class: 'felt he-felt' }),
       s('ellipse', { cx: CX, cy: CY, rx: FRX - 40, ry: FRY - 40, class: 'he-line' }));
   };
-  drawFelt();
   const gInfo = s('g'), gBoard = s('g'), gPot = s('g'), gSeats = s('g'), gBets = s('g'), gMe = s('g'), gFx = s('g'), gEnd = s('g');
   svg.append(felt, gInfo, gBoard, gPot, gSeats, gBets, gMe, gFx, gEnd);
   host.appendChild(svg);
+  L = boardLayers(svg, host);
+  if (L) fu = L.under.appendChild(s('g'));
+  drawFelt();
   onTap(svg, () => {});
 
   const mq = typeof matchMedia === 'function' ? matchMedia('(orientation: portrait)') : null;
@@ -177,8 +233,14 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       } else {
         const [x, y] = pos;
         if (v.turn === seat) g.append(s('circle', { cx: x, cy: y, r: 54, class: 'he-turn' }));
-        g.append(s('circle', { cx: x, cy: y, r: 42, class: 'he-av', fill: col }),
-          s('text', { x, y: y + 13, class: 'he-av-t', text: (table.seats[seat] && table.seats[seat].bot ? '◆' : (nameOf(seat)[0] || '?').toUpperCase()) }));
+        if (DEKO.on) {
+          // Deko: Spieler-Marke als glänzende Scheibe mit hellem Ring
+          const av = ball(col, 42, { ring: true });
+          av.setAttribute('class', 'dk-av');
+          av.setAttribute('transform', `translate(${x} ${y})`);
+          g.append(av);
+        } else g.append(s('circle', { cx: x, cy: y, r: 42, class: 'he-av', fill: col }));
+        g.append(s('text', { x, y: y + 13, class: 'he-av-t', text: (table.seats[seat] && table.seats[seat].bot ? '◆' : (nameOf(seat)[0] || '?').toUpperCase()) }));
         // Karten über dem Avatar (zur Mitte hin versetzt)
         if (cards.length && !folded) seatCards(g, seat, cards, [x + (x < CX - 50 ? 34 : x > CX + 50 ? -34 : 0), y - 40], { fresh: dealFresh, delay: dealDelay, step: dealStep, hi: v.hi && v.hi[seat] });
         g.append(s('text', { x, y: y + 74, class: 'he-name', text: nameOf(seat) }),
@@ -204,7 +266,15 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       if (!out && seat === v.button) {
         // neben dem Avatar (links bei Plätzen rechts/oben, rechts bei Plätzen links), eigener Platz: rechts der Karten
         const [bx, by] = isMe ? [CX + 175, ME_Y - 70] : [pos[0] + (pos[0] < CX - 50 ? 64 : -64), pos[1] - 4];
-        gBets.append(s('g', { class: 'he-btn' }, s('circle', { cx: bx, cy: by, r: 22 }), s('text', { x: bx, y: by + 9, text: 'D' })));
+        const btn = s('g', { class: 'he-btn' }, s('circle', { cx: bx, cy: by, r: 22 }));
+        // Deko: Knopf mit Schatten, Innenring und Glanz
+        if (DEKO.on) {
+          btn.prepend(s('ellipse', { cx: bx + 3, cy: by + 5, rx: 23, ry: 22, fill: 'rgba(0,0,0,.35)' }));
+          btn.append(s('ellipse', { cx: bx, cy: by, rx: 16, ry: 16, fill: 'none', stroke: 'rgba(107,86,54,.45)', 'stroke-width': 1.5 }),
+            s('ellipse', { cx: bx - 7, cy: by - 9, rx: 9, ry: 5, fill: '#fff', opacity: 0.75 }));
+        }
+        btn.append(s('text', { x: bx, y: by + 9, text: 'D' }));
+        gBets.append(btn);
       }
     }
   }
@@ -375,6 +445,8 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     t += tm.toWinner;
     later(t, () => {
       drawSeats(prev, res);
+      // Deko: Gewinner der Hand funkeln kurz
+      if (tm.toWinner > 0) for (const w of res.win) FXS.sparks(gFx, ...seatPos(w), { n: w === me && seated ? 16 : 9, dist: 90, size: 14 });
       if (seated && me !== null && lh.pots.some((p) => p.winners.includes(me))) {
         const won = lh.delta[me];
         const total = state.stacks.reduce((x, y) => x + y, 0) + state.contrib.reduce((x, y) => x + y, 0);

@@ -729,3 +729,78 @@ table.wg-block td, table.wg-block th { padding: 3px 5px; font-size: 14px; }
   .table-screen[data-game='holdem'] .status { min-height: 48px; font-size: 16px; padding: 0 4px; }
   .he-raise { padding: 4px; gap: 4px; }
 }
+
+/* ===================================================================================================================
+   Deko (Verschönerung 05.10.2026) – alles nur mit html.deko (src/ui/deko.js); ?deko=0 zeigt das alte Aussehen.
+   Statisches liegt in eigenen Ebenen (einmal gerastert), Effekte laufen nur kurz, keine Dauer-Animation im Leerlauf.
+   =================================================================================================================== */
+/* Tisch-Umgebung: grüner Filz mit warmem Licht von oben und dunklem Rand – eigene, feste Ebene (kein Neuzeichnen beim Scrollen) */
+html.deko body { background: #133526; }
+#deko-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; will-change: transform;
+  background:
+    radial-gradient(85% 52% at 50% 30%, rgba(255, 226, 160, .17), rgba(255, 226, 160, 0) 72%),
+    radial-gradient(150% 115% at 50% 42%, rgba(0, 0, 0, 0) 48%, rgba(0, 0, 0, .52) 100%),
+    var(--deko-noise, linear-gradient(transparent, transparent)) 0 0 / 160px 160px repeat,
+    linear-gradient(180deg, #2b5f46 0%, #1e4b36 46%, #11301f 100%); }
+#deko-bg[hidden] { display: none; }
+@media (orientation: landscape) {
+  #deko-bg { background:
+    radial-gradient(60% 75% at 36% 45%, rgba(255, 226, 160, .16), rgba(255, 226, 160, 0) 72%),
+    radial-gradient(120% 140% at 45% 50%, rgba(0, 0, 0, 0) 48%, rgba(0, 0, 0, .52) 100%),
+    var(--deko-noise, linear-gradient(transparent, transparent)) 0 0 / 160px 160px repeat,
+    linear-gradient(180deg, #2b5f46 0%, #1e4b36 46%, #11301f 100%); }
+}
+
+/* Bretter in Ebenen: statische Ebene darunter (Holz, Filz, Licht, gebackener Schatten), Brett mit den Steinen,
+   ggf. Ebene darüber (Vier in einer Reihe: die Platte). Kein CSS-Filter mehr am Brett (Schatten ist gebacken). */
+html.deko .board-wrap { isolation: isolate; }
+html.deko .board-wrap > svg.deko-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; filter: none; will-change: transform; }
+html.deko .board-wrap > svg.deko-under { z-index: -1; }
+html.deko .board-wrap > svg.deko-over { z-index: 1; }
+html.deko .board-wrap > svg.board.deko-main { filter: none; will-change: transform; }
+html.deko .board-wrap.zoom > svg.deko-layer { width: 190%; height: 190%; }
+
+/* Effekt-Leinwand: über dem Brett, unter Bannern/Meldungen/Blättern, nimmt nie Tipps an */
+canvas.deko-fx { position: fixed; left: 0; top: 0; z-index: 35; pointer-events: none; }
+canvas.deko-fx[hidden] { display: none; }
+
+/* Spielerleisten: leicht gläsern, aktive Leiste mit warmem Schein (ruhig, ohne Pulsieren) */
+html.deko .pbar, html.deko .pchip { background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(0,0,0,.16)); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.22); }
+html.deko .pbar.multi { background: none; box-shadow: none; }
+html.deko .pbar.active, html.deko .pchip.active { background: linear-gradient(180deg, rgba(240,190,90,.3), rgba(160,110,30,.2)); box-shadow: inset 0 1px 0 rgba(255,236,190,.25), 0 0 14px rgba(240,190,90,.35), 0 2px 6px rgba(0,0,0,.25); }
+html.deko .stone-ico { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.45)); }
+html.deko .pb-score { text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+html.deko .tbar .icon-btn, html.deko .pill { box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+/* Knöpfe am Tisch: leichte Wölbung */
+html.deko .actions .btn { background: linear-gradient(#fffdf8, #efe4d0); box-shadow: 0 2px 0 rgba(90,60,25,.35), 0 4px 10px rgba(0,0,0,.25); }
+html.deko .actions .btn.primary, html.deko .btn.primary { background: linear-gradient(#f6c15a, #d7952f 60%, #c07f22); box-shadow: inset 0 1px 0 rgba(255,246,210,.6), 0 2px 0 rgba(120,70,10,.55), 0 4px 10px rgba(0,0,0,.25); }
+html.deko .actions .btn:active { transform: translateY(1px) scale(.99); box-shadow: 0 1px 0 rgba(90,60,25,.35), 0 2px 5px rgba(0,0,0,.25); }
+html.deko .eval-btn, html.deko .fair-badge { box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+html.deko .banner { background: linear-gradient(#3a2610, #241608); box-shadow: inset 0 1px 0 rgba(255,220,150,.25), 0 6px 18px rgba(0,0,0,.45); }
+
+/* Gedrucktes auf dem Filz (Blackjack-Bogen, Hold'em-Linie) in mattem Gold */
+html.deko .board .bj-arc.dk-print { stroke: rgba(236, 200, 120, .55); stroke-width: 3.5; }
+html.deko .board .bj-arc.dk-print.thin { stroke-width: 1.5; stroke: rgba(236, 200, 120, .35); }
+html.deko .board .bj-rule.dk-print { fill: rgba(236, 200, 120, .7); }
+html.deko .board .he-line.dk-print { stroke: rgba(236, 200, 120, .26); stroke-width: 3; }
+html.deko .board .he-seat.folded .dk-av { opacity: .45; }
+html.deko .board .he-room { fill: #1c3128; }
+
+/* Kein endloses Pulsieren im Leerlauf: Hinweise pulsieren ein paar Mal und bleiben dann ruhig stehen */
+html.deko .board .v4-win { animation: take 1s ease-in-out 3; filter: drop-shadow(0 0 6px rgba(255, 246, 200, .9)); }
+html.deko .board .hint-take { animation: take 1s ease-in-out 4; }
+html.deko .board circle.he-turn { animation: he-pulse 1.4s ease-in-out 3; }
+html.deko .board .mark-sq.hint { animation: take 1.2s ease-in-out 4; }
+
+/* Würfelglück: Würfelschale aus Filz mit Holzrand, gehaltene Würfel leuchten */
+html.deko .board-wrap > .wg { border-color: transparent;
+  background: radial-gradient(90% 60% at 50% 25%, rgba(255, 240, 200, .14), rgba(255, 240, 200, 0) 70%) padding-box,
+    radial-gradient(130% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,.32) 100%) padding-box,
+    var(--deko-noise, linear-gradient(transparent, transparent)) 0 0 / 160px 160px padding-box,
+    linear-gradient(#21644a, #1a5039) padding-box,
+    url(../assets/wood/frame.webp) 0 0 / 260px 260px border-box;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,.45), 0 10px 22px rgba(0,0,0,.45); }
+html.deko .wg-die { overflow: visible; }
+html.deko .wg-die.held { background: rgba(255, 210, 74, .2); box-shadow: 0 0 0 2px rgba(255, 210, 74, .9), 0 0 16px rgba(255, 210, 74, .55); }
+html.deko .wg-cat { box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+html.deko .wg-cat.can { background: linear-gradient(#fffdf7, #f3ead7); }

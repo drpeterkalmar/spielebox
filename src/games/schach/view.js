@@ -5,6 +5,9 @@
 import { board as boardOf, inCheck, kingSquare } from './engine.js';
 import { s, ensureDefs, place, animateSteps, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
+import { DEKO, boardLayers } from '../../ui/deko.js';
+import { woodFrame, lacquer } from '../../ui/material.js';
+import * as FXS from '../../ui/fxsvg.js';
 
 const Q = 100;
 const F = 12;   // schmaler Rahmen: Touch-Ziele ≥ 48 px (Koordinaten stehen in den Feldern)
@@ -14,6 +17,8 @@ const PROMO = ['q', 'r', 'b', 'n'];
 
 export function pieceImg(color, type, size = Q) {
   const g = s('g', { class: 'pc cpc' });
+  // Deko: weicher Kontaktschatten unter der Figur (rechts unten, wie das Licht)
+  if (DEKO.on) g.append(s('ellipse', { class: 'pc-sh', cx: size * 0.05, cy: size * 0.36, rx: size * 0.34, ry: size * 0.12, fill: 'url(#dk-shadow)' }));
   g.append(s('image', { href: `assets/pieces/${color}${type.toUpperCase()}.svg`, x: -size / 2, y: -size / 2, width: size, height: size }));
   return g;
 }
@@ -30,6 +35,9 @@ export function createBoard(host, { onMove, onHint }) {
   const gArrows = s('g', { class: 'marks-arrows' });
   svg.append(gBoard, gLast, gSq, gFx, gPieces, gArrows, gHints);
   host.appendChild(svg);
+  // Deko: Brett in der statischen Ebene darunter (gBoard bleibt als leere Gruppe im Brett)
+  const L = boardLayers(svg, host);
+  const gB = L ? L.under.appendChild(s('g')) : gBoard;
 
   let flip = null, table = null, legal = null, sel = null, promo = null, hint = '', grid = null, marks = null;
 
@@ -51,10 +59,10 @@ export function createBoard(host, { onMove, onHint }) {
   }
 
   function drawBoard() {
-    gBoard.textContent = '';
-    gBoard.append(
-      s('rect', { width: SIZE, height: SIZE, rx: 18, fill: 'url(#sb-wood-frame)' }),
-      s('rect', { x: F, y: F, width: 8 * Q, height: 8 * Q, fill: 'url(#sb-wood-light)' }));
+    gB.textContent = '';
+    if (L) woodFrame(gB, 0, 0, SIZE, SIZE, 18);
+    else gB.append(s('rect', { width: SIZE, height: SIZE, rx: 18, fill: 'url(#sb-wood-frame)' }));
+    gB.append(s('rect', { x: F, y: F, width: 8 * Q, height: 8 * Q, fill: 'url(#sb-wood-light)' }));
     const dark = s('g', { fill: 'url(#sb-wood-dark)' });
     const labels = s('g');
     for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
@@ -65,7 +73,9 @@ export function createBoard(host, { onMove, onHint }) {
       labels.append(s('text', { x: F + k * Q + Q - 13, y: F + 8 * Q - 8, class: 'coord-in ' + ((7 + k) % 2 ? 'on-dark' : 'on-light'), text: FILES[flip ? 7 - k : k] }));
       labels.append(s('text', { x: F + 5, y: F + k * Q + 22, class: 'coord-in ' + (k % 2 ? 'on-dark' : 'on-light'), text: String(flip ? k + 1 : 8 - k) }));
     }
-    gBoard.append(dark, s('rect', { x: F, y: F, width: 8 * Q, height: 8 * Q, fill: 'none', stroke: 'rgba(20,8,0,.55)', 'stroke-width': 3 }), labels);
+    gB.append(dark);
+    if (L) lacquer(gB, F, F, 8 * Q, 8 * Q);
+    gB.append(s('rect', { x: F, y: F, width: 8 * Q, height: 8 * Q, fill: 'none', stroke: 'rgba(20,8,0,.55)', 'stroke-width': 3 }), labels);
   }
 
   function renderPieces() {
@@ -237,8 +247,10 @@ export function createBoard(host, { onMove, onHint }) {
             const ghost = place(pieceImg(cp.color, cp.type), x, y);
             gFx.append(ghost);
             fadeOut(ghost, a.slide * 0.6, a.fade);
+            if (a.slide > 0) FXS.puff(gFx, x, y, Q * 0.42, a.slide * 0.75);
           }
         }
+        if (a.slide > 0 && m.promo) FXS.stars(gFx, ...center(m.to), { delay: a.slide, size: 20 });
       }
       renderHints();
     },
@@ -257,6 +269,21 @@ export function createBoard(host, { onMove, onHint }) {
       return { minTargetPx: Q * scale, boardPx: SIZE * scale };
     },
     marks(m) { marks = m; if (table) renderMarks(); },
+    celebrate({ winner }) {
+      const lose = kingSquare(table.gs, winner === 0 ? 'b' : 'w'), win = kingSquare(table.gs, winner === 0 ? 'w' : 'b');
+      const el = lose && pieceAt(lose);
+      if (el && el.animate) {
+        const [x, y] = center(lose);
+        const t = `translate(${x}px, ${y}px)`;
+        // um den Fuß der Figur kippen (Drehpunkt unten): verschieben, drehen, zurück
+        el.animate([{ transform: `${t} translate(0, ${Q * 0.38}px) rotate(0deg) translate(0, ${-Q * 0.38}px)` },
+          { transform: `${t} translate(0, ${Q * 0.38}px) rotate(${winner === 0 ? 84 : -84}deg) translate(0, ${-Q * 0.38}px)`, offset: 0.7, easing: 'ease-in' },
+          { transform: `${t} translate(0, ${Q * 0.38}px) rotate(${winner === 0 ? 78 : -78}deg) translate(0, ${-Q * 0.38}px)`, offset: 0.85 },
+          { transform: `${t} translate(0, ${Q * 0.38}px) rotate(${winner === 0 ? 80 : -80}deg) translate(0, ${-Q * 0.38}px)` }],
+          { duration: 900, easing: 'ease-out', fill: 'forwards' });
+      }
+      if (win) FXS.sparks(gFx, ...center(win), { n: 14, dist: 90, size: 16, delay: 500 });
+    },
     tap: tapSquare,
     destroy() { svg.remove(); }
   };

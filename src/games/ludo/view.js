@@ -2,8 +2,12 @@
 // Das Brett ist so gedreht, dass die eigene Farbe links unten steht. Würfel neben dem Häuschen dessen, der dran ist.
 // Bedienung: „Würfeln“ (Knopf oder Würfel antippen), dann ziehbare Figur antippen (oder ihr Zielfeld).
 // Felder sind am Handy nur ~35 px groß → ein Tipp trifft immer den nächsten sinnvollen Kandidaten.
-import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap, die3d, ball } from '../../ui/svg.js';
 import { OWN, ludoStep } from '../../tempo.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, inset } from '../../ui/material.js';
+import * as FXS from '../../ui/fxsvg.js';
+import { hopWave } from '../../ui/sieg.js';
 import { mayRollThrice } from './engine.js';
 import { SEAT_COLORS, SEAT_SYMBOLS } from '../../ui/seatcolors.js';
 
@@ -22,8 +26,11 @@ export function createBoard(host, { onMove, onHint }) {
   ensureDefs();
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-ludo', role: 'img', 'aria-label': 'Ludo-Brett' });
   const gBoard = s('g'), gPieces = s('g', { class: 'pieces' }), gHints = s('g', { class: 'hints' }), gDie = s('g', { class: 'dice' });
-  svg.append(gBoard, gHints, gPieces, gDie);
+  const gFx = s('g', { class: 'fx' });
+  svg.append(gBoard, gHints, gPieces, gDie, gFx);
   host.appendChild(svg);
+  const L = boardLayers(svg, host);
+  const gB = L ? L.under.appendChild(s('g')) : gBoard;
 
   let table = null, gs = null, legal = null, view = -1, hint = '', anim = OWN, lastDieKey = '', timers = [];
   const setHint = (t) => { if (t !== hint) { hint = t; onHint && onHint(t); } };
@@ -38,9 +45,15 @@ export function createBoard(host, { onMove, onHint }) {
   }
 
   function drawBoard() {
-    gBoard.textContent = '';
-    gBoard.append(s('rect', { width: SIZE, height: SIZE, rx: 22, fill: 'url(#sb-wood-frame)' }),
-      s('rect', { x: F, y: F, width: 11 * U, height: 11 * U, rx: 12, fill: 'url(#sb-wood-light)' }));
+    gB.textContent = '';
+    if (L) {
+      woodFrame(gB, 0, 0, SIZE, SIZE, 22);
+      inset(gB, F, F, 11 * U, 11 * U, 12, 'url(#sb-wood-light)');
+    } else {
+      gB.append(s('rect', { width: SIZE, height: SIZE, rx: 22, fill: 'url(#sb-wood-frame)' }),
+        s('rect', { x: F, y: F, width: 11 * U, height: 11 * U, rx: 12, fill: 'url(#sb-wood-light)' }));
+    }
+    const gBoard = gB;
     const used = new Set((gs.colors || [0, 1, 2, 3]));
     for (let c = 0; c < 4; c++) {
       const col = SEAT_COLORS[c];
@@ -64,6 +77,17 @@ export function createBoard(host, { onMove, onHint }) {
     }
     const [mx, my] = cxy([5, 5], 0);
     gBoard.append(s('circle', { cx: mx, cy: my, r: 30, fill: 'rgba(70,40,15,.25)' }));
+    if (L) {
+      // Deko: alle Felder leicht eingelassen (oben Schatten, unten Licht)
+      const holes = s('g', { fill: 'none', stroke: 'url(#dk-hole)', 'stroke-width': 7 });
+      const ring = (x, y, r) => holes.append(s('circle', { cx: x, cy: y, r: r - 4 }));
+      for (let c = 0; c < 4; c++) {
+        for (let i = 0; i < 10; i++) ring(...cxy(TRACK[i], c), 40);
+        for (const g of GOAL) ring(...cxy(g, c), 38);
+        for (const g of HOME) ring(...cxy(g, c), 38);
+      }
+      gBoard.append(holes);
+    }
   }
 
   // Laufrichtung am Startfeld (Pfeil): erste Teilstrecke der Bahn der Farbe
@@ -74,6 +98,13 @@ export function createBoard(host, { onMove, onHint }) {
 
   function pawn(seat) {
     const c = colorOf(seat);
+    if (L) {
+      // Deko: Figur von oben als glänzende Kugel (Kopf) auf dunklerem Fuß, Symbol bleibt (farbenblind)
+      const g = ball(SEAT_COLORS[c], PR, { ring: true });
+      g.setAttribute('class', 'pc ld-pawn dk-ball');
+      g.append(s('text', { y: 12, class: 'ld-sym', text: SEAT_SYMBOLS[c] }));
+      return g;
+    }
     const g = s('g', { class: 'pc ld-pawn' });
     g.append(s('ellipse', { cx: 4, cy: 10, rx: PR, ry: PR * 0.9, fill: 'url(#sb-shadow)' }),
       s('circle', { r: PR, fill: SEAT_COLORS[c], stroke: 'rgba(0,0,0,.6)', 'stroke-width': 3.5 }),
@@ -94,6 +125,7 @@ export function createBoard(host, { onMove, onHint }) {
   const pawnEl = (seat, k) => gPieces.querySelector(`[data-seat="${seat}"][data-k="${k}"]`);
 
   function die(x, y, v, size, cls = '') {
+    if (L) { const d = die3d(v, size, { blank: !v, cls }); d.setAttribute('transform', `translate(${x} ${y})`); return d; }
     const g = s('g', { class: 'die ' + cls, transform: `translate(${x} ${y})` });
     g.append(s('rect', { x: -size / 2, y: -size / 2, width: size, height: size, rx: size * 0.18, class: 'die-face' }));
     const o = size * 0.26;
@@ -208,12 +240,14 @@ export function createBoard(host, { onMove, onHint }) {
         if (el) animateSteps(el, pts, { hop, lift: true });
         // geschlagene Figur: steht erst am Zielfeld, fliegt nach dem Zug ins Häuschen
         const dur = n * hop;
+        if (hop > 0 && p1 >= 40 && p0 < 40) FXS.stars(gFx, ...pts[pts.length - 1], { delay: dur, size: 22, dist: 90 });
         prev.pieces.forEach((ps, s2) => {
           if (s2 === seat) return;
           ps.forEach((q, k) => {
             if (q >= 0 && q < 40 && gs.pieces[s2][k] < 0) {
               const ce = pawnEl(s2, k);
               if (ce) animateSteps(ce, [posXY(s2, q, k), posXY(s2, -1, k)], { hop: Math.max(200, anim.slide), delay: dur, lift: true });
+              if (hop > 0) FXS.puff(gFx, ...posXY(s2, q, k), PR * 1.15, dur);
             }
           });
         });
@@ -237,6 +271,7 @@ export function createBoard(host, { onMove, onHint }) {
       return { minTargetPx: U * scale, fieldPx: U * scale, candPx: (isFinite(minCand) ? minCand : U) * scale, boardPx: SIZE * scale };
     },
     tap: tapAt,
+    celebrate({ winner }) { hopWave([0, 1, 2, 3].map((k) => pawnEl(winner, k)), { step: 120, up: 1.3 }); },
     destroy() { for (const x of timers) clearTimeout(x); svg.remove(); }
   };
 }

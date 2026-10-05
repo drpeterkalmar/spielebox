@@ -3,7 +3,11 @@
 // Tippen trifft das nächstgelegene dunkle Feld (Voronoi-Zelle ≈ 1,4 Felder breit → große Touch-Ziele auch auf 10×10).
 import { squareName } from './engine.js';
 import { s, ensureDefs, piece, place, animateSteps, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
+import * as FXS from '../../ui/fxsvg.js';
+import { hopWave } from '../../ui/sieg.js';
 import { OWN } from '../../tempo.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, lacquer } from '../../ui/material.js';
 
 const Q = 100;   // Feldgröße
 const R = 38;    // Steinradius
@@ -18,6 +22,9 @@ export function createBoard(host, { onMove, onHint }) {
   const gHints = s('g', { class: 'hints' });
   svg.append(gBoard, gLast, gFx, gPieces, gHints);
   host.appendChild(svg);
+  // Deko: Brett (Holz, Felder, Koordinaten) in der statischen Ebene darunter – gBoard bleibt als leere Gruppe im Brett
+  const L = boardLayers(svg, host);
+  const gB = L ? L.under.appendChild(s('g')) : gBoard;
 
   let n = 0, flip = false, table = null, legal = null, sel = null, prefix = [], hint = '';
   let size = 0;
@@ -34,11 +41,10 @@ export function createBoard(host, { onMove, onHint }) {
     F = n === 10 ? 8 : 30;
     size = n * Q + 2 * F;
     svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
-    gBoard.textContent = '';
-    gBoard.append(
-      s('rect', { width: size, height: size, rx: 18, fill: 'url(#sb-wood-frame)' }),
-      s('rect', { x: F, y: F, width: n * Q, height: n * Q, fill: 'url(#sb-wood-light)' })
-    );
+    gB.textContent = '';
+    if (L) woodFrame(gB, 0, 0, size, size, 18);
+    else gB.append(s('rect', { width: size, height: size, rx: 18, fill: 'url(#sb-wood-frame)' }));
+    gB.append(s('rect', { x: F, y: F, width: n * Q, height: n * Q, fill: 'url(#sb-wood-light)' }));
     const dark = s('g', { fill: 'url(#sb-wood-dark)' });
     const labels = s('g', { class: 'coords' });
     for (let i = 0; i < n * n; i++) {
@@ -48,7 +54,9 @@ export function createBoard(host, { onMove, onHint }) {
       dark.append(s('rect', { x: x - Q / 2, y: y - Q / 2, width: Q, height: Q }));
       if (n === 10) labels.append(s('text', { x: x - Q / 2 + 6, y: y - Q / 2 + 20, class: 'sqnum', text: squareName(i, n) }));
     }
-    gBoard.append(dark, s('rect', { x: F, y: F, width: n * Q, height: n * Q, fill: 'none', stroke: 'rgba(20,8,0,.55)', 'stroke-width': 3 }));
+    gB.append(dark);
+    if (L) lacquer(gB, F, F, n * Q, n * Q);
+    gB.append(s('rect', { x: F, y: F, width: n * Q, height: n * Q, fill: 'none', stroke: 'rgba(20,8,0,.55)', 'stroke-width': 3 }));
     if (n === 8) {
       for (let k = 0; k < 8; k++) {
         const file = String.fromCharCode(97 + (flip ? 7 - k : k));
@@ -57,7 +65,7 @@ export function createBoard(host, { onMove, onHint }) {
         labels.append(s('text', { x: F / 2, y: F + k * Q + Q / 2 + 7, class: 'coord', text: rank }));
       }
     }
-    gBoard.append(labels);
+    gB.append(labels);
   }
 
   function renderPieces(board) {
@@ -224,7 +232,13 @@ export function createBoard(host, { onMove, onHint }) {
               const ghost = place(piece(v > 0 ? 0 : 1, R, { king: Math.abs(v) === 2 }), x, y);
               gFx.append(ghost);
               fadeOut(ghost, k * (hop + a.pause) + hop / 2, a.fade);
+              if (a.slide > 0) FXS.puff(gFx, x, y, R * 1.1, k * (hop + a.pause) + hop / 2);
             });
+            // Deko: Umwandlung zur Dame funkelt
+            const to = m.path[m.path.length - 1];
+            if (a.slide > 0 && Math.abs(prev.board[m.from]) === 1 && Math.abs(t.gs.board[to]) === 2) {
+              FXS.stars(gFx, ...center(to), { delay: m.path.length * hop + (m.path.length - 1) * a.pause });
+            }
           }
         }
       }
@@ -240,6 +254,10 @@ export function createBoard(host, { onMove, onHint }) {
       return { minTargetPx: Math.SQRT2 * Q * scale, squarePx: Q * scale, boardPx: size * scale };
     },
     tap: tapSquare,
+    celebrate({ winner }) {
+      const els = [...gPieces.querySelectorAll(winner === 0 ? '.pc-w' : '.pc-b')].sort((a, b) => a.dataset.y - b.dataset.y || a.dataset.x - b.dataset.x);
+      hopWave(els);
+    },
     destroy() { svg.remove(); }
   };
 }

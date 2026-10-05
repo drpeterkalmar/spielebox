@@ -3,7 +3,9 @@
 // Feld antippen = auswählen, nochmal antippen (oder „Eintragen“) = eintragen. Würfeln über den Knopf unten.
 // HTML statt SVG (Block = Tabelle), liegt wie die anderen Bretter im board-wrap.
 import { h, clear } from '../../ui/dom.js';
-import { s } from '../../ui/svg.js';
+import { s, die3d } from '../../ui/svg.js';
+import { DEKO } from '../../ui/deko.js';
+import { fx } from '../../ui/fx.js';
 import { CATS, CAT_NAME, BONUS_AT, totals, scoreFor, extraFor, allowedCats, suggestions } from './engine.js';
 import { OWN } from '../../tempo.js';
 
@@ -11,6 +13,14 @@ const PIPS = { 1: [[50, 50]], 2: [[28, 28], [72, 72]], 3: [[28, 28], [50, 50], [
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function face(v) {
+  if (DEKO.on) {
+    // Deko: Würfel mit Tiefe (Schatten, gewölbte Fläche, eingelassene Augen)
+    const svg = s('svg', { viewBox: '0 0 100 100', class: 'wg-face', 'aria-hidden': 'true', overflow: 'visible' });
+    const d = die3d(v, 88, { blank: !v });
+    d.setAttribute('transform', 'translate(48 48)');
+    svg.append(d);
+    return svg;
+  }
   const svg = s('svg', { viewBox: '0 0 100 100', class: 'wg-face', 'aria-hidden': 'true' });
   svg.append(s('rect', { x: 4, y: 4, width: 92, height: 92, rx: 18, class: 'die-face' }));
   for (const [x, y] of PIPS[v] || []) svg.append(s('circle', { cx: x, cy: y, r: 9.5, class: 'die-pip' }));
@@ -137,6 +147,10 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       const rolled = info.kind === 'move' && info.move && info.move.type === 'roll' && key !== diceKey;
       diceKey = key;
       renderDice(rolled);
+      // Deko: Fünferpasch → Sterne über den Würfeln, sobald sie liegen
+      if (rolled && anim.dice > 0 && gs.dice && gs.dice.every((d) => d && d === gs.dice[0])) {
+        fx.later(anim.dice, () => { const r = diceRow.getBoundingClientRect(); fx.stars([r.left + r.width / 2, r.top + r.height / 2], { count: 14, spread: 6, size: 24 }); });
+      }
       renderSheet();
       setHints();
     },
@@ -146,6 +160,9 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     selected: () => sel,
     scoreSelected: () => commitScore(),
     roll() { const m = api.holdMove(); if (legal && legal.some((x) => x.type === 'roll')) { legal = null; onMove(m); } },
+    celebrate() {
+      [...diceRow.children].forEach((b, k) => b.animate && b.animate([{ transform: 'none' }, { transform: 'translateY(-14px) rotate(-8deg)', offset: 0.4 }, { transform: 'none' }], { duration: 520, delay: k * 90, easing: 'ease-out' }));
+    },
     // Tests: Bildschirmpunkt von Würfel k bzw. Feld cat
     target(x) {
       const el = typeof x === 'number' ? diceRow.children[x] : sheetEl.querySelector(`[data-cat="${x}"]`);

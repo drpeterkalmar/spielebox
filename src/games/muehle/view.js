@@ -3,6 +3,10 @@
 import { POINTS, MILLS } from './engine.js';
 import { s, ensureDefs, piece, place, animateSteps, animateDrop, flyIn, fadeOut, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
+import { boardLayers } from '../../ui/deko.js';
+import { woodFrame, inset } from '../../ui/material.js';
+import * as FXS from '../../ui/fxsvg.js';
+import { hopWave } from '../../ui/sieg.js';
 
 const U = 100;          // Rasterabstand
 const OFF = 52;         // Rand bis zum äußeren Ring (schmal: Touch-Ziele ≥ 48 px auch quer im Browser-Tab)
@@ -15,26 +19,44 @@ const xy = (i) => [OFF + POINTS[i][0] * U, OFF + POINTS[i][1] * U];
 export function createBoard(host, { onMove, onHint }) {
   ensureDefs();
   const svg = s('svg', { viewBox: `0 0 ${SIZE} ${SIZE}`, class: 'board board-muehle', role: 'img', 'aria-label': 'Mühlebrett' });
-  svg.append(
-    s('rect', { width: SIZE, height: SIZE, rx: 20, fill: 'url(#sb-wood-frame)' }),
-    s('rect', { x: 12, y: 12, width: SIZE - 24, height: SIZE - 24, rx: 8, fill: 'url(#sb-wood-light)', stroke: 'rgba(40,20,5,.45)', 'stroke-width': 3 })
-  );
-  const lines = s('g', { stroke: '#3a2515', 'stroke-width': 7, 'stroke-linecap': 'round', fill: 'none', opacity: 0.92 });
-  for (const k of [0, 1, 2]) {
-    const a = OFF + k * U, w = (6 - 2 * k) * U;
-    lines.append(s('rect', { x: a, y: a, width: w, height: w }));
-  }
+  host.appendChild(svg);
+  const L = boardLayers(svg, host);
   const c = OFF + 3 * U;
-  lines.append(s('path', { d: `M ${c} ${OFF} V ${OFF + 2 * U} M ${c} ${OFF + 4 * U} V ${OFF + 6 * U} M ${OFF} ${c} H ${OFF + 2 * U} M ${OFF + 4 * U} ${c} H ${OFF + 6 * U}` }));
-  const dots = s('g', { fill: '#3a2515' });
-  POINTS.forEach((_, i) => { const [x, y] = xy(i); dots.append(s('circle', { cx: x, cy: y, r: 11 })); });
+  const linePath = (k0 = 0) => `M ${c} ${OFF} V ${OFF + 2 * U} M ${c} ${OFF + 4 * U} V ${OFF + 6 * U} M ${OFF} ${c} H ${OFF + 2 * U} M ${OFF + 4 * U} ${c} H ${OFF + 6 * U}` +
+    [0, 1, 2].map((k) => { const a = OFF + k * U + k0, w = (6 - 2 * k) * U; return ` M ${a} ${a} h ${w} v ${w} h ${-w} Z`; }).join('');
+  if (L) {
+    // Deko: Rahmen mit Schliff, eingelassene Spielfläche, eingebrannte Linien (dunkel + helle Kante), Messing-Punkte
+    const b = s('g');
+    woodFrame(b, 0, 0, SIZE, SIZE, 20);
+    inset(b, 12, 12, SIZE - 24, SIZE - 24, 8, 'url(#sb-wood-light)');
+    b.append(s('path', { d: linePath(), transform: 'translate(2 2.5)', stroke: 'rgba(255,240,215,.45)', 'stroke-width': 7, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+      s('path', { d: linePath(), stroke: '#352113', 'stroke-width': 7, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.94 }));
+    POINTS.forEach((_, i) => {
+      const [x, y] = xy(i);
+      b.append(s('circle', { cx: x + 1.5, cy: y + 2, r: 13, fill: 'rgba(255,240,215,.4)' }), s('circle', { cx: x, cy: y, r: 13, fill: 'url(#dk-brass)', stroke: '#3a2412', 'stroke-width': 2.5 }));
+    });
+    L.under.append(b);
+  } else {
+    svg.append(
+      s('rect', { width: SIZE, height: SIZE, rx: 20, fill: 'url(#sb-wood-frame)' }),
+      s('rect', { x: 12, y: 12, width: SIZE - 24, height: SIZE - 24, rx: 8, fill: 'url(#sb-wood-light)', stroke: 'rgba(40,20,5,.45)', 'stroke-width': 3 })
+    );
+    const lines = s('g', { stroke: '#3a2515', 'stroke-width': 7, 'stroke-linecap': 'round', fill: 'none', opacity: 0.92 });
+    for (const k of [0, 1, 2]) {
+      const a = OFF + k * U, w = (6 - 2 * k) * U;
+      lines.append(s('rect', { x: a, y: a, width: w, height: w }));
+    }
+    lines.append(s('path', { d: `M ${c} ${OFF} V ${OFF + 2 * U} M ${c} ${OFF + 4 * U} V ${OFF + 6 * U} M ${OFF} ${c} H ${OFF + 2 * U} M ${OFF + 4 * U} ${c} H ${OFF + 6 * U}` }));
+    const dots = s('g', { fill: '#3a2515' });
+    POINTS.forEach((_, i) => { const [x, y] = xy(i); dots.append(s('circle', { cx: x, cy: y, r: 11 })); });
+    svg.append(lines, dots);
+  }
   const gLast = s('g', { class: 'last' });
   const gMill = s('g', { class: 'mill' });
   const gPieces = s('g', { class: 'pieces' });
   const gFx = s('g', { class: 'fx' });
   const gHints = s('g', { class: 'hints' });
-  svg.append(lines, dots, gLast, gMill, gPieces, gFx, gHints);
-  host.appendChild(svg);
+  svg.append(gLast, gMill, gPieces, gFx, gHints);
 
   let table = null;
   let legal = null;
@@ -204,6 +226,14 @@ export function createBoard(host, { onMove, onHint }) {
           const ghost = place(piece(1 - info.by, R), x, y);
           gFx.append(ghost);
           fadeOut(ghost, a.slide + a.pause, a.fade);
+          // Deko: geschlossene Mühle funkelt, der geschlagene Stein verpufft
+          if (a.slide > 0) {
+            const b = t.gs.board;
+            for (const mill of MILLS) {
+              if (mill.includes(m.to) && mill.every((p) => b[p] === info.by)) FXS.sweep(gFx, ...xy(mill[0]), ...xy(mill[2]), { delay: a.slide, size: 16 });
+            }
+            FXS.puff(gFx, x, y, R * 1.1, a.slide + a.pause);
+          }
         }
       }
       renderHints();
@@ -219,6 +249,11 @@ export function createBoard(host, { onMove, onHint }) {
       return { minTargetPx: Math.min(U, 2 * HIT) * scale, boardPx: SIZE * scale };
     },
     tap: tapPoint,
+    // Deko: Sieg – die Steine des Gewinners hüpfen der Reihe nach (von oben nach unten)
+    celebrate({ winner }) {
+      const els = [...gPieces.querySelectorAll(winner === 0 ? '.pc-w' : '.pc-b')].sort((a, b) => a.dataset.y - b.dataset.y || a.dataset.x - b.dataset.x);
+      hopWave(els);
+    },
     destroy() { svg.remove(); }
   };
 }

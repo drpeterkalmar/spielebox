@@ -10,6 +10,9 @@ import { chooseBotMove, quickMove } from './botclient.js';
 import { gameOf, GAME_LIST, LIVE, seatCount } from './games/registry.js';
 import { h, sheet } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
+import { DEKO, readDeko, applyDeko } from './ui/deko.js';
+import { fxState, freeze } from './ui/fx.js';
+import { prepareCardArt } from './ui/cards.js';
 import { BUILD } from './build.js';
 import { botDelay, levelFrom } from './tempo.js';
 
@@ -302,8 +305,15 @@ window.__box = {
   sessionLog: () => (cur ? cur.session.log.slice(-80) : []),
   errors: () => window.__errors || [],
   trainer: () => trainer,
-  openTrainer: (p = 'trainer') => { setHash(p); return openTrainer(p); }
+  openTrainer: (p = 'trainer') => { setHash(p); return openTrainer(p); },
+  // Verzierungen (Deko-Stufe, Effekte)
+  deko: () => ({ level: DEKO.level, on: DEKO.on, fx: DEKO.fx, quality: DEKO.quality }),
+  fx: () => fxState(),
+  freeze: (on = true) => freeze(on)
 };
 
+readDeko();
+applyDeko();
 ensureDefs();
+setTimeout(prepareCardArt, 300);   // Deko-Kartenrücken vorzeichnen, solange man noch in der Lobby ist
 route().then(() => { window.__box.ready = true; document.body.dataset.ready = '1'; });
