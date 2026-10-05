@@ -75,6 +75,8 @@ class Page:
         t0 = time.time()
         # Tests laufen ohne Denkzeit und Animationen (Computer-Tempo „test“), außer q setzt tempo= selbst
         if 'tempo=' not in q: q = q + ('&' if '?' in q else '?') + 'tempo=test'
+        # zusätzliche Parameter für ganze Läufe, z. B. SB_Q=deko=0 python3 tests/smoke.py (altes Aussehen)
+        if os.environ.get('SB_Q'): q = q + ('&' if '?' in q else '?') + os.environ['SB_Q']
         self.pg.goto(self.base + 'index.html' + q + hash_)
         self.pg.wait_for_function("window.__box && window.__box.ready", timeout=timeout)
         self.boot_s = time.time() - t0
