@@ -913,5 +913,51 @@ await ok('Gutachten P2-16: Übernahme, während ein Wurf aussteht → spätesten
   } finally { Object.assign(TIMING, keep); }
 });
 
+await ok('Gutachten P2-3: andere App-Version → einmal Toast; Stand mit unbekanntem Spiel → abgelehnt, kein Absturz', async () => {
+  uncaught.length = 0;
+  const hub = new Hub();
+  const mk = (pid, name, build, table = null) => {
+    const link = new FakeLink(hub, pid, name);
+    const s = new TableSession({ mode: 'online', me: { pid, name }, table, link, build });
+    s.toasts = [];
+    s.on('toast', (x) => s.toasts.push(x));
+    s.start(); link.connect();
+    return s;
+  };
+  const h = mk('H', 'Peter', 'neu1', newTable({ game: 'muehle', host: { pid: 'H', name: 'Peter' } }));
+  const g = mk('G', 'Anna', 'alt0');
+  await until(() => g.table && g.table.status === 'play', 2000, 'Partie läuft');
+  h.submitMove({ to: 0 });
+  await until(() => g.table.nmoves === 1);
+  assert.equal(g.toasts.filter((x) => /andere Version/.test(x)).length, 1, 'Gast: genau einmal');
+  assert.equal(h.toasts.filter((x) => /andere Version/.test(x)).length, 1, 'Host: genau einmal');
+  // Host schickt ein Spiel, das der Gast nicht kennt
+  const seq = g.table.seq;
+  h.link.send({ t: 'state', table: { ...h.table, game: 'gibtsnicht', seq: h.table.seq + 5 } }, 'G');
+  await sleep(30);
+  assert.equal(g.table.game, 'muehle');
+  assert.equal(g.table.seq, seq);
+  assert.ok(g.toasts.some((x) => /kennt deine Version/.test(x)), g.toasts.join(' | '));
+  assert.doesNotThrow(() => g.netStatus());
+  noErrors('Fehler');
+  h.close(); g.close();
+  // gleiche Version: kein Hinweis
+  const hub2 = new Hub();
+  const mk2 = (pid, table = null) => {
+    const link = new FakeLink(hub2, pid, pid);
+    const s = new TableSession({ mode: 'online', me: { pid, name: pid }, table, link, build: 'neu1' });
+    s.toasts = [];
+    s.on('toast', (x) => s.toasts.push(x));
+    s.start(); link.connect();
+    return s;
+  };
+  const h2 = mk2('H', newTable({ game: 'muehle', host: { pid: 'H', name: 'H' } }));
+  const g2 = mk2('G');
+  await until(() => g2.table && g2.table.status === 'play', 2000);
+  await sleep(30);
+  assert.equal([...h2.toasts, ...g2.toasts].filter((x) => /andere Version/.test(x)).length, 0);
+  h2.close(); g2.close();
+});
+
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
 process.exit(fails ? 1 : 0);

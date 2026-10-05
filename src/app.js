@@ -96,7 +96,7 @@ async function openOnline({ words, want, create, resume = false }) {
     words, roomId, pid: m.pid, name: m.name, relayOnly: RELAY_ONLY,
     log: (x) => { netlog.push(`${new Date().toISOString().slice(11, 19)} ${x}`); if (netlog.length > 300) netlog.shift(); }
   });
-  const session = new TableSession({ mode: 'online', me: m, want, table, link, save, secret: store.deviceSecret(), bot: { choose: chooseBotMove } });
+  const session = new TableSession({ mode: 'online', me: m, want, table, link, save, secret: store.deviceSecret(), bot: { choose: chooseBotMove }, build: BUILD });
   setHash(formatWords(words));
   mount(session, { words, roomId, link });
   session.start();

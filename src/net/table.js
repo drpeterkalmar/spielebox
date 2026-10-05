@@ -87,7 +87,7 @@ export class TableSession {
   // me: { pid, name }; want: 'play' | 'watch'
   // table: gespeicherter oder neuer Tisch (online beim Beitreten ohne Speicherstand: null)
   // link: Netz (nur online); save(table): Speicher-Rückruf; bot: { choose(game, gs, seat) → Promise<Move> }
-  constructor({ mode = 'online', me, want = 'play', table = null, link = null, save = () => {}, bot = null, now = () => Date.now(), timers = globalThis, secret = null, random = randomHex, chain = CHAIN }) {
+  constructor({ mode = 'online', me, want = 'play', table = null, link = null, save = () => {}, bot = null, now = () => Date.now(), timers = globalThis, secret = null, random = randomHex, chain = CHAIN, build = null }) {
     this.mode = mode;
     this.me = me;
     this.want = want;
@@ -109,6 +109,7 @@ export class TableSession {
     this.secret = secret || randomHex();   // Geräte-Geheimnis für die eigenen Hash-Ketten
     this.random = random;                  // lokaler Zufall (Tests: fester Strom)
     this.chain = chain;                    // Länge der eigenen Hash-Ketten (Tests: klein)
+    this.build = build;                    // App-Version (src/build.js), geht mit hello/state mit
     this.fairCheck = null;                 // Ergebnis der eigenen Prüfung des Zufalls-Protokolls
     this._sentFair = {};
   }
@@ -581,12 +582,18 @@ export class TableSession {
     if (!t) return;
     const hidden = !!this.engine.HIDDEN;
     if (!hidden && !t.fairPriv) {
-      this.link.send({ t: 'state', table: t }, to);
+      this.link.send(this._stateMsg(t), to);
       return;
     }
     const targets = to ? [to] : this._audience();
-    if (!hidden && !to) { this.link.send({ t: 'state', table: tableFor(t, null) }); return; }
-    for (const pid of targets) this.link.send({ t: 'state', table: tableFor(t, seatOf(t, pid)) }, pid);
+    if (!hidden && !to) { this.link.send(this._stateMsg(tableFor(t, null))); return; }
+    for (const pid of targets) this.link.send(this._stateMsg(tableFor(t, seatOf(t, pid))), pid);
+  }
+
+  _stateMsg(table) {
+    const msg = { t: 'state', table };
+    if (this.build) msg.build = this.build;
+    return msg;
   }
 
   // alle bekannten Gegenstellen (Sitzende, Anwesende, verbundene Peers) außer mir
@@ -686,6 +693,15 @@ export class TableSession {
     const incoming = msg.table;
     if (!incoming || incoming.v !== 1 || !incoming.gs || !Array.isArray(incoming.seats)) return;
     if (incoming.hostPid !== from.pid) return; // nur der Host verteilt Zustände
+    if (!this._knownGame(incoming.game)) {
+      // Spiel aus einer neueren Version: ablehnen statt beim Zeichnen abzustürzen
+      if (!this._unknownWarned) {
+        this._unknownWarned = true;
+        this._note(`Stand mit unbekanntem Spiel ${String(incoming.game).slice(0, 20)} abgelehnt`);
+        this._emit('toast', 'Dieses Spiel kennt deine Version noch nicht – bitte neu laden');
+      }
+      return;
+    }
     this.hostSeen = this.now();
     // Vergleich immer gegen den letzten BESTÄTIGTEN Stand (nicht gegen die Vorschau des eigenen Zugs)
     const base = this._isOptimistic ? this._confirmed : this.table;
@@ -709,6 +725,10 @@ export class TableSession {
       info.prevGs = base.gs;
     }
     this._changed(info);
+  }
+
+  _knownGame(id) {
+    try { return !!gameOf(id); } catch { return false; }
   }
 
   // eigenen Zug sofort anzeigen (bestätigt wird er vom Host)
@@ -779,6 +799,12 @@ export class TableSession {
     const t = this.table;
     const isHost = this.role === 'host';
     if (t && from.pid === t.hostPid) this.hostSeen = this.now();
+    if (typeof msg.build === 'string' && this.build && msg.build !== this.build && !this._versionWarned) {
+      // andere App-Version (Update nur bei einem angekommen): einmal erklären, statt still Unpassendes zu zeigen
+      this._versionWarned = true;
+      this._note(`Gegenstelle ${from.pid} hat Version ${msg.build.slice(0, 12)} (hier ${this.build})`);
+      this._emit('toast', 'Mitspieler hat eine andere Version – bitte beide neu laden');
+    }
     switch (msg.t) {
       case 'hello':
         this.present.get(from.pid).want = msg.want;
@@ -796,7 +822,7 @@ export class TableSession {
           // zweiter Host mit neuerem Stand → abgeben
           // gleicher Stand zweier Hosts (gleichzeitige Übernahme): die lexikographisch größere pid gibt nach
           const d = msg.table && msg.table.hostPid === from.pid && from.pid !== this.me.pid ? newer(msg.table, t) : -1;
-          if (d > 0 || (d === 0 && this.me.pid > from.pid)) {
+          if ((d > 0 || (d === 0 && this.me.pid > from.pid)) && this._knownGame(msg.table.game)) {
             this.table = null;
             this._clientOnState(from, msg);
           }
@@ -851,10 +877,12 @@ export class TableSession {
 
   _hello(to) {
     const t = this.table;
-    this.link.send({
+    const msg = {
       t: 'hello', name: this.me.name, want: this.want,
       have: t ? { epoch: t.epoch, seq: t.seq, host: t.hostPid === this.me.pid, game: t.game } : null
-    }, to);
+    };
+    if (this.build) msg.build = this.build;
+    this.link.send(msg, to);
   }
 
   _sendHost(msg) {
