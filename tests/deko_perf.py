@@ -5,7 +5,7 @@
 #   q z. B. "deko=0" (altes Aussehen)
 # Die Szenen starten aus den Fixtures von deko_rundgang.py; Math.random und crypto.getRandomValues sind fest gesät,
 # damit vorher/nachher möglichst dieselben Züge laufen (Bot-Suchtiefe hängt trotzdem etwas an der CPU-Zeit).
-import sys, os, time, json, gzip, statistics
+import sys, os, time, json, gzip, statistics, subprocess
 sys.path.insert(0, 'tests')
 from util import *
 from deko_rundgang import ctx_page, load_fixture, wait_js
@@ -41,6 +41,15 @@ SCENES = [
 def chrome_cpu():
     """CPU-Zeit (s) aller Prozesse des Test-Chromiums (Browser, GPU/SwiftShader, Renderer) – misst auch das Rastern."""
     tot = 0
+    if not os.path.isdir('/proc'):
+        # macOS: kein /proc → ps (Spalte time = verbrauchte CPU-Zeit, [[H:]M:]S.ss)
+        out = subprocess.run(['ps', '-Ao', 'time=,command='], capture_output=True, text=True).stdout
+        for line in out.splitlines():
+            if 'ms-playwright' not in line: continue
+            t = line.split(None, 1)[0]
+            try: tot += sum(float(p) * 60 ** i for i, p in enumerate(reversed(t.split(':'))))
+            except ValueError: continue
+        return tot
     hz = os.sysconf('SC_CLK_TCK')
     for pid in os.listdir('/proc'):
         if not pid.isdigit(): continue
@@ -155,7 +164,7 @@ if __name__ == '__main__':
         elif a.startswith('--ab='): variants = a.split('=', 1)[1].split('|')
         else: q = a
     variants = variants or [q]
-    out = {'name': name, 'variants': variants, 'when': time.strftime('%Y-%m-%d %H:%M'), 'gpu': 'vulkan' if os.environ.get('SB_VULKAN') else 'swiftshader', 'size': {}, 'scenes': {}}
+    out = {'name': name, 'variants': variants, 'when': time.strftime('%Y-%m-%d %H:%M'), 'gpu': 'metal' if sys.platform == 'darwin' else 'vulkan' if os.environ.get('SB_VULKAN') else 'swiftshader', 'size': {}, 'scenes': {}}
     with sync_playwright() as pw, Server() as srv:
         b = launch(pw)
         for v in variants:

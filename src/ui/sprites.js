@@ -2,16 +2,14 @@
 // gezeichnet (Blob-URL, kein Netz) und dann als ein einziges <image> je Stein benutzt. Das spart gegenüber Vektor-Steinen
 // (bis zu 7 Formen mit Verläufen) Arbeit im Hauptthread und beim Rastern. Erzeugt wird erst bei Bedarf (nur die Sorten
 // des gerade gespielten Spiels); bis ein Bild fertig ist (wenige ms), zeichnet die Ansicht die gleiche Form als Vektor.
+// Kein extra Neuzeichnen, wenn ein Bild fertig wird (das würde z. B. eine angetippte Spalte/Karte verwerfen) – der nächste
+// Zug zeichnet ohnehin neu und nimmt dann die Bilder.
 // Licht wie überall von links oben, Schatten nach rechts unten. Maße: Kachel S × S Pixel, Objekt-Radius RS.
 import { DEKO } from './deko.js';
 
 export const S = 168;          // Kachelgröße (px)
 export const RS = S * 0.36;    // Radius des Objekts in der Kachel (Platz für Schatten rechts unten)
 const cache = new Map();       // Schlüssel → URL | null (wird gezeichnet) | false (geht nicht)
-let pending = 0, readyTimer = 0;
-const readyFns = new Set();
-// Bescheid geben, wenn neue Bildchen fertig sind (die Ansicht zeichnet dann einmal neu – nur wenn gerade nichts läuft)
-export function onSprites(fn) { readyFns.add(fn); return () => readyFns.delete(fn); }
 
 function make(key, draw) {
   try {
@@ -20,14 +18,7 @@ function make(key, draw) {
     const x = c.getContext('2d');
     x.translate(S / 2, S / 2);
     draw(x);
-    pending++;
-    c.toBlob((b) => {
-      cache.set(key, b ? URL.createObjectURL(b) : false);
-      if (--pending === 0) {
-        clearTimeout(readyTimer);
-        readyTimer = setTimeout(() => { for (const fn of readyFns) { try { fn(); } catch { /* egal */ } } }, 30);
-      }
-    }, 'image/png');
+    c.toBlob((b) => cache.set(key, b ? URL.createObjectURL(b) : false), 'image/png');
   } catch { cache.set(key, false); }
 }
 

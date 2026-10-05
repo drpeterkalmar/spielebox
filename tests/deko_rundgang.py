@@ -184,8 +184,10 @@ def vergleich(a, b, only=None):
     from PIL import Image, ImageDraw, ImageFont
     da, db = os.path.join(SHOTS, a), os.path.join(SHOTS, b)
     names = EXTRA + [s[0] for s in SCENES]
-    try: font = ImageFont.truetype('/usr/share/fonts/TTF/DejaVuSans-Bold.ttf', 34)
-    except Exception: font = ImageFont.load_default()
+    font = ImageFont.load_default()
+    for fp in ['/usr/share/fonts/TTF/DejaVuSans-Bold.ttf', '/System/Library/Fonts/Supplemental/Arial Bold.ttf']:   # Linux, macOS
+        try: font = ImageFont.truetype(fp, 34); break
+        except Exception: pass
     made = []
     for form in ['hoch', 'quer']:
         for name in names:

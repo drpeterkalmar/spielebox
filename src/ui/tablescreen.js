@@ -18,7 +18,6 @@ import * as store from '../store.js';
 import { onDeko } from './deko.js';
 import { clear as clearFx } from './fx.js';
 import { celebrate } from './sieg.js';
-import { onSprites } from './sprites.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -683,8 +682,6 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const offToastLog = onToast((text) => addEvent(text));
   // Optik umgestellt (Einstellungen): Brett neu aufbauen
   const offDeko = onDeko(() => { if (view) { view.destroy(); view = null; viewGame = null; } render({ kind: 'state' }); });
-  // vorgezeichnete Steine fertig: einmal neu zeichnen (nur in Ruhe, nie mitten in einer Zug-Animation)
-  const offSprites = onSprites(() => { if (view && session.table && busyUntil <= Date.now() && !queue.length) render({ kind: 'state' }); });
   render({ kind: 'start' });
 
   return {
@@ -697,7 +694,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     banner: () => (banner ? banner.text : null),
     destroy() {
       clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); removeEventListener('resize', onResize);
-      offChange(); offNet(); offToast(); offToastLog(); offDeko(); offSprites(); clearFx(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
+      offChange(); offNet(); offToast(); offToastLog(); offDeko(); clearFx(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
     }
   };
 }

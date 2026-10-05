@@ -81,7 +81,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     }
     if (gs.wish) gMid.append(s('g', { class: 'mm-wish' }, s('rect', { x: 690, y: 340, width: 270, height: 74, rx: 37, class: 'mm-badge' }), s('text', { x: 825, y: 388, class: 'mm-badge-t', text: `Wunsch: ${SUIT_NAMES[gs.wish]}` })));
     if (gs.penalty > 0) gMid.append(s('g', { class: 'mm-pen' }, s('rect', { x: 690, y: 430, width: 270, height: 74, rx: 37, class: 'mm-badge pen' }), s('text', { x: 825, y: 478, class: 'mm-badge-t', text: `+${gs.penalty} ziehen` })));
-    if (gs.drawn && seated && gs.turn === me) gMid.append(s('text', { x: 500, y: 640, class: 'trick-label', text: 'Gezogene Karte legen – oder „Weiter“' }));
+    if (gs.drawn && seated && gs.turn === me) gMid.append(s('text', { x: 500, y: 292, class: 'trick-label', text: 'Gezogene Karte legen – oder „Weiter“' }));
   }
 
   function drawHand() {
