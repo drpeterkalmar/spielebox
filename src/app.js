@@ -53,6 +53,7 @@ async function leaveTable() {
   cur = null;
   c.screen.destroy();
   c.session.close();
+  store.flushTables();
   if (c.link) await c.link.close();
 }
 

@@ -18,6 +18,16 @@ function set(key, value) {
   } catch { /* Speicher voll oder gesperrt */ }
 }
 
+// wie set, meldet aber, ob es geklappt hat (Speicher voll → false)
+function trySet(key, value) {
+  try {
+    localStorage.setItem(P + key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function del(key) {
   try { localStorage.removeItem(P + key); } catch { /* egal */ }
 }
@@ -58,16 +68,47 @@ export function tableList() {
   return get('tables', []).filter((e) => e && e.roomId && Array.isArray(e.words));
 }
 
+// Online-Tische werden entprellt geschrieben: frühestens SAVE_MS nach der letzten Änderung (spätestens SAVE_MAX nach
+// der ersten), sofort beim Verlassen der Seite (pagehide, visibilitychange: hidden) und beim Verlassen des Tisches
+// (flushTables). Bis dahin liefert loadTable den neuesten Stand aus dem Speicher.
+export const SAVE_MS = 250;
+const SAVE_MAX = 2000;
+const pending = new Map();   // roomId → entry
+let flushTimer = null;
+let firstPending = 0;
+
 export function loadTable(roomId) {
-  return get('t.' + roomId, null);
+  return pending.get(roomId) || get('t.' + roomId, null);
 }
 
 // entry: { roomId, words, want, table }
 export function saveTable(entry) {
-  set('t.' + entry.roomId, entry);
+  pending.set(entry.roomId, entry);
+  const now = Date.now();
+  if (!firstPending) firstPending = now;
+  if (flushTimer) clearTimeout(flushTimer);
+  const wait = Math.max(0, Math.min(SAVE_MS, firstPending + SAVE_MAX - now));
+  flushTimer = setTimeout(flushTables, wait);
+}
+
+export function flushTables() {
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = null;
+  firstPending = 0;
+  const all = [...pending.values()];
+  pending.clear();
+  for (const entry of all) writeTable(entry);
+}
+
+if (typeof addEventListener === 'function') {
+  addEventListener('pagehide', flushTables);
+  addEventListener('visibilitychange', () => { if (typeof document !== 'undefined' && document.visibilityState === 'hidden') flushTables(); });
+}
+
+// Kurzbeschreibung für die Liste „Weiterspielen“
+function listEntry(entry) {
   const t = entry.table;
-  const list = tableList().filter((e) => e.roomId !== entry.roomId);
-  list.unshift({
+  return {
     roomId: entry.roomId,
     words: entry.words,
     game: t ? t.game : entry.game,
@@ -75,15 +116,35 @@ export function saveTable(entry) {
     status: t ? t.status : 'wait',
     seats: t ? t.seats.map((s) => s && s.name) : [],
     updated: Date.now()
-  });
-  while (list.length > MAX_TABLES) {
-    const old = list.pop();
+  };
+}
+
+const sig = (e) => JSON.stringify([e.game, e.opts, e.status, e.seats, e.words]);
+
+function writeTable(entry) {
+  // Speicher voll: ältesten anderen Tisch verwerfen und einmal erneut versuchen
+  if (!trySet('t.' + entry.roomId, entry)) {
+    const old = tableList().filter((e) => e.roomId !== entry.roomId).pop();
+    if (old) forgetTable(old.roomId);
+    if (!trySet('t.' + entry.roomId, entry)) return;
+  }
+  // Liste nur schreiben, wenn sich Spiel/Sitze/Status geändert haben, der Tisch nicht vorn steht oder die Zeitangabe
+  // älter als 30 s ist (Anzeige „gerade eben“ in der Lobby)
+  const list = tableList();
+  const next = listEntry(entry);
+  const top = list[0];
+  if (top && top.roomId === entry.roomId && sig(top) === sig(next) && next.updated - (top.updated || 0) < 30000) return;
+  const rest = list.filter((e) => e.roomId !== entry.roomId);
+  rest.unshift(next);
+  while (rest.length > MAX_TABLES) {
+    const old = rest.pop();
     del('t.' + old.roomId);
   }
-  set('tables', list);
+  set('tables', rest);
 }
 
 export function forgetTable(roomId) {
+  pending.delete(roomId);
   del('t.' + roomId);
   set('tables', tableList().filter((e) => e.roomId !== roomId));
 }
