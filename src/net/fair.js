@@ -63,13 +63,35 @@ export function sha256(str) {
   return hex(sha256bytes(utf8(str)));
 }
 
-export const CHAIN = 1024;   // Zufallsereignisse je Runde (Backgammon ~60 Würfe, Schnapsen ~30 Spiele)
+// Zufallsereignisse je Runde (Backgammon ~60 Würfe, Schnapsen ~30 Spiele, Ludo zu viert bis ~900 Würfe).
+// Danach würfelt der Host allein (im Protokoll als ungeprüft markiert, table.js). Kosten: CHAIN − k Hashes je Glied.
+export const CHAIN = 4096;
 
-// Kettenglied k (0 = Commit) aus dem geheimen Seed
+// Kettenglied k (0 = Commit) aus dem geheimen Seed: L_k = H^(n−k)(H('sb-seed|' + seed)).
+// Stützstellen alle STEP Hashes je Seed (kleiner LRU-Speicher): einmal n Hashes, danach höchstens STEP − 1 je Glied.
+const STEP = 64;
+const marks = new Map();   // `${n}|${seed}` → [x_0, x_STEP, x_2·STEP, …] mit x_i = H^i(Start)
+function marksFor(seed, n) {
+  const key = `${n}|${seed}`;
+  let cp = marks.get(key);
+  if (cp) { marks.delete(key); marks.set(key, cp); return cp; }
+  cp = [];
+  let x = sha256('sb-seed|' + seed);
+  for (let i = 0; i <= n; i++) {
+    if (i % STEP === 0) cp.push(x);
+    if (i < n) x = sha256(x);
+  }
+  marks.set(key, cp);
+  if (marks.size > 32) marks.delete(marks.keys().next().value);
+  return cp;
+}
+
 export function chainLink(seed, k, n = CHAIN) {
   if (!(k >= 0 && k <= n)) throw new Error('Kettenglied außerhalb');
-  let x = sha256('sb-seed|' + seed);
-  for (let i = 0; i < n - k; i++) x = sha256(x);
+  const i = n - k;
+  const j = Math.floor(i / STEP);
+  let x = marksFor(seed, n)[j];
+  for (let r = j * STEP; r < i; r++) x = sha256(x);
   return x;
 }
 

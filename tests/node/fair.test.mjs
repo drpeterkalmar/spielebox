@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { sha256, chainLink, verifyLink, mixLinks, diceFrom, permFrom, verifyFair, CHAIN } from '../../src/net/fair.js';
+import { TableSession, newTable } from '../../src/net/table.js';
 
 let fails = 0;
 function test(name, fn) {
@@ -22,6 +23,14 @@ test('Hash-Kette: jedes Glied passt zum vorigen, fremdes Glied nicht', () => {
   assert.ok(!verifyLink(c0, chainLink('seed-b', 1)));
   assert.ok(!verifyLink(c0, chainLink('seed-a', 2)), 'Glied übersprungen');
   assert.equal(chainLink('seed-a', CHAIN).length, 64);
+});
+
+test('Kettenglied mit Stützstellen = naive Rechnung (verschiedene n und k)', () => {
+  const naive = (seed, k, n) => { let x = sha256('sb-seed|' + seed); for (let i = 0; i < n - k; i++) x = sha256(x); return x; };
+  for (const [n, ks] of [[CHAIN, [0, 1, 63, 64, 65, 1000, CHAIN - 1, CHAIN]], [3, [0, 1, 2, 3]], [130, [0, 2, 66, 67, 130]]]) {
+    for (const k of ks) assert.equal(chainLink('stütz', k, n), naive('stütz', k, n), `n ${n} k ${k}`);
+  }
+  assert.throws(() => chainLink('x', 5, 3));
 });
 
 test('Würfel gleichverteilt (60 000 Würfe, jede Augenzahl 16,7 % ± 0,6)', () => {
@@ -65,6 +74,32 @@ test('Manipulation erkannt: falscher Wurf, falscher Seed, andere Mischung, fehle
   f = clone(); f.log[1] = { k: 2, kind: 'dice', fallback: true, value: [3, 4] };
   const g = verifyFair(f);
   assert.ok(g.ok && g.unchecked === 1, JSON.stringify(g));
+});
+
+test('Kette aufgebraucht (kleines CHAIN): Ereignis CHAIN + 1 ist Host-Zufall mit fallback, Prüfung zählt es als ungeprüft', () => {
+  const N = 3;
+  const host = { pid: 'H', name: 'Peter' };
+  const t = newTable({ game: 'ludo', opts: { players: 2 }, host });
+  t.seats[1] = { pid: 'bot1', name: 'Computer', bot: 2 };
+  t.status = 'play';
+  const link = { send() {}, status: () => ({ peers: [] }) };
+  const s = new TableSession({ mode: 'online', me: host, table: t, link, chain: N });
+  for (let i = 0; i < N + 2; i++) {
+    t.gs = { ...t.gs, phase: 'rolling', die: null };   // Wurf steht an
+    assert.doesNotThrow(() => s._resolveChance(), 'Wurf ' + (i + 1));
+    assert.notEqual(t.gs.phase, 'rolling', 'Wurf aufgelöst');
+  }
+  const log = t.fair.log;
+  assert.equal(log.length, N + 2);
+  assert.ok(log.slice(0, N).every((e) => !e.fallback && e.links), 'die ersten N aus den Ketten');
+  assert.equal(log[N].k, N + 1);
+  assert.equal(log[N].fallback, true, 'Ereignis CHAIN + 1 = fallback');
+  assert.equal(log[N + 1].fallback, true);
+  const r = verifyFair(t.fair);
+  assert.ok(r.ok && r.checked === N && r.unchecked === 2, JSON.stringify(r));
+  // Client-Seite: kein Kettenglied jenseits der Kette (sonst würfe chainLink)
+  assert.equal(s._revealFor({ type: 'roll' }), null);
+  return `${r.checked} geprüft, ${r.unchecked} ungeprüft`;
 });
 
 console.log(fails ? `\n${fails} rot` : '\nFair Play grün');

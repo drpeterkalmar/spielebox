@@ -87,7 +87,7 @@ export class TableSession {
   // me: { pid, name }; want: 'play' | 'watch'
   // table: gespeicherter oder neuer Tisch (online beim Beitreten ohne Speicherstand: null)
   // link: Netz (nur online); save(table): Speicher-Rückruf; bot: { choose(game, gs, seat) → Promise<Move> }
-  constructor({ mode = 'online', me, want = 'play', table = null, link = null, save = () => {}, bot = null, now = () => Date.now(), timers = globalThis, secret = null, random = randomHex }) {
+  constructor({ mode = 'online', me, want = 'play', table = null, link = null, save = () => {}, bot = null, now = () => Date.now(), timers = globalThis, secret = null, random = randomHex, chain = CHAIN }) {
     this.mode = mode;
     this.me = me;
     this.want = want;
@@ -108,6 +108,7 @@ export class TableSession {
     this.log = [];
     this.secret = secret || randomHex();   // Geräte-Geheimnis für die eigenen Hash-Ketten
     this.random = random;                  // lokaler Zufall (Tests: fester Strom)
+    this.chain = chain;                    // Länge der eigenen Hash-Ketten (Tests: klein)
     this.fairCheck = null;                 // Ergebnis der eigenen Prüfung des Zufalls-Protokolls
     this._sentFair = {};
   }
@@ -381,7 +382,7 @@ export class TableSession {
     t.fairPriv = null;
     this._priv();
     t.seats.forEach((p, i) => {
-      if (p && (p.bot || p.pid === this.me.pid)) t.fair.commits[i] = chainLink(this._seed(i), 0);
+      if (p && (p.bot || p.pid === this.me.pid)) t.fair.commits[i] = chainLink(this._seed(i), 0, this.chain);
     });
   }
 
@@ -411,7 +412,7 @@ export class TableSession {
     const t = this.table;
     const p = t.seats[seat];
     if (!p) return null;
-    if (p.bot || p.pid === this.me.pid) return chainLink(this._seed(seat), k);
+    if (p.bot || p.pid === this.me.pid) return k <= this.chain ? chainLink(this._seed(seat), k, this.chain) : null;
     const pend = this._priv().pending[seat];
     return pend && pend[k] ? pend[k] : null;
   }
@@ -429,12 +430,13 @@ export class TableSession {
       } else {
         this._ensureFair();
         const k = t.fair.k + 1;
-        if (k > CHAIN) throw new Error('Zufalls-Kette aufgebraucht');
+        // Kette aufgebraucht (sehr lange Partie): nie werfen, sondern Host-Zufall, im Protokoll als ungeprüft markiert
+        const spent = k > this.chain;
         const links = t.seats.map((_, s) => this._linkOf(s, k));
         const missing = links.map((l, s) => (l ? -1 : s)).filter((s) => s >= 0);
         const commitsMissing = t.fair.commits.map((x, s) => (x ? -1 : s)).filter((s) => s >= 0);
         const miss = [...new Set([...missing, ...commitsMissing])];
-        if (miss.length && !force) {
+        if (miss.length && !force && !spent) {
           // Aufrufer verteilt den Stand (commit) – Mitspieler sehen fairNeed und schicken ihr Glied
           if (!t.fairNeed || t.fairNeed.k !== k) { t.fairNeed = { k, kind: c.kind, missing: miss }; this._needSince = this.now(); }
           else t.fairNeed.missing = miss;
@@ -442,7 +444,7 @@ export class TableSession {
         }
         const entry = { k, kind: c.kind };
         if (c.n) entry.n = c.n;
-        if (miss.length) {
+        if (miss.length || spent) {
           entry.fallback = true;  // Mitspieler nicht erreichbar: Host-Zufall, im Protokoll als ungeprüft markiert
           v = valueFor(c, this.random());
         } else {
@@ -520,7 +522,8 @@ export class TableSession {
       if (!this.engine.chance(next)) return null;
     } catch { return null; }
     const k = t.fair.k + 1;
-    return { k, link: chainLink(this._seed(seat), k) };
+    if (k > this.chain) return null;
+    return { k, link: chainLink(this._seed(seat), k, this.chain) };
   }
 
   // Client: Commit/Glied schicken, wenn der Host darauf wartet; öffentliches Protokoll prüfen
@@ -532,9 +535,9 @@ export class TableSession {
     if (seat !== null) {
       const msg = { t: 'fair', round: t.round };
       if (gen) msg.gen = gen;
-      if (!t.fair.commits[seat]) msg.commit = chainLink(this._seed(seat), 0);
-      if (t.fairNeed && t.fairNeed.missing.includes(seat) && t.fair.commits[seat]) {
-        msg.reveal = { k: t.fairNeed.k, link: chainLink(this._seed(seat), t.fairNeed.k) };
+      if (!t.fair.commits[seat]) msg.commit = chainLink(this._seed(seat), 0, this.chain);
+      if (t.fairNeed && t.fairNeed.missing.includes(seat) && t.fair.commits[seat] && t.fairNeed.k <= this.chain) {
+        msg.reveal = { k: t.fairNeed.k, link: chainLink(this._seed(seat), t.fairNeed.k, this.chain) };
       }
       const key = `${t.round}|${gen}|${msg.commit ? 'c' : ''}|${msg.reveal ? msg.reveal.k : ''}`;
       const now = this.now();
