@@ -6,6 +6,7 @@
 // 3) Die besten 6 gemeinsam in EINEM Kanal: 10 Nachrichten A→B und 10 B→A.
 // Ergebnis: Tabellen auf der Konsole und tests/out/relay_live.json (mit Verlauf früherer Läufe)
 // Nur die gewählte Liste prüfen (RELAYS aus src/net/relays.js, ~20 s): node tests/relay_live.mjs --nur-gesamt
+// Größengrenze der gewählten Relays (~30 s): node tests/relay_live.mjs --groessen=32,64,128
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -411,6 +412,28 @@ const start = Date.now();
 const vpn = vpnInfo();
 console.log(`Relay-Live-Messung ${new Date().toISOString()} – Node ${process.version}`);
 console.log(`VPN: ${vpn.zusammenfassung}; utun: ${vpn.utun.join(', ')}`);
+
+// Größengrenze der gewählten Relays: node tests/relay_live.mjs --groessen=32,64,128  (KB Inhalt je Event, wie seal())
+// Je Relay eine Probe mit allen Größen (Abstand 2 s); Ergebnis: welche Größe kam bei B an, was meldet das Relay.
+const gArg = process.argv.find((a) => a.startsWith('--groessen'));
+if (gArg) {
+  const { RELAYS } = await import('../src/net/relays.js');
+  const kb = (gArg.split('=')[1] || '32,64,128').split(',').map(Number).filter((x) => x > 0);
+  console.log(`Größen-Probe ${kb.map((x) => x + ' KB').join(' / ')} mit RELAYS: ${RELAYS.map(kurz).join(', ')}`);
+  const erg = await Promise.all(RELAYS.map(async (url) => {
+    const e = await probe(url, kb.map((x) => x * 1024), 2000);
+    return { url, verbunden: e.verbunden, angekommen: e.angekommen, ok: e.ok, abgelehnt: e.abgelehnt, fehler: e.fehler, unbrauchbar: e.unbrauchbar };
+  }));
+  for (const e of erg) {
+    console.log(`  ${kurz(e.url).padEnd(24)} ${e.verbunden ? kb.map((x, i) => `${x} KB ${e.angekommen[i] ? '✓' : '✗'}`).join('  ') : 'nicht verbunden'}  OK ${e.ok}, abgelehnt ${e.abgelehnt}${e.fehler.length ? '  ' + e.fehler.join(' | ').slice(0, 160) : ''}`);
+  }
+  let alt = {};
+  try { alt = JSON.parse(readFileSync(ausgabe, 'utf8')); } catch { /* neu */ }
+  alt.groessen = { zeit: new Date().toISOString(), kb, vpn: vpnInfo().zusammenfassung, erg };
+  mkdirSync(dirname(ausgabe), { recursive: true });
+  writeFileSync(ausgabe, JSON.stringify(alt, null, 1));
+  process.exit(0);
+}
 
 // Kurzprüfung der gewählten Liste: node tests/relay_live.mjs --nur-gesamt  (RELAYS aus src/net/relays.js)
 if (process.argv.includes('--nur-gesamt')) {

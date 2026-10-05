@@ -5,9 +5,13 @@
 //   { v, game, opts, hostPid, epoch, seq, round, seats: [{pid,name,bot?}|null, …], gs (Engine-Zustand),
 //     status: 'wait'|'play'|'over', result: null|{winner,reason}, drawOffer: null|Sitz,
 //     last: null|{m, by, d, id}, hist: [{m, by, d, id}] (letzte Züge; id = Zug-Kennung des Absenders), nmoves, score: {pid: Punkte}, created, updated,
-//     id (Tisch-Kennung), fair: null|{ round, gen?, commits: [je Sitz], log: [öffentliche Zufallsereignisse], k },
+//     id (Tisch-Kennung), fair: null|{ round, gen?, commits: [je Sitz], log: [öffentliche Zufallsereignisse], k, n? },
 //     fairNeed: null|{ k, kind, missing: [Sitze] }, fairPriv (nur beim Host, wird nie verschickt) }
 // Kartenspiele (Engine mit HIDDEN): Jeder Empfänger bekommt nur viewFor(gs, sein Sitz); Zuschauer sehen keine Hand.
+// Fair-Protokoll im Netz: Der Stand trägt fair ohne log (nur n = Länge); neue Einträge gehen als fairDelta mit bzw. in
+//   Stücken ≤ FAIR_CHUNK als { t: 'fairlog', round, gen, from, log }. Jeder Empfänger sammelt das Log lokal (fair.log)
+//   und fordert Lücken mit { t: 'fairlog', round, gen, from } nach. Sonst wüchse jeder Stand mit der Partie (Ludo zu
+//   viert ~300 KB) – öffentliche Relays nehmen nur ~18–128 KB je Nachricht (Messung 05.10., Gutachten P1-4).
 // Zufall (Engine mit chance): lokal crypto-Zufall, online Hash-Ketten aller Sitze (src/net/fair.js).
 //   Wechselt mitten in der Partie, wer eine Kette hält (Host-Übernahme, Computer übernimmt einen Sitz), beginnt eine
 //   neue Zufallsrunde derselben Partie (fair.gen + 1, neue Commits aller Sitze, eigene Kettenglieder).
@@ -35,6 +39,9 @@ export const TIMING = {
   timerUnit: 1000    // ms je Sekunde der Option opts.timer (Tests: kleiner)
 };
 const HIST = 40;
+// Fair-Log je Nachricht höchstens so viele Zeichen JSON: verschlüsselt (Base64) ~ 4/3 davon, das kleinste der sechs
+// Relays (basspistol.org) nimmt 18 KB, nicht 20 KB (Messung 05.10. mit tests/relay_live.mjs --groessen)
+export const FAIR_CHUNK = 12000;
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
@@ -51,6 +58,31 @@ export function newTable({ game, opts, host, hostSeat = 0, now = Date.now() }) {
     id: Math.random().toString(36).slice(2, 12), fair: null, fairNeed: null
   };
 }
+
+// Fair-Log ab Position from in Stücken ≤ FAIR_CHUNK Zeichen: [{ round, gen, from, log }]
+export function fairChunks(fair, from = 0) {
+  const out = [];
+  const log = (fair && fair.log) || [];
+  const head = { round: fair && fair.round, gen: (fair && fair.gen) || 0 };
+  let cur = [], size = 0, start = from;
+  for (let i = Math.max(0, from); i < log.length; i++) {
+    const n = JSON.stringify(log[i]).length + 1;
+    if (cur.length && size + n > FAIR_CHUNK) { out.push({ ...head, from: start, log: cur }); start = i; cur = []; size = 0; }
+    cur.push(log[i]);
+    size += n;
+  }
+  if (cur.length) out.push({ ...head, from: start, log: cur });
+  return out;
+}
+
+// Stück in ein lokal gesammeltes Log einfügen (positionsgleich mit dem Log des Hosts). Lücke → unverändert.
+export function mergeFairLog(prev, chunk) {
+  if (!chunk || !Array.isArray(chunk.log) || !Number.isInteger(chunk.from) || chunk.from < 0) return prev;
+  if (chunk.from > prev.length) return prev;
+  return prev.slice(0, chunk.from).concat(chunk.log, prev.slice(chunk.from + chunk.log.length));
+}
+
+const sameFair = (a, b) => !!(a && b && a.round === b.round && (a.gen || 0) === (b.gen || 0));
 
 // (epoch, seq) vergleichen: > 0, wenn a neuer ist
 export function newer(a, b) {
@@ -73,6 +105,8 @@ export function turnOf(table) {
 export function tableFor(table, seat) {
   const eng = gameOf(table.game).engine;
   const { fairPriv, ...pub } = table;
+  // Fair-Log nicht im Stand (geht als fairDelta/fairlog); log: [] hält ältere Versionen beim Prüfen am Leben
+  if (pub.fair && Array.isArray(pub.fair.log)) pub.fair = { ...pub.fair, log: [], n: pub.fair.log.length };
   if (eng.HIDDEN) pub.gs = eng.viewFor(table.gs, seat === undefined ? null : seat);
   // Züge mit geheimem Inhalt (Schiffe versenken: Flotte setzen) nur ohne Geheimnis in Verlauf und letztem Zug
   if (eng.publicMove) {
@@ -113,6 +147,8 @@ export class TableSession {
     this.build = build;                    // App-Version (src/build.js), geht mit hello/state mit
     this.fairCheck = null;                 // Ergebnis der eigenen Prüfung des Zufalls-Protokolls
     this._sentFair = {};
+    this._fairAt = new Map();              // Host: pid → so viele Log-Einträge hat der Empfänger (gesendet bzw. gemeldet)
+    this._fairAtKey = '';
   }
 
   get role() {
@@ -582,19 +618,82 @@ export class TableSession {
     const t = this.table;
     if (!t) return;
     const hidden = !!this.engine.HIDDEN;
-    if (!hidden && !t.fairPriv) {
-      this.link.send(this._stateMsg(t), to);
+    const n = t.fair && t.fair.log ? t.fair.log.length : 0;
+    const at = this._fairAtMap();
+    if (!hidden && !to) {
+      // ein Stand für alle; Fair-Einträge ab dem, was der am wenigsten weite Empfänger hat
+      const aud = this._audience();
+      const from = aud.reduce((m, pid) => Math.min(m, at.get(pid) ?? 0), n);
+      this._sendState(tableFor(t, null), undefined, from);
+      for (const pid of aud) at.set(pid, n);
       return;
     }
     const targets = to ? [to] : this._audience();
-    if (!hidden && !to) { this.link.send(this._stateMsg(tableFor(t, null))); return; }
-    for (const pid of targets) this.link.send(this._stateMsg(tableFor(t, seatOf(t, pid))), pid);
+    let pub = null;
+    for (const pid of targets) {
+      this._sendState(hidden ? tableFor(t, seatOf(t, pid)) : (pub ||= tableFor(t, null)), pid, at.get(pid) ?? 0);
+      at.set(pid, n);
+    }
+  }
+
+  // Host: wer hat wie viele Einträge des aktuellen Fair-Logs (neue Runde/Generation → von vorn)
+  _fairAtMap() {
+    const f = this.table && this.table.fair;
+    const key = f ? `${f.round}|${f.gen || 0}` : '';
+    if (key !== this._fairAtKey) { this._fairAtKey = key; this._fairAt.clear(); }
+    return this._fairAt;
+  }
+
+  // Stand + neue Fair-Einträge (erstes Stück im Stand, weitere als fairlog dahinter)
+  _sendState(pub, to, from) {
+    const msg = this._stateMsg(pub);
+    const chunks = this.table.fair ? fairChunks(this.table.fair, from) : [];
+    if (chunks.length) msg.fairDelta = chunks[0];
+    this.link.send(msg, to);
+    for (const c of chunks.slice(1)) this.link.send({ t: 'fairlog', ...c }, to);
   }
 
   _stateMsg(table) {
     const msg = { t: 'state', table };
     if (this.build) msg.build = this.build;
     return msg;
+  }
+
+  // Host: Client fordert Fair-Einträge ab from nach
+  _hostOnFairLog(from, msg) {
+    const t = this.table;
+    if (!t.fair || !Number.isInteger(msg.from) || msg.from < 0 || !sameFair(t.fair, msg)) return;
+    for (const c of fairChunks(t.fair, msg.from)) this.link.send({ t: 'fairlog', ...c }, from.pid);
+    this._fairAtMap().set(from.pid, t.fair.log.length);
+  }
+
+  // Client: Fair-Einträge vom Host (Stück zum gesammelten Log)
+  _clientOnFairLog(from, msg) {
+    const t = this.table;
+    if (!t || from.pid !== t.hostPid || !t.fair || !Array.isArray(t.fair.log) || !sameFair(t.fair, msg)) return;
+    const merged = mergeFairLog(t.fair.log, msg);
+    if (merged === t.fair.log) { this._askFairLog(); return; }
+    t.fair.log = merged;
+    if (this._confirmed && this._confirmed !== t && sameFair(this._confirmed.fair, t.fair)) this._confirmed.fair.log = merged;
+    this._save(this._isOptimistic && this._confirmed ? this._confirmed : t);
+    this._askFairLog();
+    const before = this.fairCheck;
+    this._clientFair();
+    if (before !== this.fairCheck) this._changed({ kind: 'fair' });
+  }
+
+  // Client: fehlen Einträge (n vom Host > lokal gesammelt)? → nachfordern (höchstens alle 3 s je Stelle)
+  _askFairLog() {
+    const t = this.table;
+    const f = t && t.fair;
+    if (!f || typeof f.n !== 'number' || !Array.isArray(f.log) || f.log.length >= f.n) return;
+    const key = `${f.round}|${f.gen || 0}|${f.log.length}`;
+    const now = this.now();
+    if (this._askedFair && this._askedFair.key === key && now - this._askedFair.at < 3000) return;
+    this._askedFair = { key, at: now };
+    const msg = { t: 'fairlog', round: f.round, from: f.log.length };
+    if (f.gen) msg.gen = f.gen;
+    this._sendHost(msg);
   }
 
   // alle bekannten Gegenstellen (Sitzende, Anwesende, verbundene Peers) außer mir
@@ -712,8 +811,10 @@ export class TableSession {
     if (this.pendingMove && this._settles(incoming, this.pendingMove)) this.pendingMove = null;
     this._isOptimistic = false;
     this._confirmed = null;
+    this._takeFair(incoming, base, msg.fairDelta);
     this.table = incoming;
     this._save(incoming);
+    this._askFairLog();
     this._clientFair();
     const info = { kind: 'state' };
     const oneMore = base && incoming.round === base.round && incoming.nmoves === base.nmoves + 1 && incoming.last;
@@ -726,6 +827,16 @@ export class TableSession {
       info.prevGs = base.gs;
     }
     this._changed(info);
+  }
+
+  // Client: Fair-Log des neuen Stands = lokal gesammeltes Log (gleiche Runde/Generation) + mitgeschickte Einträge.
+  // Ältere Hosts schicken das ganze Log im Stand (kein n) → so übernehmen.
+  _takeFair(incoming, base, delta) {
+    const f = incoming.fair;
+    if (!f || typeof f.n !== 'number') return;
+    const prev = base && sameFair(base.fair, f) && Array.isArray(base.fair.log) ? base.fair.log : [];
+    f.log = sameFair(delta, f) ? mergeFairLog(prev, delta) : prev;
+    if (f.log.length > f.n) f.log = f.log.slice(0, f.n);
   }
 
   _knownGame(id) {
@@ -812,6 +923,11 @@ export class TableSession {
         if (isHost) {
           // hat der andere einen neueren Stand eines anderen Hosts (Übernahme)? → abgeben
           if (msg.have && msg.have.host && newer(msg.have, t) > 0) return this._demote(from);
+          if (t.fair) {
+            const hf = msg.have && msg.have.fair;
+            const n = hf && sameFair(hf, t.fair) && Number.isInteger(hf.n) ? Math.min(hf.n, t.fair.log.length) : 0;
+            this._fairAtMap().set(from.pid, n);
+          }
           this._hostOnHello(from, msg);
         } else if (!t || from.pid === t.hostPid) {
           // Client: Host oder unbekannter Tisch → um Stand bitten
@@ -858,6 +974,10 @@ export class TableSession {
       case 'fair':
         if (isHost) this._hostOnFair(from, msg);
         break;
+      case 'fairlog':
+        if (isHost && !Array.isArray(msg.log)) this._hostOnFairLog(from, msg);
+        else if (!isHost && Array.isArray(msg.log)) this._clientOnFairLog(from, msg);
+        break;
     }
     this._emit('net', this.netStatus());
   }
@@ -882,6 +1002,8 @@ export class TableSession {
       t: 'hello', name: this.me.name, want: this.want,
       have: t ? { epoch: t.epoch, seq: t.seq, host: t.hostPid === this.me.pid, game: t.game } : null
     };
+    // so viele Fair-Einträge habe ich schon (Host schickt nur den Rest)
+    if (t && t.fair && Array.isArray(t.fair.log)) msg.have.fair = { round: t.fair.round, gen: t.fair.gen || 0, n: t.fair.log.length };
     if (this.build) msg.build = this.build;
     this.link.send(msg, to);
   }
@@ -968,6 +1090,7 @@ export class TableSession {
     if (t) {
       // nach Neuladen (Stand aus dem Speicher, kein neuerer vom Host) entsteht die Prüfung erst hier → Anzeige auffrischen
       const before = this.fairCheck;
+      this._askFairLog();
       this._clientFair();
       if (before !== this.fairCheck) this._changed({ kind: 'fair' });
     }

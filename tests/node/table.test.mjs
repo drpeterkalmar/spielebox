@@ -16,6 +16,7 @@ Object.assign(TIMING, { heartbeat: 40, hostGone: 400, moveRetry: 150, botDelay: 
 
 let fails = 0;
 async function ok(name, fn) {
+  if (process.env.SB_ONLY && !name.includes(process.env.SB_ONLY)) return;   // einzelnen Fall laufen lassen
   try { await fn(); console.log('✅ ' + name); } catch (e) { fails++; console.log('❌ ' + name + '\n   ' + (e && e.stack || e)); }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -55,6 +56,8 @@ class FakeLink {
     if (!this.up) return;
     this.sent.push(msg);
     const text = JSON.stringify(msg);
+    // wie öffentliche Relays: zu große Nachrichten kommen nie an
+    if (this.hub.limit && text.length > this.hub.limit) { this.hub.dropped++; this.hub.biggest = Math.max(this.hub.biggest || 0, text.length); return; }
     for (const l of this.hub.links) {
       if (l === this || !l.up) continue;
       if (to && l.pid !== to) continue;
@@ -66,9 +69,9 @@ class FakeLink {
   }
 }
 
-function player(hub, pid, name, { table = null, want = 'play', store = {} } = {}) {
+function player(hub, pid, name, { table = null, want = 'play', store = {}, secret = null } = {}) {
   const link = new FakeLink(hub, pid, name);
-  const s = new TableSession({ mode: 'online', me: { pid, name }, want, table, link, save: (t) => { store.t = JSON.parse(JSON.stringify(t)); }, bot: { choose: (g, gs, level) => BOTS[g](gs, { level, timeMs: 30 }) } });
+  const s = new TableSession({ mode: 'online', me: { pid, name }, want, table, link, secret, save: (t) => { store.t = JSON.parse(JSON.stringify(t)); }, bot: { choose: (g, gs, level) => BOTS[g](gs, { level, timeMs: 30 }) } });
   s.store = store;
   s.start();
   link.connect();
@@ -790,6 +793,10 @@ await ok('Gutachten P1-1: Backgammon, Host trennt → Gast übernimmt → beide 
 
 await ok('Gutachten P1-2: Halma zu dritt, Host trennt → nach 2 s genau ein Host, beide Tische gleich', async () => {
   uncaught.length = 0;
+  // Herzschlag kommt im Test nur im 1-s-Takt → hostGone darüber, sonst hielte G2 den neuen Host G1 kurz für weg
+  const keep = { ...TIMING };
+  TIMING.hostGone = 1500;
+  try {
   const hub = new Hub();
   const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'halma', opts: { players: 3 }, host: { pid: 'H', name: 'Peter' } }) });
   const g1 = player(hub, 'G1', 'Anna');
@@ -797,7 +804,7 @@ await ok('Gutachten P1-2: Halma zu dritt, Host trennt → nach 2 s genau ein Hos
   await until(() => g1.table && g1.table.status === 'play' && g2.table && g2.table.status === 'play', 3000, 'Partie läuft');
   await sleep(60);
   h.close(); h.link.disconnect();
-  await until(() => g1.role === 'host' || g2.role === 'host', 3000, 'jemand übernimmt');
+  await until(() => g1.role === 'host' || g2.role === 'host', 5000, 'jemand übernimmt');
   await sleep(2000);
   assert.equal([g1, g2].filter((s) => s.role === 'host').length, 1, `Hosts: G1 ${g1.role}, G2 ${g2.role}`);
   assert.equal(g1.table.hostPid, g2.table.hostPid);
@@ -812,6 +819,7 @@ await ok('Gutachten P1-2: Halma zu dritt, Host trennt → nach 2 s genau ein Hos
   }
   noErrors('Fehler');
   g1.close(); g2.close();
+  } finally { Object.assign(TIMING, keep); }
 });
 
 await ok('Gutachten P1-2: gleichzeitige Übernahme (ohne Staffelung) → Gleichstand, größere pid gibt nach', async () => {
@@ -990,6 +998,109 @@ await ok("Gutachten P2-10: Hold'em – Direktweg weg, aber Spieler meldet sich n
     noErrors('Fehler');
     h.close(); a.close();
   } finally { Object.assign(TIMING, keep); }
+});
+
+await ok('Gutachten P1-4: Fair-Log nicht im Stand; Gast lädt neu → behält sein gesammeltes Log, Host schickt nur den Rest', async () => {
+  uncaught.length = 0;
+  const hub = new Hub(), gst = {};
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'backgammon', opts: { cube: false }, host: { pid: 'H', name: 'Peter' } }) });
+  const sent = [];
+  const send0 = h.link.send.bind(h.link);
+  h.link.send = (msg, to) => { sent.push({ msg: JSON.parse(JSON.stringify(msg)), to }); return send0(msg, to); };
+  let g = player(hub, 'G', 'Anna', { store: gst });
+  await until(() => g.table && g.table.status === 'play' && backgammon.currentPlayer(h.table.gs) !== null, 3000, 'Eröffnung');
+  const rng = mulberry32(29);
+  for (let i = 0; i < 400 && h.table.fair.log.length < 8; i++) await stepAny([h, g], backgammon, rng);
+  await until(() => g.table.seq === h.table.seq && g.table.fair.log.length === h.table.fair.log.length, 3000, 'Gast hat das Log');
+  // kein Stand trägt das Log, n stimmt
+  const states = sent.filter((x) => x.msg.t === 'state');
+  assert.ok(states.length > 5 && states.every((x) => !x.msg.table.fair || x.msg.table.fair.log.length === 0), 'Log nie im Stand');
+  assert.equal(states[states.length - 1].msg.table.fair.n, h.table.fair.log.length);
+  assert.ok(gst.t.fair.log.length === h.table.fair.log.length, 'Gast speichert sein Log');
+  // Gast lädt neu (Speicherstand), Host würfelt weiter
+  const nHave = gst.t.fair.log.length;
+  g.close(); g.link.disconnect();
+  sent.length = 0;
+  g = player(hub, 'G', 'Anna', { table: gst.t, store: gst });
+  assert.equal(g.table.fair.log.length, nHave, 'Log sofort aus dem Speicher');
+  await until(() => g.fairCheck && g.fairCheck.ok && g.fairCheck.n === nHave, 3000, 'Prüfung nach Neuladen');
+  await sleep(50);
+  const fromG = sent.filter((x) => x.to === 'G' && (x.msg.fairDelta || x.msg.t === 'fairlog')).map((x) => (x.msg.fairDelta || x.msg).from);
+  assert.ok(fromG.every((f) => f >= nHave), `Host schickt nur den Rest (from ${fromG.join(',')}, Gast hat ${nHave})`);
+  for (let i = 0; i < 400 && h.table.fair.log.length < nHave + 3; i++) await stepAny([h, g], backgammon, rng);
+  await until(() => g.table.fair.log.length === h.table.fair.log.length && g.fairCheck.n === h.table.fair.log.length, 3000, 'weitere Würfe beim Gast');
+  assert.ok(g.fairCheck.ok, JSON.stringify(g.fairCheck));
+  noErrors('Fehler');
+  h.close(); g.close();
+});
+
+await ok('Gutachten P1-4: Lücke im Fair-Log (Stand verloren) → Gast fordert nach, Prüfung vollständig', async () => {
+  uncaught.length = 0;
+  const hub = new Hub();
+  const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'backgammon', opts: { cube: false }, host: { pid: 'H', name: 'Peter' } }) });
+  const g = player(hub, 'G', 'Anna');
+  await until(() => g.table && g.table.status === 'play' && backgammon.currentPlayer(h.table.gs) !== null, 3000, 'Eröffnung');
+  // Gast „verliert“ die nächsten Fair-Einträge: Stände kommen an, aber ohne fairDelta
+  const orig = g.link.onMessage;
+  let drop = true, asked = 0;
+  g.link.onMessage = (m, f) => { if (drop && m.t === 'state') delete m.fairDelta; orig(m, f); };
+  const sendG = g.link.send.bind(g.link);
+  g.link.send = (m, to) => { if (m.t === 'fairlog') asked++; return sendG(m, to); };
+  const rng = mulberry32(31);
+  const n0 = h.table.fair.log.length;
+  for (let i = 0; i < 400 && h.table.fair.log.length < n0 + 3; i++) await stepAny([h, g], backgammon, rng);
+  drop = false;
+  await until(() => g.table.fair.log.length === h.table.fair.log.length && g.fairCheck && g.fairCheck.n === h.table.fair.log.length, 4000, 'Lücke geschlossen');
+  assert.ok(asked > 0, 'nachgefordert');
+  assert.ok(g.fairCheck.ok, JSON.stringify(g.fairCheck));
+  noErrors('Fehler');
+  h.close(); g.close();
+});
+
+// Langläufer (≈ 20 s): in der Smoke-Stufe (SB_SMOKE=1) übersprungen
+if (!process.env.SB_SMOKE) await ok('Gutachten P1-4: Ludo zu viert, Nachrichten > 64 KB gehen verloren → 600 Würfe, alle synchron, fair geprüft', async () => {
+  uncaught.length = 0;
+  const hub = new Hub();
+  hub.limit = 64 * 1024;
+  // vier Menschen mit festen Geräte-Geheimnissen und festem Zugzufall → reproduzierbar lange Partie
+  const t0 = newTable({ game: 'ludo', opts: { players: 4 }, host: { pid: 'H', name: 'Peter' } });
+  t0.id = 'ludo600';
+  const h = player(hub, 'H', 'Peter', { table: t0, secret: 'geheim-H' });
+  const a = player(hub, 'A', 'Anna', { secret: 'geheim-A' });
+  const b = player(hub, 'B', 'Berni', { secret: 'geheim-B' });
+  const c = player(hub, 'C', 'Cleo', { secret: 'geheim-C' });
+  await until(() => [a, b, c].every((x) => x.table && x.table.status === 'play'), 3000, 'Start');
+  const rng = mulberry32(Number(process.env.LUDO_SEED) || 23);
+  const byPid = { H: h, A: a, B: b, C: c };
+  const rolls = () => h.table.fair.log.length;
+  let maxState = 0;
+  for (let i = 0; i < 200000 && rolls() < 600 && h.table.status === 'play'; i++) {
+    const turn = ludoE.currentPlayer(h.table.gs);
+    const p = turn === null ? null : h.table.seats[turn];
+    if (!p || p.bot || h.table.fairNeed) { await sleep(1); continue; }
+    const who = byPid[p.pid];
+    if (who.pendingMove || who.table.seq !== h.table.seq) { await sleep(1); continue; }
+    // langsam spielen (Figur, die am weitesten hinten steht; ab und zu zufällig) → lange Partie, großes Protokoll
+    const legal = ludoE.legalMoves(who.table.gs);
+    const pcs = who.table.gs.pieces[turn];
+    const slow = legal.reduce((m, x) => (x.type === 'move' && (!m || pcs[x.piece] < pcs[m.piece]) ? x : m), null);
+    const n = h.table.nmoves;
+    const r = who.submitMove(slow && rng() < 0.8 ? slow : pick(rng, legal));
+    assert.ok(r.ok, `${r.reason} (Wurf ${rolls()}, verworfen ${hub.dropped}, größte Nachricht ${hub.biggest})`);
+    await until(() => h.table.nmoves > n && [a, b, c].every((x) => x.table.seq === h.table.seq), 3000, `Zug verteilt (Wurf ${rolls()}, verworfen ${hub.dropped})`);
+    if (i % 50 === 0) maxState = Math.max(maxState, JSON.stringify(h.table).length);
+  }
+  const kb = JSON.stringify(h.table.fair.log).length / 1024;
+  assert.ok(rolls() >= 600 && kb > 96, `600 Würfe, Protokoll weit über der Grenze (${rolls()} Würfe, ${kb.toFixed(0)} KB)`);
+  await until(() => [a, b, c].every((x) => x.table.seq === h.table.seq && x.fairCheck && x.fairCheck.n === rolls()), 5000, 'Gäste haben das ganze Protokoll');
+  for (const x of [a, b, c]) {
+    assert.ok(same(h, x), x.me.name + ' synchron');
+    assert.ok(x.fairCheck.ok && x.fairCheck.checked === rolls(), x.me.name + ' ' + JSON.stringify({ ok: x.fairCheck.ok, checked: x.fairCheck.checked, bad: x.fairCheck.bad.slice(0, 2) }));
+  }
+  assert.equal(hub.dropped, 0, `keine Nachricht über 64 KB (größte ${hub.biggest})`);
+  console.log(`   ${rolls()} Würfe, Protokoll ${kb.toFixed(0)} KB, Host-Stand bis ${(maxState / 1024).toFixed(0)} KB, Gäste prüften alle Würfe, 0 Nachrichten verworfen`);
+  noErrors('Fehler');
+  h.close(); a.close(); b.close(); c.close();
 });
 
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
