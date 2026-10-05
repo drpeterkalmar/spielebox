@@ -2,6 +2,10 @@ node_modules/
 # Test-Artefakte (Auswahl in tests/shots/final bleibt)
 tests/shots/*
 !tests/shots/final/
+# Deko-Vergleich vorher/nachher (DEKO_BERICHT.md)
+!tests/shots/deko/
+tests/shots/deko/*
+!tests/shots/deko/vergleich_*.jpg
 tests/out/*
 !tests/out/.keep
 __pycache__/
