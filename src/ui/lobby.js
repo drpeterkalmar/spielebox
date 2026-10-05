@@ -4,30 +4,14 @@ import { h, clear, sheet, toast, relTime } from './dom.js';
 import { GAME_LIST, LIVE, gameOf } from '../games/registry.js';
 import { suggest, findWord, parseWords, displayWord } from '../words.js';
 import * as store from '../store.js';
-import { rulesMuehle, rulesDame, rulesSchach, rulesSchnapsen, rulesBackgammon, rulesBlackjack, rulesHalma, helpNet, credits } from './texts.js';
-
-const RULES = { muehle: rulesMuehle, dame: rulesDame, schach: rulesSchach, schnapsen: rulesSchnapsen, backgammon: rulesBackgammon, blackjack: rulesBlackjack, halma: rulesHalma };
-const liveGames = () => GAME_LIST.filter((g) => LIVE.has(g.id) || /[?&]alle/.test(location.search));
+import { helpNet, credits } from './texts.js';
 import { BUILD } from '../build.js';
-import { RULES as LUDO_RULES } from '../games/ludo/rules.js';
-import { rulesFromData } from './texts.js';
-RULES.ludo = () => rulesFromData(LUDO_RULES);
-import { RULES as SCHIFFE_RULES } from '../games/schiffe/rules.js';
-RULES.schiffe = () => rulesFromData(SCHIFFE_RULES);
-import { RULES as VIER_RULES } from '../games/vier/rules.js';
-RULES.vier = () => rulesFromData(VIER_RULES);
-import { RULES as MAUMAU_RULES } from '../games/maumau/rules.js';
-RULES.maumau = () => rulesFromData(MAUMAU_RULES);
-import { RULES as WUERFEL_RULES } from '../games/wuerfel/rules.js';
-RULES.wuerfel = () => rulesFromData(WUERFEL_RULES);
-import { RULES as REVERSI_RULES } from '../games/reversi/rules.js';
-RULES.reversi = () => rulesFromData(REVERSI_RULES);
-import { RULES as PAARE_RULES } from '../games/paare/rules.js';
-RULES.paare = () => rulesFromData(PAARE_RULES);
 import { openSettings } from './settings.js';
-import { rulesHoldem } from '../games/holdem/help.js';
-RULES.holdem = () => rulesHoldem();
 import { DEKO } from './deko.js';
+
+const liveGames = () => GAME_LIST.filter((g) => LIVE.has(g.id) || /[?&]alle/.test(location.search));
+// Regeln für die Lobby (je Spiel in src/games/<id>/ui.js)
+const lobbyRules = (id) => { const u = gameOf(id).ui; return (u.lobbyRules || u.rules)(); };
 
 const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
 const COLORS = [{ v: 'weiss', t: 'Weiß' }, { v: 'schwarz', t: 'Schwarz' }, { v: 'zufall', t: 'Zufall' }];
@@ -38,91 +22,14 @@ export function miniBoard(game) {
   svg.setAttribute('viewBox', '0 0 100 100');
   svg.setAttribute('class', 'mini');
   svg.setAttribute('aria-hidden', 'true');
-  if (game === 'muehle') {
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' +
-      '<g fill="none" stroke="#3a2515" stroke-width="3.2"><rect x="12" y="12" width="76" height="76"/><rect x="25" y="25" width="50" height="50"/><rect x="38" y="38" width="24" height="24"/>' +
-      '<path d="M50 12V38M50 62V88M12 50H38M62 50H88"/></g>' +
-      '<circle cx="12" cy="12" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="50" cy="25" r="7.5" fill="url(#sb-st-b)"/><circle cx="88" cy="88" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="62" cy="62" r="7.5" fill="url(#sb-st-b)"/>';
-  } else if (game === 'schnapsen' || game === 'blackjack' || game === 'maumau') {
-    const de = game !== 'blackjack';
-    const cards = game === 'maumau' ? ['H7', 'LU', 'S9'] : de ? ['HA', 'LK', 'EO'] : ['AS', 'KH', 'TD'];
-    const dir = de ? 'de' : 'fr';
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="#1d5a3f"/>' + cards.map((c, i) =>
-      `<g transform="translate(${30 + i * 20} ${56}) rotate(${(i - 1) * 14})"><image href="assets/cards/${dir}/${c}.webp" x="-17" y="-27" width="34" height="${de ? 54 : 49}"/></g>`).join('');
-  } else if (game === 'holdem') {
-    const chip = (x, y, c) => `<ellipse cx="${x}" cy="${y + 2}" rx="11" ry="5" fill="rgba(0,0,0,.35)"/><ellipse cx="${x}" cy="${y}" rx="11" ry="5" fill="${c}" stroke="#fff7e6" stroke-width="1.6" stroke-dasharray="5 3.5"/>`;
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-frame)"/><ellipse cx="50" cy="52" rx="44" ry="34" fill="#1d5a3f" stroke="#0f3a28" stroke-width="2"/>' +
-      ['AS', 'AH'].map((c, i) => `<g transform="translate(${40 + i * 18} 44) rotate(${(i - 0.5) * 16})"><image href="assets/cards/fr/${c}.webp" x="-14" y="-20" width="28" height="41"/></g>`).join('') +
-      chip(24, 74, '#c0392b') + chip(24, 69, '#c0392b') + chip(76, 76, '#222') + chip(76, 71, '#d6a21e') + chip(76, 66, '#d6a21e');
-  } else if (game === 'backgammon') {
-    let tri = '';
-    for (let i = 0; i < 6; i++) {
-      const x = 8 + i * 14;
-      tri += `<path d="M${x} 8 L${x + 7} 44 L${x + 14} 8Z" fill="${i % 2 ? '#e8d7b5' : '#8b2f24'}"/><path d="M${x} 92 L${x + 7} 56 L${x + 14} 92Z" fill="${i % 2 ? '#8b2f24' : '#e8d7b5'}"/>`;
-    }
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' + tri +
-      '<circle cx="15" cy="84" r="6.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="15" cy="72" r="6.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="85" cy="16" r="6.5" fill="url(#sb-st-b)"/>' +
-      '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/><circle cx="50" cy="50" r="2" fill="#222"/>';
-  } else if (game === 'halma') {
-    const col = ['#d8453b', '#2f6fd6', '#2e9e57', '#e0b12c', '#8a4fc9', '#e07b27'];
-    let dots = '';
-    for (let k = 0; k < 6; k++) {
-      const a = (k * 60 + 90) * Math.PI / 180;
-      for (let j = 0; j < 3; j++) dots += `<circle cx="${50 + Math.cos(a) * (28 + j * 6)}" cy="${50 + Math.sin(a) * (28 + j * 6)}" r="4" fill="${col[k]}"/>`;
-    }
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/><path d="M50 6 L62 30 L88 30 L74 50 L88 70 L62 70 L50 94 L38 70 L12 70 L26 50 L12 30 L38 30Z" fill="rgba(90,55,25,.25)" stroke="#5a3a1a" stroke-width="1.5"/>' + dots;
-  } else if (game === 'ludo') {
-    const col = ['#d8453b', '#2f6fd6', '#2e9e57', '#e0b12c'];
-    let d = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>';
-    const corners = [[8, 62], [8, 8], [62, 8], [62, 62]];
-    corners.forEach(([x, y], k) => { d += `<rect x="${x}" y="${y}" width="30" height="30" rx="7" fill="${col[k]}" opacity=".35"/>`; });
-    d += '<path d="M42 8H58V42H92V58H58V92H42V58H8V42H42Z" fill="#f4e9d2" stroke="#5a3a1a" stroke-width="2"/>';
-    corners.forEach(([x, y], k) => { d += `<circle cx="${x + 15}" cy="${y + 15}" r="8" fill="${col[k]}" stroke="rgba(0,0,0,.5)" stroke-width="1.5"/>`; });
-    svg.innerHTML = d + '<rect x="40" y="40" width="20" height="20" rx="4" fill="#fff" stroke="#333"/><circle cx="45" cy="45" r="2" fill="#222"/><circle cx="55" cy="55" r="2" fill="#222"/>';
-  } else if (game === 'paare') {
-    let d = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>';
-    const face = { 0: '🐱', 3: '🐱', 5: '🐶' };
-    for (let k = 0; k < 9; k++) { const x = 8 + (k % 3) * 29, y = 8 + Math.floor(k / 3) * 29; d += face[k] ? `<rect x="${x}" y="${y}" width="26" height="26" rx="5" fill="#fffaf0" stroke="#b8862c" stroke-width="1.5"/><text x="${x + 13}" y="${y + 19}" font-size="16" text-anchor="middle">${face[k]}</text>` : `<rect x="${x}" y="${y}" width="26" height="26" rx="5" fill="#2f6f8f" stroke="#1d4357" stroke-width="1.5"/>`; }
-    svg.innerHTML = d;
-  } else if (game === 'reversi') {
-    let d = '<rect width="100" height="100" rx="12" fill="#2f7a4a"/>';
-    for (let k = 1; k < 4; k++) d += `<path d="M${k * 25} 4V96M4 ${k * 25}H96" stroke="rgba(10,40,20,.7)" stroke-width="1.6"/>`;
-    const disc = (x, y, b) => `<circle cx="${x}" cy="${y}" r="9.5" fill="url(#sb-st-${b ? 'b' : 'w'})" stroke="${b ? '#000' : '#7a6548'}"/>`;
-    svg.innerHTML = d + disc(37.5, 37.5, 0) + disc(62.5, 62.5, 0) + disc(62.5, 37.5, 1) + disc(37.5, 62.5, 1) + disc(62.5, 12.5, 1);
-  } else if (game === 'wuerfel') {
-    const die = (x, y, r, v) => { const o = 7; const P = { 1: [[0, 0]], 3: [[-o, -o], [0, 0], [o, o]], 5: [[-o, -o], [o, -o], [0, 0], [-o, o], [o, o]], 6: [[-o, -o], [o, -o], [-o, 0], [o, 0], [-o, o], [o, o]] }[v];
-      return `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-14" y="-14" width="28" height="28" rx="6" fill="#fffdf6" stroke="#3a2515" stroke-width="1.5"/>${P.map(([a, b]) => `<circle cx="${a}" cy="${b}" r="2.6" fill="#1f140c"/>`).join('')}</g>`; };
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="#1d5a3f"/>' + die(26, 30, -12, 5) + die(66, 26, 10, 5) + die(30, 70, 8, 5) + die(70, 68, -6, 6) + die(50, 48, 3, 5);
-  } else if (game === 'vier') {
-    let d = '<rect width="100" height="100" rx="12" fill="#2459b8"/>';
-    const b = ['....', '..r.', '.yr.', 'yrry'];
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) { const v = b[r][c]; d += `<circle cx="${17 + c * 22}" cy="${17 + r * 22}" r="8.5" fill="${v === 'r' ? '#d8453b' : v === 'y' ? '#f2c230' : '#163a7c'}"/>`; }
-    svg.innerHTML = d;
-  } else if (game === 'schiffe') {
-    let d = '<rect width="100" height="100" rx="12" fill="#1e5d8c"/>';
-    for (let k = 1; k < 6; k++) d += `<path d="M${k * 16.6} 6V94M6 ${k * 16.6}H94" stroke="rgba(255,255,255,.25)" stroke-width="1.2"/>`;
-    d += '<rect x="12" y="20" width="44" height="13" rx="6.5" fill="#cfd6dc" stroke="#53606a" stroke-width="1.5"/>';
-    d += '<rect x="68" y="44" width="13" height="40" rx="6.5" fill="#cfd6dc" stroke="#53606a" stroke-width="1.5"/>';
-    d += '<circle cx="42" cy="26.5" r="6" fill="#e5483b"/><path d="M38 23l8 7M46 23l-8 7" stroke="#fff" stroke-width="2"/><circle cx="28" cy="66" r="3" fill="#fff"/><circle cx="50" cy="80" r="3" fill="#fff"/>';
-    svg.innerHTML = d;
-  } else if (game === 'trainer') {
+  if (game === 'trainer') {
     let sq = '';
     for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;
     svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' + `<g fill="url(#sb-wood-dark)">${sq}</g>` +
       '<image href="assets/pieces/wN.svg" x="4" y="54" width="42" height="42"/><image href="assets/pieces/bK.svg" x="54" y="4" width="42" height="42"/>' +
       '<line x1="28" y1="70" x2="58" y2="42" stroke="rgba(40,175,105,.92)" stroke-width="8" stroke-linecap="round"/><path d="M68 32 L50 40 L60 50Z" fill="rgba(40,175,105,.92)"/>';
-  } else if (game === 'schach') {
-    let sq = '';
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if ((r + c) % 2) sq += `<rect x="${c * 25}" y="${r * 25}" width="25" height="25"/>`;
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' +
-      `<g fill="url(#sb-wood-dark)">${sq}</g>` +
-      '<image href="assets/pieces/bK.svg" x="52" y="2" width="46" height="46"/><image href="assets/pieces/wN.svg" x="2" y="52" width="46" height="46"/>';
   } else {
-    let sq = '';
-    for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) if ((r + c) % 2) sq += `<rect x="${c * 20}" y="${r * 20}" width="20" height="20"/>`;
-    svg.innerHTML = '<rect width="100" height="100" rx="12" fill="url(#sb-wood-light)"/>' +
-      `<g fill="url(#sb-wood-dark)">${sq}</g>` +
-      '<circle cx="30" cy="10" r="7.5" fill="url(#sb-st-b)"/><circle cx="70" cy="10" r="7.5" fill="url(#sb-st-b)"/><circle cx="50" cy="50" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="10" cy="90" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/><circle cx="90" cy="70" r="7.5" fill="url(#sb-st-w)" stroke="#7a6548"/>';
+    svg.innerHTML = gameOf(game).ui.mini();   // je Spiel in src/games/<id>/ui.js
   }
   if (DEKO.on) dekoMini(svg);
   return svg;
@@ -197,7 +104,7 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
         segmented(typeof g.seats === 'function' ? 'Mit Computer-Spielern' : 'Gegen den Computer', LEVELS, level, (v) => { level = v; }),
         h('button', { class: 'btn', data: { act: 'bot' }, on: { click: go(() => onLocal('bot', gameId, g.engine.normalizeOptions(opts), color, level)) } }, 'Spielen')),
       h('button', { class: 'btn', data: { act: 'hotseat' }, on: { click: go(() => onLocal('hotseat', gameId, g.engine.normalizeOptions(opts), 'weiss')) } }, typeof g.seats === 'function' ? 'Alle an diesem Gerät' : 'Zu zweit an diesem Gerät'),
-      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', RULES[gameId]()) } }, 'Regeln lesen')
+      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', lobbyRules(gameId)) } }, 'Regeln lesen')
     );
   }
   return sh;
@@ -366,7 +273,7 @@ export function renderLobby(root, handlers) {
         h('section', { class: 'card resume' }, h('h2', { text: 'Weiterspielen' }), resume))),
     h('footer', { class: 'lobby-foot' },
       h('button', { class: 'btn link', on: { click: () => sheet('So geht’s', helpNet()) } }, 'So geht’s'),
-      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', ...liveGames().map((g) => RULES[g.id]())) } }, 'Regeln'),
+      h('button', { class: 'btn link', on: { click: () => sheet('Regeln', ...liveGames().map((g) => lobbyRules(g.id))) } }, 'Regeln'),
       h('button', { class: 'btn link', on: { click: () => sheet('Credits', credits()) } }, 'Credits'),
       h('button', { class: 'btn link', data: { act: 'settings' }, on: { click: () => openSettings() } }, 'Einstellungen'),
       h('span', { class: 'version', text: 'Version ' + BUILD })));

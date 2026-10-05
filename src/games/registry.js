@@ -15,6 +15,22 @@ import * as wuerfel from './wuerfel/engine.js';
 import * as reversi from './reversi/engine.js';
 import * as paare from './paare/engine.js';
 import * as holdem from './holdem/engine.js';
+// Spielspezifische Oberfläche (leicht, ohne Brett): Symbol, Unterzeile, Knöpfe, Regeln, Mini-Brett der Lobby
+import { ui as muehleUi } from './muehle/ui.js';
+import { ui as dameUi } from './dame/ui.js';
+import { ui as schachUi } from './schach/ui.js';
+import { ui as schnapsenUi } from './schnapsen/ui.js';
+import { ui as backgammonUi } from './backgammon/ui.js';
+import { ui as blackjackUi } from './blackjack/ui.js';
+import { ui as halmaUi } from './halma/ui.js';
+import { ui as ludoUi } from './ludo/ui.js';
+import { ui as schiffeUi } from './schiffe/ui.js';
+import { ui as vierUi } from './vier/ui.js';
+import { ui as maumauUi } from './maumau/ui.js';
+import { ui as wuerfelUi } from './wuerfel/ui.js';
+import { ui as reversiUi } from './reversi/ui.js';
+import { ui as paareUi } from './paare/ui.js';
+import { ui as holdemUi } from './holdem/ui.js';
 
 export const GAMES = {
   muehle: {
@@ -22,6 +38,7 @@ export const GAMES = {
     colors: true,
     title: 'Mühle',
     engine: muehle,
+    ui: muehleUi,
     blurb: '9 Steine, Mühlen schließen, Springen ab 3',
     seats: 2,
     // Beschreibung der Optionen für das Auswahlblatt (Mühle hat keine)
@@ -34,6 +51,7 @@ export const GAMES = {
     colors: true,
     title: 'Dame',
     engine: dame,
+    ui: dameUi,
     blurb: 'Deutsch 8×8 oder International 10×10',
     seats: 2,
     options: [
@@ -58,6 +76,7 @@ export const GAMES = {
     colors: true,
     title: 'Schach',
     engine: schach,
+    ui: schachUi,
     blurb: 'Klassisch, mit Remis-Angebot und PGN',
     seats: 2,
     options: [],
@@ -68,6 +87,7 @@ export const GAMES = {
     id: 'schnapsen',
     title: 'Schnapsen',
     engine: schnapsen,
+    ui: schnapsenUi,
     blurb: '20 Blatt doppeldeutsch, Bummerl-Tafel',
     seats: 2,
     cards: true,
@@ -86,6 +106,7 @@ export const GAMES = {
     colors: true,
     title: 'Backgammon',
     engine: backgammon,
+    ui: backgammonUi,
     blurb: 'Mit Verdopplungswürfel, fair gewürfelt',
     seats: 2,
     options: [
@@ -97,6 +118,7 @@ export const GAMES = {
     id: 'blackjack',
     title: 'Blackjack',
     engine: blackjack,
+    ui: blackjackUi,
     blurb: '2–6 Spieler, Bank reihum, Bohnen statt Geld',
     soloLast: true,
     seats: (o) => o.players,
@@ -111,6 +133,7 @@ export const GAMES = {
     id: 'halma',
     title: 'Stern-Halma',
     engine: halma,
+    ui: halmaUi,
     blurb: '2, 3, 4 oder 6 Spieler, Sprungketten',
     seats: (o) => o.players,
     options: [
@@ -122,6 +145,7 @@ export const GAMES = {
     id: 'ludo',
     title: 'Ludo',
     engine: ludo,
+    ui: ludoUi,
     blurb: '2–4 Spieler, mit 6 raus, rauswerfen',
     seats: (o) => o.players,
     options: [
@@ -137,6 +161,7 @@ export const GAMES = {
     id: 'schiffe',
     title: 'Schiffe versenken',
     engine: schiffe,
+    ui: schiffeUi,
     blurb: 'Flotte verstecken, Feld für Feld suchen',
     seats: 2,
     options: [
@@ -154,6 +179,7 @@ export const GAMES = {
     colorNames: ['Rot (beginnt)', 'Gelb'],
     title: 'Vier in einer Reihe',
     engine: vier,
+    ui: vierUi,
     blurb: '7 × 6, Steine fallen, vier in einer Linie',
     seats: 2,
     options: [],
@@ -163,6 +189,7 @@ export const GAMES = {
     id: 'maumau',
     title: 'Mau-Mau',
     engine: maumau,
+    ui: maumauUi,
     blurb: '2–5 Spieler, 32 Blatt doppeldeutsch',
     seats: (o) => o.players,
     cards: true,
@@ -180,6 +207,7 @@ export const GAMES = {
     id: 'wuerfel',
     title: 'Würfelglück',
     engine: wuerfel,
+    ui: wuerfelUi,
     blurb: '1–6 Spieler, 5 Würfel, 13 Felder',
     seats: (o) => o.players,
     winPoints: 1,
@@ -199,6 +227,7 @@ export const GAMES = {
     colorNames: ['Schwarz (beginnt)', 'Weiß'],
     title: 'Reversi',
     engine: reversi,
+    ui: reversiUi,
     blurb: '8 × 8, einschließen und umdrehen',
     seats: 2,
     options: [],
@@ -208,6 +237,7 @@ export const GAMES = {
     id: 'paare',
     title: 'Paare finden',
     engine: paare,
+    ui: paareUi,
     blurb: '1–4 Spieler, Tierbilder merken',
     seats: (o) => o.players,
     cards: true,
@@ -222,6 +252,7 @@ export const GAMES = {
     id: 'holdem',
     title: "Texas Hold'em",
     engine: holdem,
+    ui: holdemUi,
     blurb: '2–8 Spieler, No-Limit, nur Spielchips',
     soloLast: true,
     seats: (o) => o.players,
