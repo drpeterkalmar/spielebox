@@ -4,7 +4,7 @@
 // Tisch-Zustand (reines JSON, liegt bei allen in localStorage):
 //   { v, game, opts, hostPid, epoch, seq, round, seats: [{pid,name,bot?}|null, …], gs (Engine-Zustand),
 //     status: 'wait'|'play'|'over', result: null|{winner,reason}, drawOffer: null|Sitz,
-//     last: null|{m, by, d}, hist: [{m, by, d}] (letzte Züge), nmoves, score: {pid: Punkte}, created, updated,
+//     last: null|{m, by, d, id}, hist: [{m, by, d, id}] (letzte Züge; id = Zug-Kennung des Absenders), nmoves, score: {pid: Punkte}, created, updated,
 //     id (Tisch-Kennung), fair: null|{ round, gen?, commits: [je Sitz], log: [öffentliche Zufallsereignisse], k },
 //     fairNeed: null|{ k, kind, missing: [Sitze] }, fairPriv (nur beim Host, wird nie verschickt) }
 // Kartenspiele (Engine mit HIDDEN): Jeder Empfänger bekommt nur viewFor(gs, sein Sitz); Zuschauer sehen keine Hand.
@@ -184,7 +184,7 @@ export class TableSession {
     if (!this.engine.isLegal(t.gs, move)) return { ok: false, reason: 'Zug nicht erlaubt' };
     if (this.role === 'host') return this._applyMove(seat, move);
     if (this.pendingMove) return { ok: false, reason: 'Zug wird noch übertragen' };
-    this.pendingMove = { id: this._id(), move, seq: t.seq, sent: this.now() };
+    this.pendingMove = { id: this._id(), move, seq: t.seq, round: t.round, sent: this.now() };
     this.stats.movesSent++;
     const msg = { t: 'move', id: this.pendingMove.id, move, seq: t.seq };
     const reveal = this._revealFor(move);
@@ -230,7 +230,7 @@ export class TableSession {
 
   // ---------- Host ----------
 
-  _applyMove(seat, move, note = '') {
+  _applyMove(seat, move, note = '', id = null) {
     const t = this.table;
     const eng = this.engine;
     if (t.status !== 'play') return { ok: false, reason: 'Partie läuft nicht' };
@@ -239,7 +239,7 @@ export class TableSession {
     const d = eng.describeMove(t.gs, move) + note;
     const prevGs = t.gs;
     t.gs = eng.applyMove(t.gs, move);
-    t.last = { m: move, by: seat, d };
+    t.last = { m: move, by: seat, d, id: id || this._id() };
     t.hist.push(t.last);
     if (t.hist.length > HIST) t.hist.shift();
     t.nmoves++;
@@ -660,12 +660,14 @@ export class TableSession {
     };
     if (seat === null) return reject('Kein Sitzplatz');
     if (msg.seq !== t.seq) {
-      // veraltet oder doppelt (z. B. über Relay wiederholt) → nur Stand schicken
+      // veraltet oder doppelt (z. B. über Relay wiederholt): erst der Stand, dann nack – der Client sieht am Stand,
+      // ob sein Zug schon drin ist (last.id), sonst prüft er ihn auf dem neuen Stand und sendet einmal neu
       this._broadcastState(from.pid);
+      this.link.send({ t: 'nack', id: msg.id, reason: 'veraltet', seq: t.seq }, from.pid);
       return;
     }
     if (msg.reveal) this._takeReveal(seat, msg.reveal);
-    const r = this._applyMove(seat, msg.move);
+    const r = this._applyMove(seat, msg.move, '', typeof msg.id === 'string' ? msg.id.slice(0, 16) : null);
     if (!r.ok) reject(r.reason);
   }
 
@@ -687,7 +689,7 @@ export class TableSession {
     if (newer(incoming, base) <= 0) return;
     const shown = this.table;
     const wasOptimistic = this._isOptimistic;
-    if (this.pendingMove && incoming.seq > this.pendingMove.seq) this.pendingMove = null;
+    if (this.pendingMove && this._settles(incoming, this.pendingMove)) this.pendingMove = null;
     this._isOptimistic = false;
     this._confirmed = null;
     this.table = incoming;
@@ -719,7 +721,39 @@ export class TableSession {
     this._changed({ kind: 'move', move, by: seat, prevGs: t.gs, optimistic: true });
   }
 
+  // erledigt ein Stand den eigenen, unbestätigten Zug? Nur wenn der Zug drin ist (last/hist mit seiner id) oder die
+  // Partie nicht mehr dieselbe ist. Ein anderer, neuerer Stand (Host hat zwischendurch etwas anderes committet) nicht.
+  _settles(incoming, pm) {
+    const mine = (e) => e && e.id === pm.id;
+    if (mine(incoming.last) || (incoming.hist || []).some(mine)) return true;
+    if (incoming.round !== pm.round || incoming.status !== 'play') return true;
+    // Host einer älteren Version (Züge ohne id): wie früher – jeder neuere Stand erledigt den Zug
+    return !!incoming.last && incoming.last.id === undefined && incoming.seq > pm.seq;
+  }
+
   _clientOnNack(from, msg) {
+    const pm = this.pendingMove;
+    if (pm && msg.id === pm.id && msg.reason === 'veraltet') {
+      const t = this._isOptimistic && this._confirmed ? this._confirmed : this.table;
+      // neuerer Stand noch unterwegs → abwarten (die Wiederholung im Takt fragt erneut)
+      if (!t || (typeof msg.seq === 'number' && t.seq < msg.seq)) return;
+      const seat = this.mySeat;
+      if (!pm.retriedStale && t.status === 'play' && t.round === pm.round && seat !== null && turnOf(t) === seat && this.engine.isLegal(t.gs, pm.move)) {
+        // Zug passt auch auf den neuen Stand → einmal automatisch neu senden
+        pm.retriedStale = true;
+        pm.seq = t.seq;
+        pm.sent = this.now();
+        this.stats.moveRetries++;
+        const out = { t: 'move', id: pm.id, move: pm.move, seq: t.seq };
+        const reveal = this._revealFor(pm.move);
+        if (reveal) out.reveal = reveal;
+        pm.reveal = reveal;
+        this._sendHost(out);
+        if (!this.engine.HIDDEN && !reveal && !this._isOptimistic) this._optimistic(seat, pm.move);
+        return;
+      }
+      msg = { ...msg, reason: 'der Tisch hat sich geändert, bitte noch einmal' };
+    }
     if (this.pendingMove && msg.id === this.pendingMove.id) {
       this.stats.rejected++;
       this.pendingMove = null;

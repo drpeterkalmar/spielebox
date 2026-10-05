@@ -878,12 +878,11 @@ await ok('Gutachten P2-2: Host committet, während ein Gastzug unterwegs ist →
   assert.ok(g.submitMove({ to: 23 }).ok);
   h._commit({ kind: 'fair' });   // Host ändert gleichzeitig etwas anderes (wie _hostOnFair eines dritten Spielers)
   await until(() => (h.table.nmoves === 2 && !g.pendingMove && g.table.seq === h.table.seq) || toasts.length > 0, 3000, 'Zug angekommen oder gemeldet');
-  if (!toasts.length) {
-    assert.deepEqual(h.table.last.m, { to: 23 });
-    assert.ok(same(h, g));
-  }
-  // sicherheitshalber: nicht beides verschluckt
-  assert.ok(h.table.nmoves === 2 || toasts.length > 0);
+  // der Zug passt auch auf den neuen Stand → automatisch einmal neu gesendet, kein Toast nötig
+  assert.equal(toasts.length, 0, toasts.join(' | '));
+  assert.deepEqual(h.table.last.m, { to: 23 });
+  assert.ok(same(h, g));
+  assert.equal(g.stats.moveRetries, 1);
   noErrors('Fehler');
   h.close(); g.close();
 });
