@@ -1,5 +1,5 @@
 // Bot-Anbindung: rechnet im Web Worker, sonst (kein Worker möglich) direkt im Hauptthread.
-import { BOTS, TIME } from './games/bots.js';
+import { loadBot, TIME } from './games/bots.js';
 import { evalPosition } from './evalpos.js';
 
 // Antwortet der Worker so lange nicht (Endlosschleife, tot ohne onerror), wird er beendet und der Zug im Hauptthread
@@ -57,7 +57,7 @@ function restart(reason) {
 // Anfrage an den Worker mit Zeitlimit; fallback(reason) rechnet im Hauptthread (reason gesetzt = Zeitlimit)
 function request(msg, fallback) {
   const w = getWorker();
-  if (!w) return new Promise((resolve) => setTimeout(() => resolve(fallback()), 0));
+  if (!w) return new Promise((resolve) => setTimeout(() => resolve(fallback()), 0));   // fallback darf ein Promise liefern
   return new Promise((resolve, reject) => {
     const id = ++seq;
     const timer = setTimeout(() => { if (waiting.has(id)) restart(`Zeitlimit ${BOT_LIMIT.ms / 1000} s`); }, BOT_LIMIT.ms);
@@ -65,7 +65,7 @@ function request(msg, fallback) {
     waiting.set(id, {
       resolve: (v) => { end(); resolve(v); },
       reject: (e) => { end(); reject(e); },
-      fallback: (reason) => { end(); try { resolve(fallback(reason)); } catch (e) { reject(e); } }
+      fallback: (reason) => { end(); try { Promise.resolve(fallback(reason)).then(resolve, reject); } catch (e) { reject(e); } }
     });
     w.postMessage({ id, ...msg });
   });
@@ -73,16 +73,16 @@ function request(msg, fallback) {
 
 // Computer-Zug; ctx.note(text) schreibt ins Tisch-Protokoll (Zeitlimit)
 export function chooseBotMove(game, gs, level = 2, ctx = {}) {
-  return request({ game, gs, level }, (reason) => {
-    if (!reason) return BOTS[game](gs, { level, timeMs: TIME[level] || 400 });
+  return request({ game, gs, level }, async (reason) => {
+    if (!reason) return (await loadBot(game))(gs, { level, timeMs: TIME[level] || 400 });
     if (ctx.note) ctx.note(`Computer-Worker antwortet nicht (${reason}) – Zug im Hauptthread`);
     return quickMove(game, gs, level);
   });
 }
 
-// schneller Vorschlag im Hauptthread (Debug/Tests: __box.botMove, Rückfall nach Zeitlimit)
-export function quickMove(game, gs, level = 1) {
-  return BOTS[game](gs, { level, timeMs: 60 });
+// schneller Vorschlag im Hauptthread (Debug/Tests: __box.botMove, Rückfall nach Zeitlimit); Bot wird bei Bedarf geladen
+export async function quickMove(game, gs, level = 1) {
+  return (await loadBot(game))(gs, { level, timeMs: 60 });
 }
 
 // Einschätzung „Wer gewinnt?“ (im Worker, sonst direkt). Höchstens eine Bewertung in Arbeit; kommt währenddessen

@@ -8,6 +8,7 @@ import { parseWords, randomWords, formatWords, findWord } from './words.js';
 import * as store from './store.js';
 import { chooseBotMove, quickMove, warmUp } from './botclient.js';
 import { gameOf, GAME_LIST, LIVE, seatCount } from './games/registry.js';
+import { prepareGame } from './ui/gameui.js';
 import { h, sheet, toast } from './ui/dom.js';
 import { ensureDefs } from './ui/svg.js';
 import { DEKO, readDeko, applyDeko } from './ui/deko.js';
@@ -121,6 +122,7 @@ const openOnline = queued(async ({ words, want, create, resume = false }) => {
     words, roomId, pid: m.pid, name: m.name, relayOnly: RELAY_ONLY,
     log: (x) => { netlog.push(`${new Date().toISOString().slice(11, 19)} ${x}`); if (netlog.length > 300) netlog.shift(); }
   });
+  if (table) await prepareGame(table.game);   // Brett des Spiels laden (sonst erst, wenn der Stand kommt)
   const session = new TableSession({ mode: 'online', me: m, want, table, link, save, secret: store.deviceSecret(), bot: { choose: chooseBotMove }, build: BUILD });
   setHash(formatWords(words));
   mount(session, { words, roomId, link });
@@ -144,12 +146,13 @@ function onLocal(mode, game, opts, color, level = 2) {
   }
   table.status = 'play';
   store.saveLocal(mode, table);
-  openLocal(mode, table).catch(navFailed);
+  return openLocal(mode, table).catch(navFailed);   // Promise: fertig, wenn der Tisch steht (Tests: __box.local)
 }
 
 const openLocal = queued(async (mode, table) => {
   await leaveTable();
   leaveTrainer();
+  await prepareGame(table.game);
   const session = new TableSession({ mode, me: me(), table, bot: { choose: chooseBotMove }, save: (t) => store.saveLocal(mode, t) });
   setHash(mode === 'bot' ? 'solo' : 'zuzweit');
   mount(session, {});
@@ -183,6 +186,7 @@ function anotherGame() {
   const s = cur && cur.session;
   if (!s) return;
   const pick = (game) => {
+    prepareGame(game).catch(() => {});   // Brett schon laden, während das Optionen-Blatt offen ist
     if (s.mode === 'online') {
       openGameSheet(game, {
         onlyOnline: true, onlineLabel: 'Am selben Tisch starten', title: gameOf(game).title,
@@ -313,11 +317,13 @@ window.__box = {
   table: () => cur && cur.session.table,
   legal: legalForMe,
   move: (m) => cur.session.submitMove(m),
-  botMove(level = 1) {
+  async botMove(level = 1) {
     const s = cur.session;
     const t = s.table;
     if (!legalForMe().length) return { ok: false, reason: 'nicht am Zug' };
-    return s.submitMove(quickMove(t.game, t.gs, level));
+    const m = await quickMove(t.game, t.gs, level);
+    if (cur.session !== s || s.table !== t) return { ok: false, reason: 'Stand hat sich geändert' };
+    return s.submitMove(m);
   },
   act: (a) => cur.session.act(a),
   create: (game, opts = {}, color = 'weiss') => onCreate(game, opts, color),

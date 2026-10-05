@@ -1,5 +1,6 @@
 // Spiele-Verzeichnis: Engine, Anzeige-Namen und Optionen je Spiel.
-// Engines sind rein (ohne DOM); Ansicht und Bot werden getrennt geladen.
+// Engines sind rein (ohne DOM) und sofort da, ebenso ui (leicht: Lobby braucht Regeln und Mini-Brett aller Spiele);
+// Ansicht (Brett) und Computer-Gegner lädt load(id) erst bei Bedarf (import()).
 import * as muehle from './muehle/engine.js';
 import * as dame from './dame/engine.js';
 import * as schach from './schach/engine.js';
@@ -289,4 +290,20 @@ export function gameOf(id) {
   const g = GAMES[id];
   if (!g) throw new Error('Unbekanntes Spiel: ' + id);
   return g;
+}
+
+// Ansicht (Brett) und Bot eines Spiels nachladen, je einmal. viewOf(id) liefert die Ansicht synchron, sobald sie da ist.
+const views = {}, viewMods = {};
+export function loadView(id) {
+  gameOf(id);
+  return (views[id] ||= import(`./${id}/view.js`).then((m) => (viewMods[id] = m), (e) => { delete views[id]; throw e; }));
+}
+
+export function viewOf(id) {
+  return viewMods[id] || null;
+}
+
+export function load(id) {
+  const g = gameOf(id);
+  return Promise.all([loadView(id), import(`./${id}/bot.js`)]).then(([view, bot]) => ({ engine: g.engine, ui: g.ui, view, bot }));
 }

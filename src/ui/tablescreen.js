@@ -11,7 +11,7 @@ import { gameOf } from '../games/registry.js';
 import { turnOf } from '../net/table.js';
 import { displayWord, formatWords } from '../words.js';
 import { helpNet } from './texts.js';
-import { gameUi } from './gameui.js';
+import { gameUi, prepareGame } from './gameui.js';
 import { evaluateBoard } from '../botclient.js';
 import { EVAL } from '../evalpos.js';
 import * as store from '../store.js';
@@ -131,11 +131,23 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   // Zug auf diesem Gerät getippt? (zu zweit am Gerät: immer; sonst eigener Sitz)
   const ownMove = (by) => mode === 'hotseat' || (by !== null && by !== undefined && by === session.mySeat);
 
+  // Brett des Spiels anlegen; ist die Ansicht noch nicht geladen (Gast ohne Stand, anderes Spiel am selben Tisch),
+  // erst laden und dann neu zeichnen → false
+  let loadingGame = null;
   function ensureView(t) {
-    if (view && viewGame === t.game) return;
+    if (view && viewGame === t.game) return true;
+    const gu = gameUi(t.game);
+    if (!gu.board) {
+      if (loadingGame !== t.game) {
+        loadingGame = t.game;
+        prepareGame(t.game).then(() => { loadingGame = null; render({ kind: 'state' }); },
+          (e) => { loadingGame = null; toast('Spiel konnte nicht geladen werden: ' + (e && e.message || e)); });
+      }
+      return false;
+    }
     if (view) view.destroy();
     viewGame = t.game;
-    view = gameUi(t.game).board(boardWrap, {
+    view = gu.board(boardWrap, {
       onMove: (m) => {
         const r = session.submitMove(m);
         if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); } else movedByMe();
@@ -146,6 +158,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     });
     boardWrap.appendChild(overlay);
     boardWrap.appendChild(evalBar);
+    return true;
   }
 
   function legalFor(t) {
@@ -400,7 +413,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   function draw(t, info = {}) {
     renderStatusPill();
     if (!t) { renderOverlay(null); statusTextEl.textContent = 'Verbinde …'; return 0; }
-    ensureView(t);
+    if (!ensureView(t)) { statusTextEl.textContent = 'Lade …'; return 0; }
     const g = gameOf(t.game);
     clear(title).append(...[h('span', { class: 'tb-game', text: g.title }), g.id === 'dame' ? h('span', { class: 'tb-var', text: g.variantName(t.opts) }) : null].filter(Boolean));
     renderPlayers(t);
