@@ -13,7 +13,8 @@ export const LINK_TIMING = {
   relayAfter: 12000,   // so lange ohne Direktverbindung → Relay zuschalten
   presence: 15000,     // Lebenszeichen über Relay
   relayFresh: 40000,   // Relay-Gegenstelle gilt so lange als erreichbar
-  relayHeartbeat: 12000 // Herzschlag des Hosts über Relay seltener (öffentliche Relays nicht fluten)
+  relayHeartbeat: 12000, // Herzschlag des Hosts über Relay seltener (öffentliche Relays nicht fluten)
+  maxAge: 30 * 60000   // ältere Nachrichten verwerfen – gemessen mit der Uhr der Gegenstelle (Versatz aus ihrem _hi)
 };
 
 const MAX_SEEN = 4000;
@@ -42,7 +43,8 @@ export class NetLink {
     this.joinError = null;
     this.lastDirect = 0;
     this.startedAt = 0;
-    this.stats = { directSent: 0, relaySent: 0, directRecv: 0, relayRecv: 0, firstPeerMs: null, firstRelayPeerMs: null };
+    this.stats = { directSent: 0, relaySent: 0, directRecv: 0, relayRecv: 0, firstPeerMs: null, firstRelayPeerMs: null, tooOld: 0 };
+    this.skew = new Map();         // pid → geschätzter Uhrenversatz (deren Uhr − unsere) aus dem letzten _hi
   }
 
   async start() {
@@ -170,7 +172,14 @@ export class NetLink {
     if (!env || env.v !== 1 || typeof env.f !== 'string' || !env.m || typeof env.m !== 'object') return;
     if (env.f === this.pid) return; // eigene Nachricht (auch aus einer früheren Sitzung)
     if (env.to && env.to !== this.pid) return;
-    if (Date.now() - (env.ts || 0) > 5 * 60000) return; // uralt (Relay-Rückblick)
+    // uralt (Relay-Rückblick)? Relativ zur Uhr der Gegenstelle: falsch gestellte Uhren trennen sonst still
+    const now = Date.now();
+    if (env.m.t === '_hi' && typeof env.ts === 'number') this.skew.set(env.f, env.ts - now);
+    if (now + (this.skew.get(env.f) || 0) - (env.ts || 0) > LINK_TIMING.maxAge) {
+      this.stats.tooOld++;
+      this._status();
+      return;
+    }
     const key = env.s + ':' + env.i;
     let p = this.peers.get(env.f);
     const fresh = [];

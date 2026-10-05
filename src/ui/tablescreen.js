@@ -649,6 +649,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       h('p', {}, h('strong', { text: 'Status: ' }), st.text),
       st.relay ? h('p', { text: `Relay-Fallback aktiv (${st.relayReason || ''}): ${st.relay.open} von ${st.relay.total} Relays verbunden.` }) : h('p', { text: 'Direktverbindung über WebRTC (Relay-Fallback nicht nötig).' }),
       st.joinError ? h('p', { class: 'muted small', text: 'Letzte Meldung: ' + st.joinError }) : null,
+      st.tooOld ? h('p', { class: 'muted small', text: `${st.tooOld} Nachricht(en) als zu alt verworfen – ist die Uhrzeit eines Geräts falsch gestellt?` }) : null,
       peers.length ? h('ul', {}, ...peers) : h('p', { class: 'muted', text: 'Noch niemand verbunden.' }),
       h('div', { class: 'row' }, h('button', { class: 'btn primary', data: { act: 'reconnect' }, on: { click: reconnectNow } }, 'Wiederverbinden')),
       helpNet());

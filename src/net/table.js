@@ -29,7 +29,8 @@ export const TIMING = {
   relayAfter: 12000, // wie NetLink: so lange ohne Direktweg zur wichtigen Gegenstelle → Relay zuschalten
   fairWait: 12000,   // so lange auf Kettenglieder/Commits der Mitspieler warten, dann Host-Zufall (als ungeprüft markiert)
   timerGrace: 1500,  // Zeitlimit: Zuschlag für Netz-Verzögerung (die Uhr beim Spieler startet etwas später)
-  awayMove: 3000,    // Spieler nicht erreichbar: so lange warten, dann automatischer Zug
+  awayMove: 10000,   // Spieler nicht erreichbar UND so lange stumm: dann automatischer Zug (bis 05.10.: 3000 – kürzer als
+                     // ein Wiederaufbau nach App-Wechsel/Bildschirmsperre am iPhone, Gutachten P2-10)
   awayStart: 15000,  // … aber erst, wenn der Host selbst so lange läuft (sonst kennt er die Verbindungen noch nicht)
   timerUnit: 1000    // ms je Sekunde der Option opts.timer (Tests: kleiner)
 };
@@ -926,7 +927,10 @@ export class TableSession {
     const elapsed = now - this._turn.since;
     const pid = t.seats[seat].pid;
     const limit = (Number(t.opts.timer) || 0) * TIMING.timerUnit;
-    const away = pid !== this.me.pid && !this._reachable(pid) && now - this.startedAt > TIMING.awayStart;
+    // „nicht da“ erst, wenn auch keine Nachricht mehr kam (der Direktweg allein fällt beim App-Wechsel schnell weg)
+    const seen = this.present.get(pid);
+    const silent = !seen || now - seen.lastSeen > TIMING.awayMove;
+    const away = pid !== this.me.pid && !this._reachable(pid) && silent && now - this.startedAt > TIMING.awayStart;
     const late = limit > 0 && elapsed > limit + TIMING.timerGrace;
     if (!late && !(away && elapsed > TIMING.awayMove)) return;
     const m = eng.timeoutMove(t.gs);
@@ -1038,6 +1042,6 @@ export class TableSession {
     else if (ls.peers.length || (t && t.status !== 'wait' && now - this.startedAt > 8000)) mode = 'getrennt';
     if (t && t.status === 'wait' && !peers.length) mode = 'wartet';
     const texts = { direkt: 'direkt verbunden', relay: 'über Relay', getrennt: 'getrennt', wartet: 'wartet' };
-    return { mode, text: texts[mode], relay: ls.relay, relayReason: ls.relayReason, peers: ls.peers, joinError: ls.joinError };
+    return { mode, text: texts[mode], relay: ls.relay, relayReason: ls.relayReason, peers: ls.peers, joinError: ls.joinError, tooOld: ls.stats ? ls.stats.tooOld || 0 : 0 };
   }
 }

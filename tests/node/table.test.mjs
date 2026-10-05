@@ -959,5 +959,37 @@ await ok('Gutachten P2-3: andere App-Version → einmal Toast; Stand mit unbekan
   h2.close(); g2.close();
 });
 
+await ok("Gutachten P2-10: Hold'em – Direktweg weg, aber Spieler meldet sich noch → kein automatischer Zug; erst wenn er stumm ist", async () => {
+  uncaught.length = 0;
+  const keep = { ...TIMING };
+  Object.assign(TIMING, { timerUnit: 100000, awayMove: 400, awayStart: 0, hostGone: 100000 });
+  try {
+    const hub = new Hub();
+    const he = gameOf('holdem').engine;
+    const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'holdem', opts: { players: 3, timer: 0 }, host: { pid: 'H', name: 'Peter' } }) });
+    const a = player(hub, 'A', 'Anna');
+    await until(() => a.table && h.table.seats.filter(Boolean).length === 2, 3000);
+    assert.ok(h.act('fill-bots').ok);
+    const aSeat = () => seatOf(h.table, 'A');
+    // bis Anna dran ist (Host zieht selbst, Computer automatisch)
+    await until(() => {
+      if (h.table.status !== 'play') return false;
+      const turn = he.currentPlayer(h.table.gs);
+      if (turn === h.mySeat && !h.botBusy) h.submitMove(heBot.chooseMove(h.table.gs, { level: 1, iters: 30 }));
+      return turn === aSeat();
+    }, 5000, 'Anna am Zug');
+    const n = h.table.nmoves;
+    h._reachable = (pid) => pid !== 'A';               // Direktweg zu Anna gilt als weg …
+    const talk = setInterval(() => a.link.send({ t: 'sync' }, 'H'), 100);   // … aber sie meldet sich
+    await sleep(2500);   // Host prüft im 1-s-Takt: mindestens zwei Durchläufe nach Ablauf von awayMove
+    assert.equal(h.table.nmoves, n, 'kein automatischer Zug, solange sie sich meldet');
+    clearInterval(talk);                               // jetzt stumm
+    await until(() => h.table.nmoves > n, 3000, 'automatischer Zug, wenn stumm');
+    assert.match(h.table.last.d, /nicht da/);
+    noErrors('Fehler');
+    h.close(); a.close();
+  } finally { Object.assign(TIMING, keep); }
+});
+
 console.log(fails ? `\n${fails} Fall/Fälle rot` : '\nTisch-Protokoll grün');
 process.exit(fails ? 1 : 0);
