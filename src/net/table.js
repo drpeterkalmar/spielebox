@@ -20,6 +20,7 @@ import { chainLink, verifyLink, mixLinks, valueFor, randomHex, sha256, verifyFai
 export const TIMING = {
   heartbeat: 4000,   // Host meldet sich regelmäßig (Stand seq/epoch, Anwesenheit)
   hostGone: 45000,   // so lange kein Host → sitzender Spieler mit Zustand übernimmt (> 3 Relay-Herzschläge)
+  takeoverStep: 5000, // … gestaffelt: je Mensch, der in Sitzfolge nach dem Host vor einem sitzt, so viel später
   moveRetry: 5000,   // unbestätigten Zug erneut senden
   // Mindest-Denkzeit des Computers, wenn kein botDelayFor gesetzt ist (Node-Tests: 0). Peter 29.09. abends:
   // „Computer langsamere Zuggeschwindigkeit“ → 1500 ms (bis 29.09.: 450). A/B: ?botms=450.
@@ -756,7 +757,9 @@ export class TableSession {
       case 'state':
         if (isHost) {
           // zweiter Host mit neuerem Stand → abgeben
-          if (msg.table && msg.table.hostPid === from.pid && newer(msg.table, t) > 0) {
+          // gleicher Stand zweier Hosts (gleichzeitige Übernahme): die lexikographisch größere pid gibt nach
+          const d = msg.table && msg.table.hostPid === from.pid && from.pid !== this.me.pid ? newer(msg.table, t) : -1;
+          if (d > 0 || (d === 0 && this.me.pid > from.pid)) {
             this.table = null;
             this._clientOnState(from, msg);
           }
@@ -766,7 +769,9 @@ export class TableSession {
         break;
       case 'hb':
         if (isHost) {
-          if (msg.epoch > t.epoch || (msg.epoch === t.epoch && msg.seq > t.seq)) this.link.send({ t: 'sync' }, from.pid);
+          // anderer Host: neuerer Stand oder Gleichstand mit kleinerer pid → dessen Stand holen (dann gibt einer nach)
+          const d = newer(msg, t);
+          if (from.pid !== this.me.pid && (d > 0 || (d === 0 && from.pid < this.me.pid))) this.link.send({ t: 'sync' }, from.pid);
           return;
         }
         if (!t || msg.epoch !== t.epoch || msg.seq !== t.seq || msg.round !== t.round) {
@@ -905,9 +910,26 @@ export class TableSession {
     }
     // Host lange weg? Sitzender Spieler mit Stand übernimmt die Schiedsrichter-Rolle
     const since = Math.max(this.hostSeen, this.startedAt);
-    if (t && !this.engine.HIDDEN && seatOf(t, this.me.pid) !== null && !this.pendingMove && now - since > TIMING.hostGone && this._othersPresent()) {
+    if (t && !this.engine.HIDDEN && seatOf(t, this.me.pid) !== null && !this.pendingMove && now - since > this._takeoverWait() && this._othersPresent()) {
       this._takeOver();
     }
+  }
+
+  // Wartezeit bis zur Übernahme: der erste Mensch in Sitzfolge nach dem Host springt zuerst, jeder weitere
+  // takeoverStep später (sonst übernehmen alle im selben Takt → zwei Hosts)
+  _takeoverWait() {
+    const t = this.table;
+    const n = t.seats.length;
+    const hostSeat = seatOf(t, t.hostPid);
+    const start = hostSeat === null ? 0 : hostSeat + 1;
+    let rank = 0;
+    for (let i = 0; i < n; i++) {
+      const s = t.seats[(start + i) % n];
+      if (!s || s.bot || s.pid === t.hostPid) continue;
+      if (s.pid === this.me.pid) break;
+      rank++;
+    }
+    return TIMING.hostGone + rank * TIMING.takeoverStep;
   }
 
   // jemand anderes als der Host ist erreichbar (sonst lohnt die Übernahme nicht)

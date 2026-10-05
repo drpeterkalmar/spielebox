@@ -814,6 +814,31 @@ await ok('Gutachten P1-2: Halma zu dritt, Host trennt → nach 2 s genau ein Hos
   g1.close(); g2.close();
 });
 
+await ok('Gutachten P1-2: gleichzeitige Übernahme (ohne Staffelung) → Gleichstand, größere pid gibt nach', async () => {
+  uncaught.length = 0;
+  const keep = { ...TIMING };
+  // Übernahme hier von Hand; Herzschlag im Test nur im 1-s-Takt → sonst übernähme der Unterlegene später erneut
+  Object.assign(TIMING, { takeoverStep: 0, hostGone: 10000 });
+  try {
+    const hub = new Hub();
+    const h = player(hub, 'H', 'Peter', { table: newTable({ game: 'halma', opts: { players: 3 }, host: { pid: 'H', name: 'Peter' } }) });
+    const g1 = player(hub, 'G1', 'Anna');
+    const g2 = player(hub, 'G2', 'Bert');
+    await until(() => g1.table && g1.table.status === 'play' && g2.table && g2.table.status === 'play', 3000, 'Partie läuft');
+    await sleep(60);
+    h.close(); h.link.disconnect();
+    g1._takeOver(); g2._takeOver();   // beide im selben Augenblick → gleicher (epoch, seq)
+    assert.equal(g1.table.epoch, g2.table.epoch);
+    assert.equal(g1.table.seq, g2.table.seq);
+    await sleep(1500);
+    assert.equal(g1.role, 'host', 'kleinere pid bleibt Host');
+    assert.equal(g2.role, 'client');
+    assert.ok(same(g1, g2), 'Tische gleich');
+    noErrors('Fehler');
+    g1.close(); g2.close();
+  } finally { Object.assign(TIMING, keep); }
+});
+
 await ok('Gutachten P2-1: Ludo zu dritt, Gast gibt auf → Computer übernimmt → nach 6 Würfen fair bei Host und G2', async () => {
   uncaught.length = 0;
   const hub = new Hub();
