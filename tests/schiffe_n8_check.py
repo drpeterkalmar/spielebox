@@ -126,6 +126,6 @@ def clip():
         P.close(); b.close()
     out = os.path.join(OUT, 'schaukeln.mp4')
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', os.path.join(tmp, 'f%03d.png'),
-                    '-vf', 'scale=720:-2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-movflags', '+faststart', out], check=True)
+                    '-vf', 'scale=1080:-2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '24', '-movflags', '+faststart', out], check=True)
     shutil.rmtree(tmp, ignore_errors=True)
     print(out, f'{os.path.getsize(out) / 1024:.0f} KB', 'Fehler:', errs[:3] or 0)

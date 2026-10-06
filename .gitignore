@@ -6,6 +6,11 @@ tests/shots/*
 !tests/shots/deko/
 tests/shots/deko/*
 !tests/shots/deko/vergleich_*.jpg
+# Kriegsschiffe n8: Collagen und Clip (SCHIFFE_N8_BERICHT.md)
+!tests/shots/schiffe-n8/
+tests/shots/schiffe-n8/*
+!tests/shots/schiffe-n8/vergleich_*.jpg
+!tests/shots/schiffe-n8/schaukeln.mp4
 tests/out/*
 !tests/out/.keep
 __pycache__/

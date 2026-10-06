@@ -219,6 +219,10 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
   `python3 tools/update_sw.py --check` prüft nur (Exit 1, wenn `sw.js`/`src/build.js` nicht zum Inhalt passen).
 - `npm test -- --smoke` – Kurzlauf < 30 s (Wörter, Krypto, Fair Play, Tempo, Meldungen, Tisch ohne Langläufer).
 - CI: `.github/workflows/test.yml` (GitHub Actions, Node 24) – Schnell-Suite und `update_sw.py --check` bei jedem Push.
+- Schiffe versenken, Kriegsschiffe (n8): `node tests/node/schiffe_boats.test.mjs` (in `npm test`: Typen, Ränder inkl.
+  Schaukeln/Wrack-Schräglage); `python3 tests/schiffe_n8.py check` (kein Leck im Gegner-Meer, Treffer schaukeln mit,
+  Stufen 0/1/2, „Bewegung reduzieren“), `… shots <ordner>`, `… vergleich vorher nachher`, `… clip`,
+  `… perf <name> --ab='deko=1|deko=2' [--alt=<Worktree alter Stand>]` (Bilder/Clip in `tests/shots/schiffe-n8/`).
 - `python3 tests/test_nav.py` – Browser: schnelle Wechsel Lobby/Tisch ergeben eine Sitzung, Fehler beim Öffnen → Meldung.
 - `python3 tests/test_sw.py` – Service-Worker lokal: Kern-Cache je Version, Bilder-Cache versionslos (Update lädt nur
   geänderte Bilder), offline mit Karten; `SW_ALT=<alter sw.js>` prüft zusätzlich den Umstieg vom alten Schema.

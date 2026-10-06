@@ -1,7 +1,7 @@
 # Schiffe versenken – echte Kriegsschiffe, die auf See schaukeln (n8, 06.10.2026): Szenen, Messung, Bilder, Prüfungen.
 #   python3 tests/schiffe_n8.py fixtures                    – Szenen erspielen → tests/deko/fixtures/schiffe_{gross,klein}.json
 #                                                             (Schießen, 3 Treffer auf der eigenen Flotte, 1 Gegner-Schiff versenkt)
-#   python3 tests/schiffe_n8.py perf <name> [--ab=deko=1|deko=2] [--reps=2] [--nur=…]   → tests/out/perf_<name>.json
+#   python3 tests/schiffe_n8.py perf <name> [--ab=deko=1|deko=2] [--reps=2] [--nur=…] [--form=hoch,quer] [--alt=<Ordner mit altem Stand>, Variante alt:deko=2]   → tests/out/perf_<name>.json
 #   python3 tests/schiffe_n8.py shots <ordner> [q]          – Bilder hoch/quer → tests/shots/schiffe-n8/<ordner>/
 #   python3 tests/schiffe_n8.py vergleich <a> <b>           – Collagen vorher | nachher → tests/shots/schiffe-n8/vergleich_*.jpg
 #   python3 tests/schiffe_n8.py check                       – Prüfungen (kein Leck, Schaukeln, Treffer schaukeln mit, A/B-Stufen)
@@ -120,18 +120,20 @@ def run_scene(b, base, form, name, fixture, dur, kind, q):
             'cpu': round(cpu * 100, 1), 'nodes': m1.get('Nodes'), 'moves': nm, 'deko': deko, 'errors': errs[:3]}
 
 
-def perf(name, variants, reps, only):
-    out = {'name': name, 'variants': variants, 'when': time.strftime('%Y-%m-%d %H:%M'), 'scenes': {}}
-    with sync_playwright() as pw, Server() as srv:
+def perf(name, variants, reps, only, forms=('hoch', 'quer'), root=ROOT, alt=None):
+    # Variante „alt:deko=2“ = alter Stand (Ordner alt, z. B. git worktree des Commits davor), verschränkt mit dem neuen
+    out = {'name': name, 'variants': variants, 'root': root, 'alt': alt, 'when': time.strftime('%Y-%m-%d %H:%M'), 'scenes': {}}
+    with sync_playwright() as pw, Server(root) as srv, Server(alt or root) as srv_alt:
         b = launch(pw)
-        for form in ['hoch', 'quer']:
+        for form in forms:
             for sc in SCENES:
                 if only and sc[0] not in only: continue
                 key = f'{sc[0]}_{form}'
                 runs = {v: [] for v in variants}
                 for r in range(reps):
                     for v in (variants if r % 2 == 0 else variants[::-1]):
-                        runs[v].append(run_scene(b, srv.base, form, *sc, v))
+                        base, qv = (srv_alt.base, v[4:]) if v.startswith('alt:') else (srv.base, v)
+                        runs[v].append(run_scene(b, base, form, *sc, qv))
                 out['scenes'][key] = {}
                 for v in variants:
                     rs = runs[v]
@@ -285,7 +287,7 @@ if __name__ == '__main__':
     if cmd == 'fixtures': fixtures()
     elif cmd == 'perf':
         perf(rest[0] if rest else 'schiffe', flags.get('ab', '').split('|') if 'ab' in flags else [''], int(flags.get('reps', 2)),
-             flags['nur'].split(',') if 'nur' in flags else None)
+             flags['nur'].split(',') if 'nur' in flags else None, flags['form'].split(',') if 'form' in flags else ('hoch', 'quer'), flags.get('root', ROOT), flags.get('alt'))
     elif cmd == 'shots': sys.exit(1 if shots(rest[0] if rest else 'nachher', rest[1] if len(rest) > 1 else '') else 0)
     elif cmd == 'vergleich': vergleich(rest[0], rest[1])
     elif cmd == 'check':
