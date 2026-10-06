@@ -3,7 +3,7 @@
 // - spielebox-core-<VERSION>: HTML/CSS/JS/Icons, bei jeder Version neu (in Gruppen à 40 mit Wiederholung)
 // - spielebox-assets: Karten, Holz, Figuren – versionslos, beim Aktivieren nicht gelöscht. Schlüssel = Pfad + Inhalts-Hash
 //   (?h=…), so lädt ein Update nur fehlende oder geänderte Bilder nach; alte Fassungen werden beim Aktivieren entfernt.
-const VERSION = '09fff17b71';
+const VERSION = '8528d8f3dd';
 const CORE = 'spielebox-core-' + VERSION;
 const ASSETS = 'spielebox-assets';
 const CORE_FILES = [
@@ -77,6 +77,7 @@ const CORE_FILES = [
   'src/games/schach/engine.js',
   'src/games/schach/ui.js',
   'src/games/schach/view.js',
+  'src/games/schiffe/boats.js',
   'src/games/schiffe/bot.js',
   'src/games/schiffe/engine.js',
   'src/games/schiffe/rules.js',

@@ -6,7 +6,8 @@
 import { ROWS, FLEETS, cells, validFleet, randomFleet, grid, cellName, revealedShips, shipName } from './engine.js';
 import { s, ensureDefs, toBoard, toScreen, onTap } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
-import { boardLayers } from '../../ui/deko.js';
+import { boardLayers, DEKO, watchFrames } from '../../ui/deko.js';
+import { TYPES, WRECK, typeOf, outline, details, wake, hullShade, embers, rhythm, wreckTilt } from './boats.js';
 import { woodFrame } from '../../ui/material.js';
 import * as FXS from '../../ui/fxsvg.js';
 
@@ -75,30 +76,123 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     }
   }
 
+  // Stufe 0 (?deko=0): altes Aussehen, unverändert (Kapsel). Bis n7 zeichnete Stufe 1/2 hier zusätzlich Schatten
+  // (rect +3/+5, rgba(0,20,40,.35)), Stahl-Verlauf url(#dk-steel), Deck-Linie und je Feld einen Turm (Kreis r 0,13 Feld,
+  // #8d99a3 bzw. versenkt #3e302b) – ersetzt durch boat().
   function hull(g, G, sh, cls) {
     const [x0, y0] = cxy(G, sh.r * 10 + sh.c);
     const pad = G.cell * 0.14;
     const w = (sh.dir === 'h' ? sh.len : 1) * G.cell - 2 * pad, h2 = (sh.dir === 'v' ? sh.len : 1) * G.cell - 2 * pad;
     const x = x0 - G.cell / 2 + pad, y = y0 - G.cell / 2 + pad, r = Math.min(w, h2) / 2;
-    if (L) g.append(s('rect', { x: x + 3, y: y + 5, width: w, height: h2, rx: r, fill: 'rgba(0,20,40,.35)' }));
     g.append(s('rect', { x, y, width: w, height: h2, rx: r, class: 'sv-ship ' + cls }));
-    if (!L || /bad|pick/.test(cls)) return;
-    // Deko: Stahl-Glanz, Deck-Linie und Aufbauten (je Feld ein Turm, nicht an den Enden)
-    g.append(s('rect', { x, y, width: w, height: h2, rx: r, fill: 'url(#dk-steel)' }),
-      s('rect', { x: x + r * 0.45, y: y + r * 0.45, width: w - r * 0.9, height: h2 - r * 0.9, rx: r * 0.55, fill: 'none', stroke: 'rgba(30,40,50,.28)', 'stroke-width': Math.max(1, G.cell * 0.025) }));
-    for (let k = 1; k < sh.len - 1 || (sh.len === 2 && k === 1); k++) {
-      const t = sh.len === 2 ? 0.5 : k / (sh.len - 1);
-      const tx = sh.dir === 'h' ? x + r + (w - 2 * r) * t : x + w / 2, ty = sh.dir === 'v' ? y + r + (h2 - 2 * r) * t : y + h2 / 2;
-      g.append(s('circle', { cx: tx, cy: ty, r: G.cell * 0.13, fill: cls.includes('sunk') ? '#3e302b' : '#8d99a3', stroke: 'rgba(20,30,40,.5)', 'stroke-width': Math.max(1, G.cell * 0.02) }));
-      if (sh.len === 2) break;
-    }
   }
 
-  function marks(g, G, cellsInfo) {
+  // ---------- Kriegsschiffe (n8): Draufsicht aus der Typ-Tabelle (boats.js), schaukeln in Dünungen (nur Stufe 2) -
+  // Je Typ/Länge/Detailstufe/Zustand liegt das Bild einmal in den Defs; ein Schiff im Meer ist dann: Schatten, Gruppe
+  // „sv-rock“ (Bugwelle, Rumpf = .sv-ship, Deck und Aufbauten, Tönung beim Aufstellen, Glut/Rauch, Treffer-Marken).
+  // Nur Schiffe, die man sehen darf (eigene, versenkte), werden gezeichnet – unentdeckte Gegner haben nichts im Bild.
+  function boatDef(id, inner) {
+    if (document.getElementById(id)) return;
+    const defs = document.querySelector('#sb-defs defs');
+    if (defs) defs.insertAdjacentHTML('beforeend', `<g id="${id}">${inner}</g>`);
+  }
+  // Detailstufe nach Zellgröße in Bildschirm-Pixeln: Mini-Karte nur Silhouette + Türme als Punkte
+  function lodOf(G) {
+    let a = 0;
+    try { const m = svg.getScreenCTM(); a = m ? m.a : 0; } catch { a = 0; }
+    return (a ? G.cell * a >= 20 : G === BIG) ? 'f' : 's';
+  }
+  function boat(g, G, sh, k, seat, cls, lod) {
+    const name = gs ? shipName(gs.opts, k) : '';
+    const type = typeOf(name, sh.len), T = TYPES[type], len = sh.len;
+    const wreck = /sunk/.test(cls), simple = lod === 's';
+    const hid = `sv-h-${type}${len}`, did = `sv-d-${type}${len}${lod}${wreck ? 'w' : ''}`, wid = `sv-w-${type}${len}`;
+    boatDef(hid, `<path d="${outline(type, len).d}"/>`);
+    boatDef(did, details(type, len, { wreck, simple }) + (simple || wreck ? '' : hullShade(type, len)));
+    // Fahrtrichtung: jedes zweite Schiff andersherum (Bug rechts/unten bzw. links/oben)
+    const c = G.cell, X = G.x + sh.c * c, Y = G.y + sh.r * c, flip = k % 2 === 1;
+    let tf = sh.dir === 'h' ? (flip ? `translate(${X + len * c} ${Y}) scale(${-c} ${c})` : `translate(${X} ${Y}) scale(${c})`)
+      : (flip ? `translate(${X} ${Y + len * c}) rotate(-90) scale(${c})` : `translate(${X + c} ${Y}) rotate(90) scale(${c})`);
+    if (wreck) tf += ` rotate(${(k % 2 ? -1 : 1) * wreckTilt(type, len)} ${len / 2} .5)`;
+    const cx = X + (sh.dir === 'h' ? len : 1) * c / 2, cy = Y + (sh.dir === 'v' ? len : 1) * c / 2;
+    const rk = wreck ? WRECK : T.rock, { dur, phase, sign } = rhythm(k, seat);
+    // Dünung (swell): Welle läuft von links nach rechts übers Meer, jedes Schiff mit eigener Stärke, Richtung und Dauer
+    const still = /pick/.test(cls) ? ' still' : '';
+    const origin = `transform-origin:${cx.toFixed(1)}px ${cy.toFixed(1)}px`;
+    const data = {
+      'data-a': (rk.deg * sign).toFixed(2), 'data-d': (rk.d * c).toFixed(2), 'data-ux': sh.dir === 'h' ? 0 : 1, 'data-uy': sh.dir === 'h' ? 1 : 0,
+      'data-t': Math.round((wreck ? 1.1 : 1) * dur * 1000), 'data-w': Math.round(((cx - G.x) / (10 * c)) * 250 + phase * 120)
+    };
+    const sh0 = s('g', { class: 'sv-shd' + still, style: origin },
+      s('g', { transform: `translate(${(c * 0.035).toFixed(1)} ${(c * 0.06).toFixed(1)}) ${tf}` }, s('use', { href: '#' + hid, fill: wreck ? 'rgba(0,10,20,.28)' : 'rgba(0,20,40,.35)' })));
+    const inner = s('g', { transform: tf });
+    if (!wreck && !simple) {
+      const w = wake(type, len);
+      boatDef(wid, `<g fill="none" stroke="#fff" stroke-linecap="round"><path d="${w.bow}" stroke-opacity=".6" stroke-width="${(0.026 * Math.min(w.s, 1.2)).toFixed(3)}"/>` +
+        `<ellipse cx="${w.foam.cx}" cy=".5" rx="${w.foam.rx}" ry="${w.foam.ry}" fill="#fff" fill-opacity="${type === 'schnell' ? 0.45 : 0.28}" stroke="none"/>` +
+        `<path d="${w.stern}" stroke-opacity=".55" stroke-width="${(0.022 * w.s).toFixed(3)}"/></g>`);
+      inner.append(s('use', { href: '#' + wid, class: 'sv-bow' }));
+    }
+    inner.append(s('use', { href: '#' + hid, class: 'sv-ship n8 ' + (wreck ? 'sunk' : 'own'), style: `fill:${wreck ? '#45362e' : T.hull};stroke:${wreck ? '#140e0b' : '#2b353e'};stroke-width:.022` }),
+      s('use', { href: '#' + did, class: 'sv-top' }));
+    if (/pick|bad/.test(cls)) inner.append(s('use', { href: '#' + hid, class: 'sv-tint ' + cls }));
+    if (wreck && !simple && DEKO.level >= 2) {
+      // Glut und Rauchfahne (still, keine Animation)
+      for (const p of embers(type, len)) inner.append(s('circle', { cx: p.x, cy: p.y, r: 0.16, fill: 'url(#dk-glow)' }),
+        s('circle', { cx: p.x + 0.1, cy: p.y - 0.08, r: 0.17, fill: 'url(#dk-smoke)' }), s('circle', { cx: p.x + 0.26, cy: p.y - 0.14, r: 0.15, fill: 'url(#dk-smoke)', opacity: 0.8 }),
+        s('circle', { cx: p.x + 0.42, cy: p.y - 0.17, r: 0.12, fill: 'url(#dk-smoke)', opacity: 0.55 }));
+    }
+    const rock = s('g', { class: 'sv-rock' + (wreck ? ' wreck' : '') + still, style: origin, ...data }, inner);
+    g.append(sh0, rock);
+    return rock;
+  }
+
+  // Schaukeln (nur Stufe 2 mit Effekten, nicht bei „Bewegung reduzieren“, nicht nach Auto-Drosselung auf 0, nur bei
+  // sichtbarem Tab): Alle ~19 s läuft eine Dünung von links nach rechts über die Meere; jedes Schiff rollt gedämpft nach
+  // (Drehung ±data-a Grad, Versatz quer ±data-d), die Bugwelle pulsiert; der Schatten bleibt liegen und wirkt dadurch
+  // gegenläufig (Krängung). Dazwischen steht alles still – kein einziger Frame. Gemessen (n8): Dauer-Animation per CSS hält Chrome bei 60 Bildern/s und kostete im
+  // Leerlauf +18 Prozentpunkte CPU (Budget +5); die Dünung läuft nur einen Bruchteil der Zeit. Kein JS pro Frame: Web
+  // Animations mit festen Keyframes, angestoßen von einem Timer; gewähltes Schiff (Aufstellen) bleibt ruhig.
+  const SWELL = [[0, 0, 0], [0.18, 1, 1], [0.4, -0.75, -0.7], [0.62, 0.45, 0.4], [0.82, -0.2, -0.15], [1, 0, 0]];   // gedämpftes Nachrollen (Drehung, Versatz)
+  let swellT = 0;
+  const planSwell = (ms) => { clearTimeout(swellT); swellT = setTimeout(swell, ms); };
+  function swell() {
+    planSwell((DEKO.quality < 1 ? 36000 : 17500) + Math.random() * 2500);
+    if (!DEKO.fx || document.hidden || !svg.isConnected) return;
+    let end = 0;
+    for (const r of svg.querySelectorAll('.sv-rock:not(.still)')) {
+      const a = +r.dataset.a, d = +r.dataset.d, ux = +r.dataset.ux, uy = +r.dataset.uy, duration = +r.dataset.t, delay = +r.dataset.w;
+      const frames = (k) => SWELL.map(([offset, u, v]) => ({ offset, easing: 'ease-in-out', transform: `translate(${(ux * d * v * k).toFixed(2)}px, ${(uy * d * v * k).toFixed(2)}px) rotate(${(a * u).toFixed(3)}deg)` }));
+      r.animate(frames(1), { duration, delay });
+      // Rollen: Deck und Aufbauten wandern quer gegen den Rumpf (Neigung von oben gesehen), in Schiffs-Einheiten
+      const top = r.querySelector('.sv-top'), roll = (a > 0 ? 1 : -1) * (r.classList.contains('wreck') ? 0.012 : 0.03);
+      if (top) top.animate(SWELL.map(([offset, u]) => ({ offset, easing: 'ease-in-out', transform: `translate(0px, ${(roll * u).toFixed(4)}px)` })), { duration, delay });
+      const bow = r.querySelector('.sv-bow');
+      if (bow) bow.animate([{ opacity: 1 }, { opacity: 0.45, offset: 0.25 }, { opacity: 1, offset: 0.5 }, { opacity: 0.7, offset: 0.75 }, { opacity: 1 }], { duration, delay });
+      end = Math.max(end, duration + delay);
+    }
+    if (end) watchFrames(end);   // Auto-Drosselung: ruckelt die Dünung, gibt es erst seltener, dann keine mehr
+  }
+  planSwell(1500);
+
+  // Schiff zeichnen: Stufe 0 alt, sonst Kriegsschiff; liefert die Gruppe, in die Treffer-Marken gehören (oder null)
+  function ship(g, G, sh, k, seat, cls, lod) {
+    if (!L) { hull(g, G, sh, cls); return null; }
+    return boat(g, G, sh, k, seat, cls, lod);
+  }
+
+  function marks(g0, G, cellsInfo, into = null) {
     cellsInfo.forEach((c, i) => {
       const [x, y] = cxy(G, i);
       const r = G.cell * 0.3;
-      if (c.shot === 'hit') {
+      // Marken auf einem gezeichneten Schiff liegen in dessen Gruppe (schaukeln mit)
+      const g = (into && into.get(i)) || g0;
+      if (c.shot === 'hit' && L && c.sunk) {
+        // Wrack: kleine Marke, damit das Schiff sichtbar bleibt (vorher: volle rote Scheibe mit X wie bei Treffern)
+        const q = r * 0.45;
+        g.append(s('circle', { cx: x, cy: y, r: r * 0.5, class: 'sv-hit sunk n8' }),
+          s('path', { d: `M ${x - q} ${y - q} L ${x + q} ${y + q} M ${x + q} ${y - q} L ${x - q} ${y + q}`, class: 'sv-x n8' }));
+      } else if (c.shot === 'hit') {
         // Deko: Glut (heller Kern, roter Rand) statt flacher Scheibe
         if (L && !c.sunk) g.append(s('circle', { cx: x, cy: y, r: r * 1.5, fill: 'url(#dk-glow)' }));
         g.append(s('circle', { cx: x, cy: y, r: r * 1.1, class: 'sv-hit' + (c.sunk ? ' sunk' : '') }));
@@ -119,10 +213,12 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     if (!gs) return;
     const info = grid(gs, owner, seated ? me : null);
     const fleet = gs.fleets[owner];
-    if (Array.isArray(fleet)) for (const sh of fleet) hull(g, G, sh, sh.hits === sh.len ? 'sunk' : 'own');
-    else for (const sh of revealedShips(gs, owner)) hull(g, G, sh, 'sunk');
+    const lod = lodOf(G), into = new Map();
+    const put = (sh, k, cls) => { const grp = ship(g, G, sh, k, owner, cls, lod); if (grp) for (const i of cells(sh)) into.set(i, grp); };
+    if (Array.isArray(fleet)) fleet.forEach((sh, k) => put(sh, k, sh.hits === sh.len ? 'sunk' : 'own'));
+    else for (const sh of revealedShips(gs, owner)) put(sh, sh.k, 'sunk');
     if (Array.isArray(fleet)) info.forEach((c) => { c.own = true; });
-    marks(g, G, info);
+    marks(g, G, info, into);
     const l = gs.last;
     if (l && l.seat === 1 - owner && Number.isInteger(l.i)) {
       const [x, y] = cxy(G, l.i);
@@ -145,7 +241,8 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
         if (near) { bad.add(i); bad.add(j); }
       }));
     }
-    ships.forEach((sh, k) => hull(gBig, BIG, sh, (k === pickK ? 'pick ' : '') + (bad.has(k) ? 'bad' : 'own')));
+    const lod = lodOf(BIG);
+    ships.forEach((sh, k) => ship(gBig, BIG, sh, k, me, (k === pickK ? 'pick ' : '') + (bad.has(k) ? 'bad' : 'own'), lod));
     setHint(pickK !== null ? `${shipName(gs.opts, pickK)}: Feld antippen = hierhin, nochmal aufs Schiff = drehen.` : ok ? 'Schiff antippen = verschieben. Sonst „Fertig“.' : 'Rote Schiffe liegen zu nah – verschieben!');
   }
 
@@ -160,7 +257,14 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       fl.forEach((f, k) => {
         const w = f.len * 22;
         if (x + w > (portrait ? 980 : 1480)) { x = x0; yy += 34; }
-        gInfo.append(s('rect', { x, y: yy, width: w, height: 22, rx: 11, class: 'sv-ico' + (sunk.has(k) ? ' gone' : '') }));
+        if (L) {
+          // Deko: kleine Typ-Silhouette (Rumpf + Türme als Punkte) statt Pille; quer gestreckt, damit sie lesbar bleibt
+          const type = typeOf(f.name, f.len), gone = sunk.has(k), hid = `sv-h-${type}${f.len}`, did = `sv-d-${type}${f.len}s${gone ? 'w' : ''}`;
+          boatDef(hid, `<path d="${outline(type, f.len).d}"/>`);
+          boatDef(did, details(type, f.len, { wreck: gone, simple: true }));
+          gInfo.append(s('g', { transform: `translate(${x} ${yy - 6}) scale(22 34)`, opacity: gone ? 0.75 : 1 },
+            s('use', { href: '#' + hid, class: 'sv-ico n8' + (gone ? ' gone' : ''), style: `fill:${gone ? '#5a2a22' : TYPES[type].hull};stroke:none` }), s('use', { href: '#' + did })));
+        } else gInfo.append(s('rect', { x, y: yy, width: w, height: 22, rx: 11, class: 'sv-ico' + (sunk.has(k) ? ' gone' : '') }));
         x += w + 12;
       });
       return yy + 40;
@@ -307,7 +411,8 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       return { minTargetPx: BIG.cell * scale, cellPx: BIG.cell * scale, boardPx: W * scale };
     },
     tap: tapAt,
-    destroy() { removeEventListener('resize', onResize); svg.remove(); }
+    swell,   // Tests: Dünung sofort auslösen
+    destroy() { clearTimeout(swellT); removeEventListener('resize', onResize); svg.remove(); }
   };
   return api;
 }

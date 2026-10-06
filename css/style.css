@@ -545,6 +545,14 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board .sv-sub { font: 600 26px system-ui, sans-serif; fill: rgba(251,243,228,.8); }
 .board .sv-ico { fill: #c9d1d8; stroke: #46525c; stroke-width: 2; }
 .board .sv-ico.gone { fill: #8a2018; stroke: #e5483b; opacity: .7; }
+/* Kriegsschiffe (n8, nur Deko-Stufe 1/2): Tönung beim Aufstellen über der Silhouette, kleine Marken auf Wracks.
+   Schaukeln: Web Animations aus view.js (Dünung), gedreht um die Schiffsmitte (transform-origin inline, Brett-Einheiten). */
+.board .sv-tint { fill: rgba(255, 214, 90, .4); stroke: #ffd24a; stroke-width: .07; }
+.board .sv-tint.bad { fill: rgba(229, 72, 59, .5); stroke: #c0281b; }
+.board .sv-tint.pick.bad { stroke: #ffd24a; }
+.board .sv-hit.sunk.n8 { fill: #8a2018; stroke: #ffcfa0; stroke-width: 2; opacity: .9; }
+.board .sv-x.n8 { stroke-width: 3.5; }
+.board .sv-rock, .board .sv-shd { transform-box: view-box; }
 .handoff-note { font-weight: 750; color: #7a3a10; }
 /* Hochformat: Spalte nie breiter als der Bildschirm (hohe Bretter wie Schiffe versenken schoben sie sonst auf) */
 @media (orientation: portrait) { .table-screen { grid-template-columns: minmax(0, 1fr); } }
