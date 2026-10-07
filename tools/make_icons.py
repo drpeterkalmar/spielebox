@@ -286,7 +286,9 @@ TARGETS = [
 
 
 def save_png(img: Image.Image, path: Path) -> None:
-    img.save(path, "PNG", optimize=True)
+    # n9: als Palettenbild, wenn das Icon dabei nicht sichtbar leidet (tools/shrink_icons.py)
+    from shrink_icons import shrink
+    path.write_bytes(shrink(img)[0])
 
 
 def preview_sheet(layouts: list[str]) -> Path:
