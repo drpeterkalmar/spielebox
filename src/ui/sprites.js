@@ -5,35 +5,60 @@
 // Kein extra Neuzeichnen, wenn ein Bild fertig wird (das würde z. B. eine angetippte Spalte/Karte verwerfen) – der nächste
 // Zug zeichnet ohnehin neu und nimmt dann die Bilder.
 // Licht wie überall von links oben, Schatten nach rechts unten. Maße: Kachel S × S Pixel, Objekt-Radius RS.
+// n9 „je Größe“: Die Kachel wird in der Pixelgröße gebacken, in der der Stein auf dem Bildschirm erscheint (Stufen
+// TILES, Maßstab aus setSpriteScale) – große Steine (Desktop, Dame) bleiben scharf, kleine (Halma) kosten beim Rastern
+// weniger. Die Zeichen-Funktionen rechnen weiter in S-Einheiten (die Kachel wird skaliert). ?sprites=0 → Vektor.
 import { DEKO } from './deko.js';
+import { urlFlag } from './flags.js';
 
-export const S = 168;          // Kachelgröße (px)
+export const S = 168;          // Kachelgröße (px) der Zeichen-Funktionen (und ohne bekannten Maßstab)
 export const RS = S * 0.36;    // Radius des Objekts in der Kachel (Platz für Schatten rechts unten)
-const cache = new Map();       // Schlüssel → URL | null (wird gezeichnet) | false (geht nicht)
+export const TILES = [48, 64, 96, 128, 168, 224, 288];
+const cache = new Map();       // Schlüssel@Kachel → URL | null (wird gezeichnet) | false (geht nicht)
+const anySize = new Map();     // Schlüssel → zuletzt fertige URL irgendeiner Größe (Rückfall statt Vektor beim Größenwechsel)
+const useSprites = urlFlag('sprites', true);
 
-function make(key, draw) {
-  try {
-    const c = document.createElement('canvas');
-    c.width = c.height = S;
-    const x = c.getContext('2d');
-    x.translate(S / 2, S / 2);
-    draw(x);
-    c.toBlob((b) => cache.set(key, b ? URL.createObjectURL(b) : false), 'image/png');
-  } catch { cache.set(key, false); }
+// kleinste Kachelstufe, die einen Stein mit Radius pxR (Gerätepixel) ohne Hochskalieren trägt
+export function tileFor(pxR) {
+  if (!(pxR > 0)) return S;
+  const need = (pxR * S) / RS;
+  return TILES.find((t) => t >= need) || TILES[TILES.length - 1];
 }
 
-// URL des Bildchens oder null (dann bitte als Vektor zeichnen); stößt das Zeichnen beim ersten Aufruf an
-export function sprite(key) {
-  if (!DEKO.on || typeof document === 'undefined') return null;
-  const v = cache.get(key);
+let pxPerUnit = 0;   // Gerätepixel je Brett-Einheit (0 = unbekannt → Kachel S)
+export function setSpriteScale(k) { pxPerUnit = k > 0 && Number.isFinite(k) ? k : 0; }
+export const spriteScale = () => pxPerUnit;
+
+function make(id, key, tile, draw) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = tile;
+    const x = c.getContext('2d');
+    x.translate(tile / 2, tile / 2);
+    if (tile !== S) x.scale(tile / S, tile / S);
+    draw(x);
+    c.toBlob((b) => {
+      const url = b ? URL.createObjectURL(b) : false;
+      cache.set(id, url);
+      if (url) anySize.set(key, url);
+    }, 'image/png');
+  } catch { cache.set(id, false); }
+}
+
+// URL des Bildchens oder null (dann bitte als Vektor zeichnen); stößt das Zeichnen beim ersten Aufruf an.
+// tile = Kachelgröße in px; ist sie noch nicht fertig, gilt solange eine fertige andere Größe desselben Steins.
+export function sprite(key, tile = S) {
+  if (!DEKO.on || !useSprites || typeof document === 'undefined') return null;
+  const id = key + '@' + tile;
+  const v = cache.get(id);
   if (v) return v;
   if (v === undefined) {
-    cache.set(key, null);
+    cache.set(id, null);
     const [kind, a, b] = key.split(':');
     const fn = DRAW[kind];
-    if (fn) make(key, (x) => fn(x, a, b)); else cache.set(key, false);
+    if (fn) make(id, key, tile, (x) => fn(x, a, b)); else cache.set(id, false);
   }
-  return null;
+  return anySize.get(key) || null;
 }
 
 // Sorten vorab anstoßen (z. B. beim Öffnen eines Tisches)
@@ -164,7 +189,7 @@ const DRAW = {
 
 // Bild-Element für eine Sorte, zentriert auf (0, 0); r = gewünschter Objekt-Radius in Brett-Einheiten
 export function spriteImage(s, key, r, cx = 0, cy = 0) {
-  const url = sprite(key);
+  const url = sprite(key, pxPerUnit ? tileFor(r * pxPerUnit) : S);
   if (!url) return null;
   const w = (S * r) / RS;
   return s('image', { href: url, x: cx - w / 2, y: cy - w / 2, width: w, height: w, class: 'dk-spr' });
