@@ -18,8 +18,10 @@ for d in ['src', 'lib', 'icons', 'assets']:
 files = sorted(set(f for f in files if not (f.startswith('assets/wood/') and f.endswith('.jpg'))))
 skipped = [f for f in files if f not in TRACKED and f != 'src/build.js']
 files = [f for f in files if f in TRACKED or f == 'src/build.js']
-# Karten: nur die doppelt aufgelösten vorab laden (Handys); 1× lädt ein Desktop bei Bedarf
-files = [f for f in files if not (f.startswith('assets/cards/') and f.endswith('.webp') and '@2x' not in f)]
+# Karten (n9): vorab nur die doppelt aufgelösten Atlanten (4 Dateien statt 84 Einzelkarten, tools/build_atlas.mjs).
+# Einzelkarten (Rückfall ?atlas=0, Lobby-Bildchen) und 1×-Atlanten lädt die Seite bei Bedarf (Bilder-Cache per Hash).
+files = [f for f in files if not (f.startswith('assets/cards/') and f.endswith('.webp')
+                                   and not (f.startswith('assets/cards/atlas/') and '@2x' in f))]
 # Bilder (assets/): eigener, versionsloser Cache im Service-Worker; Schlüssel = Pfad + Inhalts-Hash je Datei.
 # Hash-Liste für alle eingecheckten Bilder (auch die nicht vorab geladenen 1×-Karten und JPG-Rückfälle).
 fhash = lambda f: hashlib.sha256(open(os.path.join(ROOT, f), 'rb').read()).hexdigest()[:10]

@@ -1,6 +1,7 @@
 // Texas Hold'em: spielspezifische Teile der Tisch-Ansicht (Symbol je Sitz, Unterzeile, Hinweise, Knöpfe, Menü),
 // Regeln und Mini-Brett der Lobby. Das Brett selbst steht in view.js (src/ui/gameui.js gibt es dazu).
 import { h } from '../../ui/dom.js';
+import { cardImgAttrs, hiDpi } from '../../ui/cardsprite.js';
 import * as HE from './engine.js';
 import { rulesHoldem, handRanking } from './help.js';
 import { seatIcon } from '../../ui/gameicons.js';
@@ -22,7 +23,7 @@ function lastHandSheet(t) {
   const lh = t.gs.lastHand;
   if (!lh) return h('p', { class: 'muted', text: 'Noch keine Hand fertig.' });
   const name = (q) => (t.seats[q] ? t.seats[q].name : `Platz ${q + 1}`);
-  const cards = (cs) => h('span', { class: 'he-mini' }, ...cs.map((c) => h('img', { src: `assets/cards/fr/${c}.webp`, alt: HE.cardName(c), title: HE.cardName(c), width: 30, height: 44 })));
+  const cards = (cs) => h('span', { class: 'he-mini' }, ...cs.map((c) => h('img', { ...cardImgAttrs('fr', c, hiDpi()), alt: HE.cardName(c), title: HE.cardName(c), width: 30, height: 44 })));
   return h('div', { class: 'rules he-last' },
     h('p', {}, h('strong', { text: `Hand ${lh.no}` }), ` · Blinds ${HE.fmtChips(lh.sbAmt)}/${HE.fmtChips(lh.bbAmt)}`),
     lh.board.length ? h('p', {}, 'Board: ', cards(lh.board)) : null,

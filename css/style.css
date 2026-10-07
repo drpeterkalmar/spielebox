@@ -291,7 +291,8 @@ input, select, textarea { font-size: max(16px, 1em); }
 .board .felt { fill: #1d5a3f; stroke: rgba(0,0,0,.35); stroke-width: 4; }
 .board-cards .card { will-change: transform; }
 .board-cards .card.dim { opacity: .5; }
-.board-cards .card.sel image, .board-cards .card.sel rect:last-of-type { filter: drop-shadow(0 0 10px #ffd24a); }
+/* Kartenbild = <image> (Einzeldatei) oder <svg class=card-face> (Atlas, n9): Leuchten am Ausschnitt, nicht am ganzen Atlas */
+.board-cards .card.sel > image, .board-cards .card.sel > .card-face, .board-cards .card.sel > rect:last-of-type { filter: drop-shadow(0 0 10px #ffd24a); }
 .board-cards .card.done { opacity: .82; }
 .board .card-rank { font-family: Georgia, 'Times New Roman', serif; font-weight: 800; text-anchor: middle; }
 .board .card-fig { font-family: Georgia, serif; font-weight: 800; text-anchor: middle; }
@@ -564,7 +565,7 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board .mm-badge { fill: #2b1c0d; stroke: #f0c04d; stroke-width: 4; }
 .board .mm-badge.pen { fill: #8a2018; }
 .board .mm-badge-t { font: 800 32px system-ui, sans-serif; fill: #fff6dd; text-anchor: middle; }
-.board-cards .card.drawn image { filter: drop-shadow(0 0 12px #6fe3a4); }
+.board-cards .card.drawn > image, .board-cards .card.drawn > .card-face { filter: drop-shadow(0 0 12px #6fe3a4); }
 .pbar.top.solo { display: none; }
 table.wg-block td, table.wg-block th { padding: 3px 5px; font-size: 14px; }
 

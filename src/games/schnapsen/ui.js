@@ -1,6 +1,7 @@
 // Schnapsen: spielspezifische Teile der Tisch-Ansicht (Symbol je Sitz, Unterzeile, Hinweise, Knöpfe, Menü),
 // Regeln und Mini-Brett der Lobby. Das Brett selbst steht in view.js (src/ui/gameui.js gibt es dazu).
 import { h } from '../../ui/dom.js';
+import { cardImgAttrs, hiDpi } from '../../ui/cardsprite.js';
 import * as SN from './engine.js';
 import { cardIcon } from '../../ui/gameicons.js';
 import { rulesSchnapsen } from '../../ui/texts.js';
@@ -61,10 +62,10 @@ export const ui = {
     return [item('Bummerl-Tafel', () => sheet('Bummerl-Tafel', bummerlTafel(t)), 'tafel')];
   },
   // Stich-Blatt: own = SN.ownTricks(Sicht, Sitz) – enthält nur die eigenen gewonnenen Karten
-  // (Bilder wie auf dem Tisch: am Handy @2x, die sind offline vorgeladen)
+  // (Bilder wie auf dem Tisch: am Handy @2x aus dem Atlas, der ist offline vorgeladen)
   stichBlatt(own, { seat, augenHilfe, opp }) {
     const card = (c, lead) => h('span', { class: 'sb-card' + (lead ? ' lead' : '') },
-      h('img', { src: `assets/cards/de/${c}${typeof devicePixelRatio === 'number' && devicePixelRatio >= 1.5 ? '@2x' : ''}.webp`, alt: SN.cardName(c), title: SN.cardName(c), width: 60, height: 96, data: { card: c } }),
+      h('img', { ...cardImgAttrs('de', c, hiDpi()), alt: SN.cardName(c), title: SN.cardName(c), width: 60, height: 96, data: { card: c } }),
       lead ? h('span', { class: 'sb-lead', text: 'ausgespielt' }) : null);
     const rows = own.tricks.map((tr) => h('li', { class: 'sb-trick', data: { trick: String(tr.nr) } },
       h('span', { class: 'sb-nr', text: `${tr.nr}.` }),
