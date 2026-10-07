@@ -497,8 +497,9 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .wg-cat.can .wg-val { color: #1c7c4a; font-weight: 800; }
 .wg-cat.best { border-color: #2fbf71; box-shadow: 0 0 0 2px rgba(47, 191, 113, .45); }
 .wg-cat.sel { border-color: #ffd24a; background: #ffe9a8; box-shadow: 0 0 0 3px rgba(255, 210, 74, .6); }
-.wg-cat.just { position: relative; }
-.wg-cat.just::after { content: ''; position: absolute; inset: -2px; border-radius: inherit; background: rgba(255, 210, 74, .7); pointer-events: none;
+/* z-index: Überlagerung über dem Hintergrund, aber unter Text und Wert (wie vorher die Hintergrundfarbe) */
+.wg-cat.just { position: relative; z-index: 0; }
+.wg-cat.just::after { content: ''; position: absolute; inset: -2px; z-index: -1; border-radius: inherit; background: rgba(255, 210, 74, .7); pointer-events: none;
   opacity: 0; animation: wg-just 1.6s ease-out 2; }
 @keyframes wg-just { 30% { opacity: 1; } }
 .wg-cat[disabled] { opacity: 1; }
