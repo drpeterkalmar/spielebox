@@ -623,7 +623,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (!on) { if (supported && !evalBtn.textContent) evalBtn.textContent = 'Wer gewinnt? …'; return; }
     const cfg = EVAL[evalRes.game];
     const p = Math.max(0, Math.min(1, evalRes.p));
-    evalBar.firstChild.style.height = `${(p * 100).toFixed(1)}%`;
+    evalBar.firstChild.style.transform = `scaleY(${p.toFixed(3)})`;   // n9: nur Compositor (statt height)
     if (cfg.label) { evalBtn.textContent = cfg.label(evalRes); evalBtn.title = cfg.title || ''; return; }
     const x = evalRes.x;
     const ax = Math.abs(x).toFixed(cfg.digits), zero = Number(ax) === 0;   // −0,3 → „±0“, nicht „−0“

@@ -318,9 +318,12 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     const G = onBig ? BIG : SMALL;
     const [x, y] = cxy(G, i);
     const hit = gs.last.hit, sunk = gs.last.sunk !== null && gs.last.sunk !== undefined;
-    const ring = s('circle', { cx: x, cy: y, r: G.cell * 0.2, class: hit ? 'sv-boom' : 'sv-splash' });
+    // n9: Ring wächst per transform (scale) statt über den Radius r – r zu animieren hieß SVG-Layout in jedem Frame.
+    // Folge: der Spritzer-Strich wächst mit (anfangs dünner) – TODO Heavy-Job: am Bild prüfen.
+    const ring = s('circle', { cx: 0, cy: 0, r: G.cell * 1.1, class: hit ? 'sv-boom' : 'sv-splash', transform: `translate(${x} ${y}) scale(${(0.2 / 1.1).toFixed(4)})` });
     gFx.append(ring);
-    const an = ring.animate([{ r: G.cell * 0.15, opacity: 1 }, { r: G.cell * 1.1, opacity: 0 }], { duration: a.slide + 200, easing: 'ease-out', fill: 'forwards' });
+    const k0 = (0.15 / 1.1).toFixed(4);
+    const an = ring.animate([{ transform: `translate(${x}px, ${y}px) scale(${k0})`, opacity: 1 }, { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 0 }], { duration: a.slide + 200, easing: 'ease-out', fill: 'forwards' });
     if (an) an.onfinish = () => ring.remove();
     // Deko: Explosion bzw. Spritzer (Partikel), dazu das große Wort wie bisher
     if (hit) FXS.boom(gFx2, x, y, G.cell * 0.34, { big: sunk });

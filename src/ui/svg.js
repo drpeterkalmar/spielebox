@@ -195,13 +195,27 @@ export function place(el, x, y) {
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// will-change nur, solange eine Animation läuft (n9, Audit #3): vorher stand es dauerhaft auf jedem Stein und jeder
+// Karte. Endet die letzte laufende Animation des Elements (fertig oder abgebrochen), wird es wieder freigegeben.
+export function trackWillChange(el, a, prop = 'transform') {
+  if (!a || !el || !el.style) return a;
+  el.style.willChange = prop;
+  const done = () => {
+    const others = typeof el.getAnimations === 'function' ? el.getAnimations().filter((x) => x !== a && x.playState !== 'finished' && x.playState !== 'idle') : [];
+    if (!others.length) el.style.willChange = '';
+  };
+  a.addEventListener('finish', done);
+  a.addEventListener('cancel', done);
+  return a;
+}
+
 // Stein entlang einer Punktfolge bewegen (Punkte in Brett-Einheiten), letzte = Endlage
 export function animatePath(el, pts, msPerStep = 230) {
   if (!el.animate || pts.length < 2 || reduced()) return null;
   const frames = pts.map(([x, y]) => ({ transform: `translate(${x}px, ${y}px)` }));
   frames[0].offset = 0;
   // kurzes Anheben in der Mitte jedes Sprungs
-  return el.animate(frames, { duration: msPerStep * (pts.length - 1) + 80, easing: 'cubic-bezier(.3,.7,.3,1)' });
+  return trackWillChange(el, el.animate(frames, { duration: msPerStep * (pts.length - 1) + 80, easing: 'cubic-bezier(.3,.7,.3,1)' }));
 }
 
 // Station für Station: hop ms je Teilstrecke, an jeder Zwischenstation pause ms Halt, vorher delay ms warten
@@ -223,7 +237,7 @@ export function animateSteps(el, pts, { hop = 230, pause = 0, delay = 0, lift = 
     if (i < n && pause > 0) { t += pause; frames.push({ transform: tf(pts[i]), offset: t / total, easing: 'ease-in-out' }); }
   }
   frames[frames.length - 1].offset = 1;
-  return el.animate(frames, { duration: total, delay, fill: delay > 0 ? 'backwards' : 'none', easing: 'linear' });
+  return trackWillChange(el, el.animate(frames, { duration: total, delay, fill: delay > 0 ? 'backwards' : 'none', easing: 'linear' }));
 }
 
 // Deko: Karte fliegt im flachen Bogen, dreht sich dabei leicht und hebt sich (gleiche Dauer wie bisher)
@@ -237,18 +251,18 @@ export function flyCard(el, from, to, dur, { spin = -9, delay = 0 } = {}) {
     const k = 1 + 0.1 * Math.sin(Math.PI * t), r = spin * (1 - t) * (1 - t);
     return { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${k.toFixed(3)})`, offset: t };
   });
-  return el.animate(frames, { duration: dur, delay, easing: 'cubic-bezier(.3,.55,.35,1)', fill: delay > 0 ? 'backwards' : 'none' });
+  return trackWillChange(el, el.animate(frames, { duration: dur, delay, easing: 'cubic-bezier(.3,.55,.35,1)', fill: delay > 0 ? 'backwards' : 'none' }));
 }
 
 // Karte/Stein kommt von from herein (erst unsichtbar, dann eingeblendet), z. B. Karte vom Schuh
 export function flyIn(el, from, dur, delay = 0) {
   if (!el || !el.animate || reduced() || dur <= 0) return null;
   const [x, y] = [el.dataset.x, el.dataset.y];
-  return el.animate([
+  return trackWillChange(el, el.animate([
     { transform: `translate(${from[0]}px, ${from[1]}px)`, opacity: 0 },
     { transform: `translate(${from[0]}px, ${from[1]}px)`, opacity: 1, offset: 0.08 },
     { transform: `translate(${x}px, ${y}px)`, opacity: 1 }
-  ], { duration: dur, delay, fill: 'backwards', easing: 'cubic-bezier(.3,.7,.3,1)' });
+  ], { duration: dur, delay, fill: 'backwards', easing: 'cubic-bezier(.3,.7,.3,1)' }), 'transform, opacity');
 }
 
 // Element (Text, Abzeichen) erst nach delay einblenden
@@ -260,20 +274,20 @@ export function fadeIn(el, delay = 0, dur = 300) {
 export function animateDrop(el, dur = 260) {
   if (!el.animate || reduced() || dur <= 0) return null;
   const [x, y] = [el.dataset.x, el.dataset.y];
-  return el.animate([
+  return trackWillChange(el, el.animate([
     { transform: `translate(${x}px, ${y - 26}px) scale(1.18)`, opacity: 0 },
     { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 1 }
-  ], { duration: dur, easing: 'cubic-bezier(.2,.8,.3,1.2)' });
+  ], { duration: dur, easing: 'cubic-bezier(.2,.8,.3,1.2)' }), 'transform, opacity');
 }
 
 // geschlagenen Stein ausblenden (Geist wird danach entfernt)
 export function fadeOut(el, delay = 0, dur = 320) {
   if (!el.animate || reduced() || dur <= 0) { el.remove(); return; }
   const [x, y] = [el.dataset.x, el.dataset.y];
-  const a = el.animate([
+  const a = trackWillChange(el, el.animate([
     { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 1 },
     { transform: `translate(${x}px, ${y}px) scale(0.6)`, opacity: 0 }
-  ], { duration: dur, delay, easing: 'ease-in', fill: 'forwards' });
+  ], { duration: dur, delay, easing: 'ease-in', fill: 'forwards' }), 'transform, opacity');
   a.onfinish = () => el.remove();
 }
 
