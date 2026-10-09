@@ -91,9 +91,10 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
   flex-direction: column; align-items: center; gap: 6px; min-height: 150px; text-align: center;
 }
 .game:active { transform: scale(.98); }
-/* n9: jede Kachel rechnet und malt für sich (Effekte/Animationen lösen keine Neuberechnung der ganzen Lobby aus);
-   Kacheln außerhalb des Bildes werden erst gezeichnet, wenn sie hereinscrollen (Größe bis dahin geschätzt) */
-.games > .game { contain: layout paint style; content-visibility: auto; contain-intrinsic-size: auto 172px; }
+/* n9: jede Kachel rechnet und malt für sich (Effekte/Animationen lösen keine Neuberechnung der ganzen Lobby aus).
+   content-visibility: auto bewusst nicht: die geschätzte Höhe ließ im Querformat den Scrollbalken springen
+   (1884 → 1819 px beim Durchscrollen), bei 16 Kacheln spart es kaum etwas */
+.games > .game { contain: layout paint style; }
 .game .mini { width: 74px; height: 74px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,.25); }
 .game-t { font-weight: 750; font-size: 19px; }
 .game-sub { font-size: 13.5px; color: var(--muted); }
@@ -184,8 +185,15 @@ body[data-screen='table'] .toast { max-width: min(92vw, 560px); }
 /* Hochformat: Brett so breit wie möglich, Spielerleisten direkt darüber/darunter */
 .board-wrap { position: relative; flex: 0 1 auto; width: 100%; aspect-ratio: 1 / 1; min-height: 0; }
 .board-wrap > svg.board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; filter: drop-shadow(0 8px 16px rgba(0,0,0,.4)); }
-.pbar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 14px; margin: 4px 2px; background: rgba(0,0,0,.18); min-height: 52px; border: 2px solid transparent; transition: background .2s, border-color .2s; contain: layout paint style; }
-.pbar.active { background: rgba(228,165,60,.22); border-color: rgba(240,190,90,.85); }
+.pbar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 14px; margin: 4px 2px; min-height: 52px; border: 2px solid transparent; position: relative; isolation: isolate; contain: layout style; }
+/* n9 (nur Compositor): Grundfläche (::after) und aktive Fläche mit Rahmen (::before) als eigene Ebenen, der Wechsel
+   ist eine Überblendung per opacity – vorher liefen background/border-color als Übergang und malten den Balken neu */
+.pbar::before, .pbar::after { content: ''; position: absolute; inset: -2px; z-index: -1; border-radius: inherit; pointer-events: none; transition: opacity .2s; }
+.pbar::after { background: rgba(0,0,0,.18); }
+.pbar::before { background: rgba(228,165,60,.22); border: 2px solid rgba(240,190,90,.85); opacity: 0; }
+.pbar.active::before { opacity: 1; }
+.pbar.active::after { opacity: 0; }
+.pbar.multi::before, .pbar.multi::after { display: none; }
 .stone-ico { width: 26px; height: 26px; flex: none; }
 .pb-text { flex: 1; min-width: 0; }
 .pb-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -462,7 +470,9 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board .v4-col { fill: rgba(255, 224, 120, .16); stroke: #ffd24a; stroke-width: 5; }
 .board .v4-arrow { fill: rgba(255, 245, 225, .55); }
 .board .v4-last { fill: rgba(255,255,255,.85); stroke: rgba(0,0,0,.4); stroke-width: 3; }
-.board .v4-win { fill: none; stroke: #fff6c8; stroke-width: 9; animation: take 1s ease-in-out infinite; }
+.board .v4-win { fill: none; stroke: #fff6c8; stroke-width: 9; }
+/* n9: die ganze Gewinnreihe pulsiert als eine Gruppe (ein animiertes Element statt bis zu zwölf) */
+.board .v4-win-line { animation: take 1s ease-in-out infinite; }
 .board .v4-stone.hover { opacity: .92; }
 
 /* ---------- n4: Reversi ---------- */
@@ -784,9 +794,9 @@ canvas.deko-fx { position: fixed; left: 0; top: 0; z-index: 35; pointer-events: 
 canvas.deko-fx[hidden] { display: none; }
 
 /* Spielerleisten: leicht gläsern, aktive Leiste mit warmem Schein (ruhig, ohne Pulsieren) */
-html.deko .pbar, html.deko .pchip { background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(0,0,0,.16)); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.22); }
+html.deko .pchip, html.deko .pbar::after { background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(0,0,0,.16)); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 6px rgba(0,0,0,.22); }
 html.deko .pbar.multi { background: none; box-shadow: none; }
-html.deko .pbar.active, html.deko .pchip.active { background: linear-gradient(180deg, rgba(240,190,90,.3), rgba(160,110,30,.2)); box-shadow: inset 0 1px 0 rgba(255,236,190,.25), 0 0 14px rgba(240,190,90,.35), 0 2px 6px rgba(0,0,0,.25); }
+html.deko .pbar::before, html.deko .pchip.active { background: linear-gradient(180deg, rgba(240,190,90,.3), rgba(160,110,30,.2)); box-shadow: inset 0 1px 0 rgba(255,236,190,.25), 0 0 14px rgba(240,190,90,.35), 0 2px 6px rgba(0,0,0,.25); }
 html.deko .stone-ico { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.45)); }
 html.deko .pb-score { text-shadow: 0 1px 2px rgba(0,0,0,.5); }
 html.deko .tbar .icon-btn, html.deko .pill { box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
@@ -806,9 +816,9 @@ html.deko .board .he-seat.folded .dk-av { opacity: .45; }
 html.deko .board .he-room { fill: #1c3128; }
 
 /* Kein endloses Pulsieren im Leerlauf: Hinweise pulsieren ein paar Mal und bleiben dann ruhig stehen */
-html.deko .board .v4-win { animation: take 1s ease-in-out 3; }
+html.deko .board .v4-win-line { animation: take 1s ease-in-out 3; }
 /* n9: Leuchten ohne Filter (TODO Heavy-Job: am Bild mit dem alten drop-shadow vergleichen, Breiten/Deckkraft abstimmen) */
-html.deko .board .v4-win-glow { fill: none; stroke: #fff6c8; pointer-events: none; animation: take 1s ease-in-out 3; }
+html.deko .board .v4-win-glow { fill: none; stroke: #fff6c8; pointer-events: none; }
 html.deko .board .v4-win-glow.g0 { stroke-width: 25; stroke-opacity: .16; }
 html.deko .board .v4-win-glow.g1 { stroke-width: 16; stroke-opacity: .3; }
 html.deko .board .hint-take { animation: take 1s ease-in-out 4; }

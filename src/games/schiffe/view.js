@@ -10,6 +10,7 @@ import { boardLayers, DEKO, watchFrames } from '../../ui/deko.js';
 import { TYPES, WRECK, typeOf, outline, details, wake, hullShade, embers, rhythm, wreckTilt } from './boats.js';
 import { woodFrame } from '../../ui/material.js';
 import * as FXS from '../../ui/fxsvg.js';
+import { spriteScale } from '../../ui/sprites.js';
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -319,8 +320,11 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     const [x, y] = cxy(G, i);
     const hit = gs.last.hit, sunk = gs.last.sunk !== null && gs.last.sunk !== undefined;
     // n9: Ring wächst per transform (scale) statt über den Radius r – r zu animieren hieß SVG-Layout in jedem Frame.
-    // Folge: der Spritzer-Strich wächst mit (anfangs dünner) – TODO Heavy-Job: am Bild prüfen.
+    // Der Spritzer-Strich bleibt dabei gleich dick wie vorher (6 Brett-Einheiten): non-scaling-stroke, umgerechnet mit
+    // dem schon bekannten Brett-Maßstab (sprites.js, ohne Layout); ohne Maßstab wächst er eben mit.
     const ring = s('circle', { cx: 0, cy: 0, r: G.cell * 1.1, class: hit ? 'sv-boom' : 'sv-splash', transform: `translate(${x} ${y}) scale(${(0.2 / 1.1).toFixed(4)})` });
+    const cssPerUnit = spriteScale() / (devicePixelRatio || 1);
+    if (!hit && cssPerUnit > 0) { ring.setAttribute('vector-effect', 'non-scaling-stroke'); ring.style.strokeWidth = (6 * cssPerUnit).toFixed(2) + 'px'; }
     gFx.append(ring);
     const k0 = (0.15 / 1.1).toFixed(4);
     const an = ring.animate([{ transform: `translate(${x}px, ${y}px) scale(${k0})`, opacity: 1 }, { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 0 }], { duration: a.slide + 200, easing: 'ease-out', fill: 'forwards' });

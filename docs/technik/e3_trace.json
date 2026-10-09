@@ -1,0 +1,248 @@
+{
+ "n9_vorher_tisch": {
+  "vier_sieg[Standard]": {
+   "main": {
+    "UpdateLayoutTree": {
+     "count": 47,
+     "ms": 11.5,
+     "max_ms": 0.74
+    },
+    "Layout": {
+     "count": 47,
+     "ms": 4.7,
+     "max_ms": 0.62
+    },
+    "PrePaint": {
+     "count": 79,
+     "ms": 13.8,
+     "max_ms": 0.78
+    },
+    "Paint": {
+     "count": 113,
+     "ms": 19.8,
+     "max_ms": 0.81
+    },
+    "Layerize": {
+     "count": 79,
+     "ms": 12.3,
+     "max_ms": 0.66
+    },
+    "RasterTask": {
+     "count": 135,
+     "ms": 7.9,
+     "max_ms": 2.51
+    }
+   },
+   "layout_sources": {
+    "(ohne Skript: Stil/Animation)": 47
+   },
+   "not_composited": {
+    "?: stroke-width,stroke-opacity (Code 8224)": 8,
+    "?: border-bottom-color (Code 8224)": 1,
+    "?: border-left-color (Code 8224)": 1,
+    "?: border-right-color (Code 8224)": 1,
+    "?: border-top-color (Code 8224)": 1
+   }
+  },
+  "lobby_idle[Standard]": {
+   "main": {
+    "UpdateLayoutTree": {
+     "count": 12,
+     "ms": 7.8,
+     "max_ms": 2.32
+    },
+    "Layout": {
+     "count": 13,
+     "ms": 5.8,
+     "max_ms": 1.7
+    },
+    "PrePaint": {
+     "count": 21,
+     "ms": 3.4,
+     "max_ms": 0.68
+    },
+    "Paint": {
+     "count": 47,
+     "ms": 17.7,
+     "max_ms": 2.52
+    },
+    "Layerize": {
+     "count": 11,
+     "ms": 3.0,
+     "max_ms": 0.7
+    },
+    "RasterTask": {
+     "count": 46,
+     "ms": 11.6,
+     "max_ms": 4.8
+    }
+   },
+   "layout_sources": {
+    "(ohne Skript: Stil/Animation)": 13
+   },
+   "not_composited": {}
+  }
+ },
+ "n9_e3_trace": {
+  "vier_sieg[Standard]": {
+   "main": {
+    "UpdateLayoutTree": {
+     "count": 89,
+     "ms": 24.9,
+     "max_ms": 0.96
+    },
+    "Layout": {
+     "count": 37,
+     "ms": 4.9,
+     "max_ms": 0.63
+    },
+    "PrePaint": {
+     "count": 102,
+     "ms": 18.1,
+     "max_ms": 0.57
+    },
+    "Paint": {
+     "count": 92,
+     "ms": 12.5,
+     "max_ms": 0.5
+    },
+    "Layerize": {
+     "count": 101,
+     "ms": 8.3,
+     "max_ms": 0.58
+    },
+    "RasterTask": {
+     "count": 75,
+     "ms": 5.2,
+     "max_ms": 3.03
+    }
+   },
+   "layout_sources": {
+    "(ohne Skript: Stil/Animation)": 37
+   },
+   "not_composited": {
+    "?: border-bottom-color (Code 8224)": 1,
+    "?: border-left-color (Code 8224)": 1,
+    "?: border-right-color (Code 8224)": 1,
+    "?: border-top-color (Code 8224)": 1
+   }
+  },
+  "lobby_idle[Standard]": {
+   "main": {
+    "UpdateLayoutTree": {
+     "count": 21,
+     "ms": 8.0,
+     "max_ms": 1.62
+    },
+    "Layout": {
+     "count": 16,
+     "ms": 4.9,
+     "max_ms": 0.73
+    },
+    "PrePaint": {
+     "count": 27,
+     "ms": 2.9,
+     "max_ms": 0.31
+    },
+    "Paint": {
+     "count": 52,
+     "ms": 11.6,
+     "max_ms": 1.24
+    },
+    "Layerize": {
+     "count": 19,
+     "ms": 3.7,
+     "max_ms": 0.71
+    },
+    "RasterTask": {
+     "count": 42,
+     "ms": 11.6,
+     "max_ms": 4.88
+    }
+   },
+   "layout_sources": {
+    "(ohne Skript: Stil/Animation)": 16
+   },
+   "not_composited": {}
+  }
+ },
+ "n9_e3_trace2": {
+  "vier_sieg[Standard]": {
+   "main": {
+    "UpdateLayoutTree": {
+     "count": 50,
+     "ms": 10.1,
+     "max_ms": 0.86
+    },
+    "Layout": {
+     "count": 27,
+     "ms": 3.6,
+     "max_ms": 0.64
+    },
+    "PrePaint": {
+     "count": 73,
+     "ms": 13.3,
+     "max_ms": 1.53
+    },
+    "Paint": {
+     "count": 64,
+     "ms": 9.7,
+     "max_ms": 1.24
+    },
+    "Layerize": {
+     "count": 73,
+     "ms": 6.1,
+     "max_ms": 0.66
+    },
+    "RasterTask": {
+     "count": 52,
+     "ms": 4.8,
+     "max_ms": 3.13
+    }
+   },
+   "layout_sources": {
+    "(ohne Skript: Stil/Animation)": 27
+   },
+   "not_composited": {}
+  },
+  "lobby_idle[Standard]": {
+   "main": {
+    "UpdateLayoutTree": {
+     "count": 13,
+     "ms": 7.4,
+     "max_ms": 2.15
+    },
+    "Layout": {
+     "count": 12,
+     "ms": 4.3,
+     "max_ms": 0.98
+    },
+    "PrePaint": {
+     "count": 22,
+     "ms": 3.0,
+     "max_ms": 0.62
+    },
+    "Paint": {
+     "count": 28,
+     "ms": 9.1,
+     "max_ms": 1.47
+    },
+    "Layerize": {
+     "count": 12,
+     "ms": 2.7,
+     "max_ms": 0.63
+    },
+    "RasterTask": {
+     "count": 29,
+     "ms": 11.3,
+     "max_ms": 4.88
+    }
+   },
+   "layout_sources": {
+    "(ohne Skript: Stil/Animation)": 12
+   },
+   "not_composited": {}
+  }
+ },
+ "hinweis": "n9_vorher_tisch = main f2cbf5f; n9_e3_trace = Vorbau E3; n9_e3_trace2 = nach Gruppen-Puls Vier und Überblendung Spielerbalken"
+}

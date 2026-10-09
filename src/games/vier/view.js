@@ -78,11 +78,15 @@ export function createBoard(host, { onMove, onHint }) {
     if (lm !== null && gs.cols[lm] && gs.cols[lm].length) gTop.append(s('circle', { cx: cx(lm), cy: cy(gs.cols[lm].length - 1), r: 12, class: 'v4-last' }));
     // Gewinnreihe
     if (gs.win && gs.win.line) {
+      // eine Gruppe pulsiert als Ganzes (n9: in SVG läuft auch opacity nicht auf dem Compositor – jedes animierte
+      // Element kostet je Bild eine Stil-Berechnung; so ist es eins statt zwölf)
+      const gw = s('g', { class: 'v4-win-line' });
       for (const [c, r] of gs.win.line) {
         // Deko: Leuchten als zwei breite, blasse Ringe darunter (n9: kein drop-shadow-Filter auf animierten Ringen)
-        if (DEKO.on) for (const k of [0, 1]) gTop.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 2, class: `v4-win-glow g${k}` }));
-        gTop.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 2, class: 'v4-win' }));
+        if (DEKO.on) for (const k of [0, 1]) gw.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 2, class: `v4-win-glow g${k}` }));
+        gw.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 2, class: 'v4-win' }));
       }
+      gTop.append(gw);
     }
     if (!legal) { setHint(''); return; }
     const cols = legal.map((m) => m.col);
