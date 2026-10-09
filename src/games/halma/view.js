@@ -73,9 +73,14 @@ export function createBoard(host, { onMove, onHint }) {
       const col = seat >= 0 ? SEAT_COLORS[seat] : tseat >= 0 ? SEAT_COLORS[tseat] : null;
       if (col) gB.append(s('polygon', { points: poly(grow(campPoly(k), -24)), fill: col, opacity: seat >= 0 ? 0.3 : 0.15 }));
     }
-    // n9 Material (?material=1): vorgebackene Licht-Ebene statt Vignetten-Verlauf (TODO Heavy-Job: Deckkraft am Bild)
     if (L) gB.append(s('circle', { cx: 0, cy: 0, r: 760, fill: 'url(#dk-vig)', opacity: 0.6 }));
-    if (L && useMaterial()) gB.append(s('circle', { cx: 0, cy: 0, r: 760, ...MAT_LIGHT }));
+    // n9 Material: Licht-Ebene nur auf dem Stern (samt Holzrand) – außerhalb hätte das weiche Licht in der Brett-Ebene
+    // nichts zum Mischen und läge als graue Scheibe auf dem Filz
+    if (L && useMaterial()) {
+      const clip = s('clipPath', { id: 'halma-star', clipPathUnits: 'userSpaceOnUse' }, ...shapes.map((p) => s('polygon', { points: poly(grow(p, 20)) })));
+      // Mischart an der beschnittenen Gruppe selbst (sie ist eine eigene Ebene – darin hätte der Kreis nichts zum Mischen)
+      gB.append(clip, s('g', { 'clip-path': 'url(#halma-star)', style: MAT_LIGHT.style, class: MAT_LIGHT.class }, s('circle', { cx: 0, cy: 0, r: 760, fill: MAT_LIGHT.fill })));
+    }
     const holes = s('g', { class: 'holes' });
     HOLES.forEach((_, i) => {
       const [x, y] = xy(i);
