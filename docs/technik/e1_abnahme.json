@@ -1,0 +1,861 @@
+{
+ "hinweis": "E1-Abnahme 09.10.2026: Atlas gegen Einzelkarten und Kartenpakete",
+ "pixel_atlas_gegen_einzel": {
+  "schnapsen@hoch": {
+   "dpr": 2.625,
+   "psnr_bild": 55.37,
+   "karten": 6,
+   "psnr_min": 44.96,
+   "psnr_mittel": 47.71,
+   "max_abw": 20,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "EA",
+     "psnr": 44.96,
+     "max": 20,
+     "px": [
+      199,
+      322
+     ]
+    },
+    {
+     "card": "EZ",
+     "psnr": 45.03,
+     "max": 19,
+     "px": [
+      199,
+      322
+     ]
+    },
+    {
+     "card": "EO",
+     "psnr": 45.17,
+     "max": 17,
+     "px": [
+      187,
+      301
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "schnapsen@quer": {
+   "dpr": 2.625,
+   "psnr_bild": 55.4,
+   "karten": 6,
+   "psnr_min": 44.93,
+   "psnr_mittel": 47.69,
+   "max_abw": 16,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "EA",
+     "psnr": 44.93,
+     "max": 15,
+     "px": [
+      199,
+      320
+     ]
+    },
+    {
+     "card": "EZ",
+     "psnr": 45.06,
+     "max": 16,
+     "px": [
+      199,
+      320
+     ]
+    },
+    {
+     "card": "EO",
+     "psnr": 45.16,
+     "max": 13,
+     "px": [
+      186,
+      299
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "schnapsen@desktop": {
+   "dpr": 1,
+   "psnr_bild": 49.77,
+   "karten": 6,
+   "psnr_min": 39.41,
+   "psnr_mittel": 43.8,
+   "max_abw": 25,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "EO",
+     "psnr": 39.41,
+     "max": 25,
+     "px": [
+      134,
+      217
+     ]
+    },
+    {
+     "card": "EA",
+     "psnr": 40.33,
+     "max": 21,
+     "px": [
+      144,
+      232
+     ]
+    },
+    {
+     "card": "EZ",
+     "psnr": 41.29,
+     "max": 21,
+     "px": [
+      144,
+      232
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "schnapsen_ende@hoch": {
+   "dpr": 2.625,
+   "psnr_bild": 58.67,
+   "karten": 8,
+   "psnr_min": 49.85,
+   "psnr_mittel": 52.95,
+   "max_abw": 14,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "EK",
+     "psnr": 49.85,
+     "max": 5,
+     "px": [
+      199,
+      321
+     ]
+    },
+    {
+     "card": "EZ",
+     "psnr": 50.04,
+     "max": 9,
+     "px": [
+      199,
+      321
+     ]
+    },
+    {
+     "card": "LA",
+     "psnr": 50.18,
+     "max": 4,
+     "px": [
+      199,
+      321
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "schnapsen_ende@quer": {
+   "dpr": 2.625,
+   "psnr_bild": 50.41,
+   "karten": 8,
+   "psnr_min": 46.87,
+   "psnr_mittel": 52.39,
+   "max_abw": 29,
+   "aussen_px_ueber_24": 1268,
+   "schlechteste": [
+    {
+     "card": "EZ",
+     "psnr": 46.87,
+     "max": 29,
+     "px": [
+      198,
+      320
+     ]
+    },
+    {
+     "card": "EK",
+     "psnr": 49.68,
+     "max": 7,
+     "px": [
+      199,
+      320
+     ]
+    },
+    {
+     "card": "HK",
+     "psnr": 50.02,
+     "max": 8,
+     "px": [
+      198,
+      320
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "schnapsen_ende@desktop": {
+   "dpr": 1,
+   "psnr_bild": 53.82,
+   "karten": 8,
+   "psnr_min": 45.8,
+   "psnr_mittel": 48.87,
+   "max_abw": 27,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "EK",
+     "psnr": 45.8,
+     "max": 11,
+     "px": [
+      144,
+      232
+     ]
+    },
+    {
+     "card": "EZ",
+     "psnr": 46.88,
+     "max": 10,
+     "px": [
+      144,
+      232
+     ]
+    },
+    {
+     "card": "HK",
+     "psnr": 47.04,
+     "max": 8,
+     "px": [
+      144,
+      232
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "maumau@hoch": {
+   "dpr": 2.625,
+   "psnr_bild": 57.97,
+   "karten": 6,
+   "psnr_min": 44.47,
+   "psnr_mittel": 47.43,
+   "max_abw": 38,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "E9",
+     "psnr": 44.47,
+     "max": 38,
+     "px": [
+      232,
+      327
+     ]
+    },
+    {
+     "card": "EK",
+     "psnr": 44.64,
+     "max": 38,
+     "px": [
+      227,
+      324
+     ]
+    },
+    {
+     "card": "SU",
+     "psnr": 44.89,
+     "max": 34,
+     "px": [
+      186,
+      301
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "maumau@quer": {
+   "dpr": 2.625,
+   "psnr_bild": 59.23,
+   "karten": 6,
+   "psnr_min": 45.33,
+   "psnr_mittel": 48.16,
+   "max_abw": 22,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "SU",
+     "psnr": 45.33,
+     "max": 22,
+     "px": [
+      185,
+      300
+     ]
+    },
+    {
+     "card": "EK",
+     "psnr": 46.28,
+     "max": 22,
+     "px": [
+      226,
+      323
+     ]
+    },
+    {
+     "card": "E9",
+     "psnr": 46.36,
+     "max": 22,
+     "px": [
+      230,
+      325
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "maumau@desktop": {
+   "dpr": 1,
+   "psnr_bild": 53.23,
+   "karten": 6,
+   "psnr_min": 41.54,
+   "psnr_mittel": 43.48,
+   "max_abw": 23,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "SU",
+     "psnr": 41.54,
+     "max": 23,
+     "px": [
+      135,
+      218
+     ]
+    },
+    {
+     "card": "EK",
+     "psnr": 42.21,
+     "max": 23,
+     "px": [
+      164,
+      234
+     ]
+    },
+    {
+     "card": "E9",
+     "psnr": 42.3,
+     "max": 23,
+     "px": [
+      167,
+      236
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "blackjack@hoch": {
+   "dpr": 2.625,
+   "psnr_bild": 44.22,
+   "karten": 7,
+   "psnr_min": 27.9,
+   "psnr_mittel": 31.5,
+   "max_abw": 88,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "KH",
+     "psnr": 27.9,
+     "max": 88,
+     "px": [
+      113,
+      165
+     ]
+    },
+    {
+     "card": "TS",
+     "psnr": 28.42,
+     "max": 88,
+     "px": [
+      112,
+      165
+     ]
+    },
+    {
+     "card": "8S",
+     "psnr": 28.46,
+     "max": 88,
+     "px": [
+      113,
+      165
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "blackjack@quer": {
+   "dpr": 2.625,
+   "psnr_bild": 45.07,
+   "karten": 7,
+   "psnr_min": 28.22,
+   "psnr_mittel": 32.03,
+   "max_abw": 87,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "KH",
+     "psnr": 28.22,
+     "max": 87,
+     "px": [
+      111,
+      163
+     ]
+    },
+    {
+     "card": "8S",
+     "psnr": 28.59,
+     "max": 87,
+     "px": [
+      112,
+      163
+     ]
+    },
+    {
+     "card": "TS",
+     "psnr": 29.2,
+     "max": 87,
+     "px": [
+      112,
+      163
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "blackjack@desktop": {
+   "dpr": 1,
+   "psnr_bild": 44.65,
+   "karten": 7,
+   "psnr_min": 30.11,
+   "psnr_mittel": 32.55,
+   "max_abw": 70,
+   "aussen_px_ueber_24": 0,
+   "schlechteste": [
+    {
+     "card": "TS",
+     "psnr": 30.11,
+     "max": 69,
+     "px": [
+      81,
+      119
+     ]
+    },
+    {
+     "card": "KH",
+     "psnr": 30.46,
+     "max": 68,
+     "px": [
+      82,
+      119
+     ]
+    },
+    {
+     "card": "8S",
+     "psnr": 30.6,
+     "max": 69,
+     "px": [
+      81,
+      119
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "holdem@hoch": {
+   "dpr": 2.625,
+   "psnr_bild": 43.46,
+   "karten": 5,
+   "psnr_min": 27.85,
+   "psnr_mittel": 33.08,
+   "max_abw": 86,
+   "aussen_px_ueber_24": 150,
+   "schlechteste": [
+    {
+     "card": "JH",
+     "psnr": 27.85,
+     "max": 86,
+     "px": [
+      113,
+      165
+     ]
+    },
+    {
+     "card": "9D",
+     "psnr": 32.09,
+     "max": 56,
+     "px": [
+      113,
+      165
+     ]
+    },
+    {
+     "card": "5H",
+     "psnr": 32.2,
+     "max": 56,
+     "px": [
+      112,
+      165
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "holdem@quer": {
+   "dpr": 2.625,
+   "psnr_bild": 42.61,
+   "karten": 5,
+   "psnr_min": 28.2,
+   "psnr_mittel": 33.47,
+   "max_abw": 91,
+   "aussen_px_ueber_24": 252,
+   "schlechteste": [
+    {
+     "card": "JH",
+     "psnr": 28.2,
+     "max": 91,
+     "px": [
+      112,
+      164
+     ]
+    },
+    {
+     "card": "5H",
+     "psnr": 33.19,
+     "max": 60,
+     "px": [
+      112,
+      164
+     ]
+    },
+    {
+     "card": "9D",
+     "psnr": 33.92,
+     "max": 57,
+     "px": [
+      111,
+      164
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  },
+  "holdem@desktop": {
+   "dpr": 1,
+   "psnr_bild": 44.55,
+   "karten": 5,
+   "psnr_min": 29.08,
+   "psnr_mittel": 32.86,
+   "max_abw": 68,
+   "aussen_px_ueber_24": 16,
+   "schlechteste": [
+    {
+     "card": "JH",
+     "psnr": 29.08,
+     "max": 63,
+     "px": [
+      81,
+      119
+     ]
+    },
+    {
+     "card": "5H",
+     "psnr": 33.08,
+     "max": 43,
+     "px": [
+      82,
+      119
+     ]
+    },
+    {
+     "card": "9D",
+     "psnr": 33.46,
+     "max": 44,
+     "px": [
+      81,
+      119
+     ]
+    }
+   ],
+   "fehler": [],
+   "gleiche_karten": true
+  }
+ },
+ "bildspeicher_theoretisch": {
+  "schnapsen[atlas=0]": {
+   "files": 6,
+   "mb": 8.8,
+   "decode_ms": 69,
+   "urls": [
+    "de/EO@2x.webp",
+    "de/HA@2x.webp",
+    "de/LZ@2x.webp",
+    "de/EZ@2x.webp",
+    "de/EA@2x.webp",
+    "de/EU@2x.webp"
+   ]
+  },
+  "schnapsen[Atlas]": {
+   "files": 1,
+   "mb": 32.8,
+   "decode_ms": 116,
+   "urls": [
+    "atlas/de-a@2x.webp"
+   ]
+  },
+  "maumau[atlas=0]": {
+   "files": 6,
+   "mb": 8.8,
+   "decode_ms": 69,
+   "urls": [
+    "de/E9@2x.webp",
+    "de/EK@2x.webp",
+    "de/SU@2x.webp",
+    "de/EZ@2x.webp",
+    "de/HK@2x.webp",
+    "de/EO@2x.webp"
+   ]
+  },
+  "maumau[Atlas]": {
+   "files": 2,
+   "mb": 52.4,
+   "decode_ms": 172,
+   "urls": [
+    "atlas/de-b@2x.webp",
+    "atlas/de-a@2x.webp"
+   ]
+  },
+  "blackjack[atlas=0]": {
+   "files": 7,
+   "mb": 9.4,
+   "decode_ms": 62,
+   "urls": [
+    "fr/QH@2x.webp",
+    "fr/KH@2x.webp",
+    "fr/7H@2x.webp",
+    "fr/TS@2x.webp",
+    "fr/8S@2x.webp",
+    "fr/9D@2x.webp",
+    "fr/8D@2x.webp"
+   ]
+  },
+  "blackjack[Atlas]": {
+   "files": 2,
+   "mb": 84.4,
+   "decode_ms": 132,
+   "urls": [
+    "atlas/fr-a@2x.webp",
+    "atlas/fr-b@2x.webp"
+   ]
+  },
+  "holdem[atlas=0]": {
+   "files": 5,
+   "mb": 6.7,
+   "decode_ms": 44,
+   "urls": [
+    "fr/JH@2x.webp",
+    "fr/5H@2x.webp",
+    "fr/9D@2x.webp",
+    "fr/4C@2x.webp",
+    "fr/2C@2x.webp"
+   ]
+  },
+  "holdem[Atlas]": {
+   "files": 2,
+   "mb": 84.4,
+   "decode_ms": 163,
+   "urls": [
+    "atlas/fr-a@2x.webp",
+    "atlas/fr-b@2x.webp"
+   ]
+  }
+ },
+ "renderer_rss_mb": {
+  "holdem": {
+   "einzel": 200,
+   "atlas": 302
+  },
+  "blackjack": {
+   "einzel": 179,
+   "atlas": 279
+  },
+  "schnapsen": {
+   "einzel": 174,
+   "atlas": 211
+  }
+ },
+ "erster_tisch": {
+  "vorher_main": {
+   "": {
+    "kalt": {
+     "table_ms": 294,
+     "images_ms": 730,
+     "first_table_ms": 730,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 475,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 196,
+     "images_ms": 625,
+     "first_table_ms": 625,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 472,
+     "atlas": 0,
+     "singles": 6
+    }
+   },
+   "@quer": {
+    "kalt": {
+     "table_ms": 293,
+     "images_ms": 725,
+     "first_table_ms": 725,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 475,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 188,
+     "images_ms": 618,
+     "first_table_ms": 618,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 472,
+     "atlas": 0,
+     "singles": 6
+    }
+   }
+  },
+  "atlas": {
+   "": {
+    "kalt": {
+     "table_ms": 964,
+     "images_ms": 2222,
+     "first_table_ms": 2222,
+     "all_requests": 145,
+     "requests": 5,
+     "kb": 1087,
+     "atlas": 1,
+     "singles": 0
+    },
+    "warm": {
+     "table_ms": 265,
+     "images_ms": 758,
+     "first_table_ms": 758,
+     "all_requests": 145,
+     "requests": 5,
+     "kb": 1086,
+     "atlas": 1,
+     "singles": 0
+    }
+   }
+  },
+  "paket": {
+   "": {
+    "kalt": {
+     "table_ms": 409,
+     "images_ms": 845,
+     "first_table_ms": 845,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 480,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 203,
+     "images_ms": 637,
+     "first_table_ms": 637,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 477,
+     "atlas": 0,
+     "singles": 6
+    }
+   },
+   "@quer": {
+    "kalt": {
+     "table_ms": 333,
+     "images_ms": 1088,
+     "first_table_ms": 1088,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 480,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 204,
+     "images_ms": 637,
+     "first_table_ms": 637,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 477,
+     "atlas": 0,
+     "singles": 6
+    }
+   }
+  }
+ },
+ "ladegroesse": {
+  "vorher": {
+   "": {
+    "precache_files": 229,
+    "precache_images": 99,
+    "precache_raw_kb": 4604.2,
+    "precache_gzip_kb": 3759.9,
+    "lobby_requests": 150,
+    "lobby_raw_kb": 1700.7,
+    "lobby_gzip_kb": 923.8
+   }
+  },
+  "atlas": {
+   "": {
+    "precache_files": 153,
+    "precache_images": 20,
+    "precache_raw_kb": 4117.7,
+    "precache_gzip_kb": 3247.7,
+    "lobby_requests": 157,
+    "lobby_raw_kb": 1686.0,
+    "lobby_gzip_kb": 895.0
+   }
+  },
+  "paket": {
+   "": {
+    "precache_files": 151,
+    "precache_images": 18,
+    "precache_raw_kb": 4239.2,
+    "precache_gzip_kb": 3365.8,
+    "lobby_requests": 157,
+    "lobby_raw_kb": 1686.5,
+    "lobby_gzip_kb": 895.2
+   }
+  }
+ }
+}

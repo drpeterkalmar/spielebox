@@ -3,7 +3,9 @@
 // - spielebox-core-<VERSION>: HTML/CSS/JS/Icons, bei jeder Version neu (in Gruppen à 40 mit Wiederholung)
 // - spielebox-assets: Karten, Holz, Figuren – versionslos, beim Aktivieren nicht gelöscht. Schlüssel = Pfad + Inhalts-Hash
 //   (?h=…), so lädt ein Update nur fehlende oder geänderte Bilder nach; alte Fassungen werden beim Aktivieren entfernt.
-const VERSION = '8528d8f3dd';
+// Kartenpakete (n9): die @2x-Einzelkarten liegen bitgleich in 2 Paketen (tools/cardpack.py). Vorab geladen werden nur
+// die Pakete; eine Karten-Anfrage beantwortet der Worker mit dem Ausschnitt aus dem Paket (Blob.slice, ohne Kopie).
+const VERSION = '53a9b52014';
 const CORE = 'spielebox-core-' + VERSION;
 const ASSETS = 'spielebox-assets';
 const CORE_FILES = [
@@ -118,9 +120,12 @@ const CORE_FILES = [
   'src/trainer/rating.js',
   'src/trainer/tb.js',
   'src/trainer/ui.js',
+  'src/ui/cardatlas.js',
   'src/ui/cards.js',
+  'src/ui/cardsprite.js',
   'src/ui/deko.js',
   'src/ui/dom.js',
+  'src/ui/flags.js',
   'src/ui/fx.js',
   'src/ui/fxsvg.js',
   'src/ui/gameicons.js',
@@ -140,6 +145,14 @@ const CORE_FILES = [
 ];
 // Pfad → Inhalts-Hash (alle eingecheckten Bilder unter assets/); vorab geladen werden nur die in PRE
 const ASSET_HASH = {
+  'assets/cards/atlas/de-a.webp': '5193b0da65',
+  'assets/cards/atlas/de-a@2x.webp': '270a406f31',
+  'assets/cards/atlas/de-b.webp': '1e9876fca4',
+  'assets/cards/atlas/de-b@2x.webp': '56307c337c',
+  'assets/cards/atlas/fr-a.webp': 'c3e4952ff4',
+  'assets/cards/atlas/fr-a@2x.webp': '396a270526',
+  'assets/cards/atlas/fr-b.webp': '074216edbb',
+  'assets/cards/atlas/fr-b@2x.webp': '66e1c9ce0e',
   'assets/cards/de/E7.webp': '19ce4542af',
   'assets/cards/de/E7@2x.webp': '22501ef84f',
   'assets/cards/de/E8.webp': 'ec880e6bca',
@@ -308,6 +321,8 @@ const ASSET_HASH = {
   'assets/cards/fr/TH@2x.webp': '3bd72cf6d1',
   'assets/cards/fr/TS.webp': '0f037e5aac',
   'assets/cards/fr/TS@2x.webp': '914d45dc40',
+  'assets/cards/paket/de@2x.bin': 'e177b4e72d',
+  'assets/cards/paket/fr@2x.bin': '9f46bff45b',
   'assets/pieces/bB.svg': 'ba67da76ce',
   'assets/pieces/bK.svg': '025eea92e0',
   'assets/pieces/bN.svg': '735cc58315',
@@ -324,94 +339,13 @@ const ASSET_HASH = {
   'assets/wood/dark.webp': 'e8d44bb775',
   'assets/wood/frame.jpg': '56dcbc378c',
   'assets/wood/frame.webp': '737426a5c8',
+  'assets/wood/light-overlay.webp': '3a6a6d667d',
   'assets/wood/light.jpg': 'a9a5d250d3',
   'assets/wood/light.webp': 'ddd41ed8ab'
 };
 const PRE = [
-  'assets/cards/de/E7@2x.webp',
-  'assets/cards/de/E8@2x.webp',
-  'assets/cards/de/E9@2x.webp',
-  'assets/cards/de/EA@2x.webp',
-  'assets/cards/de/EK@2x.webp',
-  'assets/cards/de/EO@2x.webp',
-  'assets/cards/de/EU@2x.webp',
-  'assets/cards/de/EZ@2x.webp',
-  'assets/cards/de/H7@2x.webp',
-  'assets/cards/de/H8@2x.webp',
-  'assets/cards/de/H9@2x.webp',
-  'assets/cards/de/HA@2x.webp',
-  'assets/cards/de/HK@2x.webp',
-  'assets/cards/de/HO@2x.webp',
-  'assets/cards/de/HU@2x.webp',
-  'assets/cards/de/HZ@2x.webp',
-  'assets/cards/de/L7@2x.webp',
-  'assets/cards/de/L8@2x.webp',
-  'assets/cards/de/L9@2x.webp',
-  'assets/cards/de/LA@2x.webp',
-  'assets/cards/de/LK@2x.webp',
-  'assets/cards/de/LO@2x.webp',
-  'assets/cards/de/LU@2x.webp',
-  'assets/cards/de/LZ@2x.webp',
-  'assets/cards/de/S7@2x.webp',
-  'assets/cards/de/S8@2x.webp',
-  'assets/cards/de/S9@2x.webp',
-  'assets/cards/de/SA@2x.webp',
-  'assets/cards/de/SK@2x.webp',
-  'assets/cards/de/SO@2x.webp',
-  'assets/cards/de/SU@2x.webp',
-  'assets/cards/de/SZ@2x.webp',
-  'assets/cards/fr/2C@2x.webp',
-  'assets/cards/fr/2D@2x.webp',
-  'assets/cards/fr/2H@2x.webp',
-  'assets/cards/fr/2S@2x.webp',
-  'assets/cards/fr/3C@2x.webp',
-  'assets/cards/fr/3D@2x.webp',
-  'assets/cards/fr/3H@2x.webp',
-  'assets/cards/fr/3S@2x.webp',
-  'assets/cards/fr/4C@2x.webp',
-  'assets/cards/fr/4D@2x.webp',
-  'assets/cards/fr/4H@2x.webp',
-  'assets/cards/fr/4S@2x.webp',
-  'assets/cards/fr/5C@2x.webp',
-  'assets/cards/fr/5D@2x.webp',
-  'assets/cards/fr/5H@2x.webp',
-  'assets/cards/fr/5S@2x.webp',
-  'assets/cards/fr/6C@2x.webp',
-  'assets/cards/fr/6D@2x.webp',
-  'assets/cards/fr/6H@2x.webp',
-  'assets/cards/fr/6S@2x.webp',
-  'assets/cards/fr/7C@2x.webp',
-  'assets/cards/fr/7D@2x.webp',
-  'assets/cards/fr/7H@2x.webp',
-  'assets/cards/fr/7S@2x.webp',
-  'assets/cards/fr/8C@2x.webp',
-  'assets/cards/fr/8D@2x.webp',
-  'assets/cards/fr/8H@2x.webp',
-  'assets/cards/fr/8S@2x.webp',
-  'assets/cards/fr/9C@2x.webp',
-  'assets/cards/fr/9D@2x.webp',
-  'assets/cards/fr/9H@2x.webp',
-  'assets/cards/fr/9S@2x.webp',
-  'assets/cards/fr/AC@2x.webp',
-  'assets/cards/fr/AD@2x.webp',
-  'assets/cards/fr/AH@2x.webp',
-  'assets/cards/fr/AS@2x.webp',
-  'assets/cards/fr/JC@2x.webp',
-  'assets/cards/fr/JD@2x.webp',
-  'assets/cards/fr/JH@2x.webp',
-  'assets/cards/fr/JS@2x.webp',
-  'assets/cards/fr/KC@2x.webp',
-  'assets/cards/fr/KD@2x.webp',
-  'assets/cards/fr/KH@2x.webp',
-  'assets/cards/fr/KS@2x.webp',
-  'assets/cards/fr/QC@2x.webp',
-  'assets/cards/fr/QD@2x.webp',
-  'assets/cards/fr/QH@2x.webp',
-  'assets/cards/fr/QS@2x.webp',
-  'assets/cards/fr/TC@2x.webp',
-  'assets/cards/fr/TD@2x.webp',
-  'assets/cards/fr/TH@2x.webp',
-  'assets/cards/fr/TS@2x.webp',
+  'assets/cards/paket/de@2x.bin',
+  'assets/cards/paket/fr@2x.bin',
   'assets/pieces/bB.svg',
   'assets/pieces/bK.svg',
   'assets/pieces/bN.svg',
@@ -426,8 +360,96 @@ const PRE = [
   'assets/pieces/wR.svg',
   'assets/wood/dark.webp',
   'assets/wood/frame.webp',
+  'assets/wood/light-overlay.webp',
   'assets/wood/light.webp'
 ];
+// Einzelkarte → [Paket, Versatz, Länge]
+const PACKED = {
+  'assets/cards/de/E7@2x.webp': ['assets/cards/paket/de@2x.bin', 0, 52146],
+  'assets/cards/de/E8@2x.webp': ['assets/cards/paket/de@2x.bin', 52146, 56778],
+  'assets/cards/de/E9@2x.webp': ['assets/cards/paket/de@2x.bin', 108924, 46978],
+  'assets/cards/de/EA@2x.webp': ['assets/cards/paket/de@2x.bin', 155902, 61756],
+  'assets/cards/de/EK@2x.webp': ['assets/cards/paket/de@2x.bin', 217658, 69134],
+  'assets/cards/de/EO@2x.webp': ['assets/cards/paket/de@2x.bin', 286792, 59158],
+  'assets/cards/de/EU@2x.webp': ['assets/cards/paket/de@2x.bin', 345950, 50704],
+  'assets/cards/de/EZ@2x.webp': ['assets/cards/paket/de@2x.bin', 396654, 55498],
+  'assets/cards/de/H7@2x.webp': ['assets/cards/paket/de@2x.bin', 452152, 36384],
+  'assets/cards/de/H8@2x.webp': ['assets/cards/paket/de@2x.bin', 488536, 42586],
+  'assets/cards/de/H9@2x.webp': ['assets/cards/paket/de@2x.bin', 531122, 36898],
+  'assets/cards/de/HA@2x.webp': ['assets/cards/paket/de@2x.bin', 568020, 46994],
+  'assets/cards/de/HK@2x.webp': ['assets/cards/paket/de@2x.bin', 615014, 49920],
+  'assets/cards/de/HO@2x.webp': ['assets/cards/paket/de@2x.bin', 664934, 44336],
+  'assets/cards/de/HU@2x.webp': ['assets/cards/paket/de@2x.bin', 709270, 38494],
+  'assets/cards/de/HZ@2x.webp': ['assets/cards/paket/de@2x.bin', 747764, 38742],
+  'assets/cards/de/L7@2x.webp': ['assets/cards/paket/de@2x.bin', 786506, 51054],
+  'assets/cards/de/L8@2x.webp': ['assets/cards/paket/de@2x.bin', 837560, 59382],
+  'assets/cards/de/L9@2x.webp': ['assets/cards/paket/de@2x.bin', 896942, 44070],
+  'assets/cards/de/LA@2x.webp': ['assets/cards/paket/de@2x.bin', 941012, 50364],
+  'assets/cards/de/LK@2x.webp': ['assets/cards/paket/de@2x.bin', 991376, 54482],
+  'assets/cards/de/LO@2x.webp': ['assets/cards/paket/de@2x.bin', 1045858, 47352],
+  'assets/cards/de/LU@2x.webp': ['assets/cards/paket/de@2x.bin', 1093210, 48006],
+  'assets/cards/de/LZ@2x.webp': ['assets/cards/paket/de@2x.bin', 1141216, 50206],
+  'assets/cards/de/S7@2x.webp': ['assets/cards/paket/de@2x.bin', 1191422, 49452],
+  'assets/cards/de/S8@2x.webp': ['assets/cards/paket/de@2x.bin', 1240874, 63098],
+  'assets/cards/de/S9@2x.webp': ['assets/cards/paket/de@2x.bin', 1303972, 53608],
+  'assets/cards/de/SA@2x.webp': ['assets/cards/paket/de@2x.bin', 1357580, 51632],
+  'assets/cards/de/SK@2x.webp': ['assets/cards/paket/de@2x.bin', 1409212, 52492],
+  'assets/cards/de/SO@2x.webp': ['assets/cards/paket/de@2x.bin', 1461704, 53300],
+  'assets/cards/de/SU@2x.webp': ['assets/cards/paket/de@2x.bin', 1515004, 52548],
+  'assets/cards/de/SZ@2x.webp': ['assets/cards/paket/de@2x.bin', 1567552, 55056],
+  'assets/cards/fr/2C@2x.webp': ['assets/cards/paket/fr@2x.bin', 0, 7008],
+  'assets/cards/fr/2D@2x.webp': ['assets/cards/paket/fr@2x.bin', 7008, 8632],
+  'assets/cards/fr/2H@2x.webp': ['assets/cards/paket/fr@2x.bin', 15640, 8912],
+  'assets/cards/fr/2S@2x.webp': ['assets/cards/paket/fr@2x.bin', 24552, 6602],
+  'assets/cards/fr/3C@2x.webp': ['assets/cards/paket/fr@2x.bin', 31154, 8476],
+  'assets/cards/fr/3D@2x.webp': ['assets/cards/paket/fr@2x.bin', 39630, 10482],
+  'assets/cards/fr/3H@2x.webp': ['assets/cards/paket/fr@2x.bin', 50112, 10794],
+  'assets/cards/fr/3S@2x.webp': ['assets/cards/paket/fr@2x.bin', 60906, 7808],
+  'assets/cards/fr/4C@2x.webp': ['assets/cards/paket/fr@2x.bin', 68714, 9366],
+  'assets/cards/fr/4D@2x.webp': ['assets/cards/paket/fr@2x.bin', 78080, 11246],
+  'assets/cards/fr/4H@2x.webp': ['assets/cards/paket/fr@2x.bin', 89326, 11394],
+  'assets/cards/fr/4S@2x.webp': ['assets/cards/paket/fr@2x.bin', 100720, 8358],
+  'assets/cards/fr/5C@2x.webp': ['assets/cards/paket/fr@2x.bin', 109078, 10790],
+  'assets/cards/fr/5D@2x.webp': ['assets/cards/paket/fr@2x.bin', 119868, 13342],
+  'assets/cards/fr/5H@2x.webp': ['assets/cards/paket/fr@2x.bin', 133210, 13600],
+  'assets/cards/fr/5S@2x.webp': ['assets/cards/paket/fr@2x.bin', 146810, 9930],
+  'assets/cards/fr/6C@2x.webp': ['assets/cards/paket/fr@2x.bin', 156740, 12296],
+  'assets/cards/fr/6D@2x.webp': ['assets/cards/paket/fr@2x.bin', 169036, 15026],
+  'assets/cards/fr/6H@2x.webp': ['assets/cards/paket/fr@2x.bin', 184062, 15630],
+  'assets/cards/fr/6S@2x.webp': ['assets/cards/paket/fr@2x.bin', 199692, 11422],
+  'assets/cards/fr/7C@2x.webp': ['assets/cards/paket/fr@2x.bin', 211114, 12862],
+  'assets/cards/fr/7D@2x.webp': ['assets/cards/paket/fr@2x.bin', 223976, 15458],
+  'assets/cards/fr/7H@2x.webp': ['assets/cards/paket/fr@2x.bin', 239434, 16104],
+  'assets/cards/fr/7S@2x.webp': ['assets/cards/paket/fr@2x.bin', 255538, 11630],
+  'assets/cards/fr/8C@2x.webp': ['assets/cards/paket/fr@2x.bin', 267168, 14926],
+  'assets/cards/fr/8D@2x.webp': ['assets/cards/paket/fr@2x.bin', 282094, 17992],
+  'assets/cards/fr/8H@2x.webp': ['assets/cards/paket/fr@2x.bin', 300086, 18738],
+  'assets/cards/fr/8S@2x.webp': ['assets/cards/paket/fr@2x.bin', 318824, 13622],
+  'assets/cards/fr/9C@2x.webp': ['assets/cards/paket/fr@2x.bin', 332446, 16354],
+  'assets/cards/fr/9D@2x.webp': ['assets/cards/paket/fr@2x.bin', 348800, 19106],
+  'assets/cards/fr/9H@2x.webp': ['assets/cards/paket/fr@2x.bin', 367906, 20206],
+  'assets/cards/fr/9S@2x.webp': ['assets/cards/paket/fr@2x.bin', 388112, 15014],
+  'assets/cards/fr/AC@2x.webp': ['assets/cards/paket/fr@2x.bin', 403126, 8206],
+  'assets/cards/fr/AD@2x.webp': ['assets/cards/paket/fr@2x.bin', 411332, 9594],
+  'assets/cards/fr/AH@2x.webp': ['assets/cards/paket/fr@2x.bin', 420926, 10448],
+  'assets/cards/fr/AS@2x.webp': ['assets/cards/paket/fr@2x.bin', 431374, 21242],
+  'assets/cards/fr/JC@2x.webp': ['assets/cards/paket/fr@2x.bin', 452616, 46362],
+  'assets/cards/fr/JD@2x.webp': ['assets/cards/paket/fr@2x.bin', 498978, 46242],
+  'assets/cards/fr/JH@2x.webp': ['assets/cards/paket/fr@2x.bin', 545220, 46234],
+  'assets/cards/fr/JS@2x.webp': ['assets/cards/paket/fr@2x.bin', 591454, 38820],
+  'assets/cards/fr/KC@2x.webp': ['assets/cards/paket/fr@2x.bin', 630274, 40210],
+  'assets/cards/fr/KD@2x.webp': ['assets/cards/paket/fr@2x.bin', 670484, 40030],
+  'assets/cards/fr/KH@2x.webp': ['assets/cards/paket/fr@2x.bin', 710514, 42046],
+  'assets/cards/fr/KS@2x.webp': ['assets/cards/paket/fr@2x.bin', 752560, 42806],
+  'assets/cards/fr/QC@2x.webp': ['assets/cards/paket/fr@2x.bin', 795366, 39130],
+  'assets/cards/fr/QD@2x.webp': ['assets/cards/paket/fr@2x.bin', 834496, 44100],
+  'assets/cards/fr/QH@2x.webp': ['assets/cards/paket/fr@2x.bin', 878596, 44406],
+  'assets/cards/fr/QS@2x.webp': ['assets/cards/paket/fr@2x.bin', 923002, 44770],
+  'assets/cards/fr/TC@2x.webp': ['assets/cards/paket/fr@2x.bin', 967772, 17942],
+  'assets/cards/fr/TD@2x.webp': ['assets/cards/paket/fr@2x.bin', 985714, 21162],
+  'assets/cards/fr/TH@2x.webp': ['assets/cards/paket/fr@2x.bin', 1006876, 21892],
+  'assets/cards/fr/TS@2x.webp': ['assets/cards/paket/fr@2x.bin', 1028768, 16116]
+};
 const GROUP = 40;
 const TRIES = 3;
 
@@ -463,6 +485,22 @@ async function fillAssets() {
   }
 }
 
+// Pakete als Blob im Speicher des Workers (einmal aus dem Cache gelesen; der Worker darf jederzeit beendet werden)
+const packBlobs = new Map();
+function packBlob(pack) {
+  if (!packBlobs.has(pack)) {
+    packBlobs.set(pack, caches.open(ASSETS).then((c) => c.match(assetKey(pack))).then((r) => (r ? r.blob() : null))
+      .then((b) => { if (!b) packBlobs.delete(pack); return b; }, () => { packBlobs.delete(pack); return null; }));
+  }
+  return packBlobs.get(pack);
+}
+async function fromPack(p) {
+  const [pack, off, len] = PACKED[p];
+  const b = await packBlob(pack);
+  if (!b || b.size < off + len) return null;
+  return new Response(b.slice(off, off + len, 'image/webp'), { headers: { 'Content-Type': 'image/webp', 'Content-Length': String(len) } });
+}
+
 async function fillCore() {
   const c = await caches.open(CORE);
   for (let i = 0; i < CORE_FILES.length; i += GROUP) {
@@ -479,16 +517,27 @@ self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const ks = await caches.keys();
     await Promise.all(ks.filter((k) => k.startsWith('spielebox-') && k !== CORE && k !== ASSETS).map((k) => caches.delete(k)));
-    // Bilder-Cache behalten, nur Fassungen entfernen, die zu keiner aktuellen Datei mehr gehören
+    // Bilder-Cache behalten, nur Fassungen entfernen, die zu keiner aktuellen Datei mehr gehören –
+    // und Einzelkarten, die jetzt im (geladenen) Paket stecken (sonst lägen sie doppelt im Speicher)
     const c = await caches.open(ASSETS);
+    const packsIn = new Set();
+    for (const p of new Set(Object.values(PACKED).map((v) => v[0]))) if (await c.match(assetKey(p))) packsIn.add(p);
     for (const req of await c.keys()) {
       const u = new URL(req.url);
       const p = pathOf(req.url);
-      if (!(p in ASSET_HASH) || u.searchParams.get('h') !== ASSET_HASH[p]) await c.delete(req);
+      if (!(p in ASSET_HASH) || u.searchParams.get('h') !== ASSET_HASH[p] || (p in PACKED && packsIn.has(PACKED[p][0]))) await c.delete(req);
     }
     await self.clients.claim();
   })());
 });
+
+// Bild: zuerst aus dem Bilder-Cache, sonst holen und merken (auch nicht vorab geladene, z. B. 1×-Karten)
+function assetResponse(req, p) {
+  return caches.open(ASSETS).then((c) => c.match(assetKey(p)).then((r) => r || fetch(req).then((res) => {
+    if (res.ok) { const cp = res.clone(); hashOf(cp).then((x) => { if (x === ASSET_HASH[p]) c.put(assetKey(p), cp); }).catch(() => {}); }
+    return res;
+  })));
+}
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
@@ -500,12 +549,13 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   const p = pathOf(req.url);
+  if (p in PACKED) {
+    // Karte aus dem Paket; ist das Paket (noch) nicht im Cache: wie jedes andere Bild (Cache, sonst Netz)
+    e.respondWith(fromPack(p).then((r) => r || assetResponse(req, p)));
+    return;
+  }
   if (p in ASSET_HASH) {
-    // Bild: zuerst aus dem Bilder-Cache, sonst holen und merken (auch nicht vorab geladene, z. B. 1×-Karten)
-    e.respondWith(caches.open(ASSETS).then((c) => c.match(assetKey(p)).then((r) => r || fetch(req).then((res) => {
-      if (res.ok) { const cp = res.clone(); hashOf(cp).then((x) => { if (x === ASSET_HASH[p]) c.put(assetKey(p), cp); }).catch(() => {}); }
-      return res;
-    }))));
+    e.respondWith(assetResponse(req, p));
     return;
   }
   e.respondWith(caches.match(req, { cacheName: CORE, ignoreSearch: true }).then((r) => r || fetch(req).then((res) => {

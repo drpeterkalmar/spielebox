@@ -12,8 +12,8 @@ export const ASSETS = { de: true, fr: true };
 const FR_RATIO = 697 / 480;   // Seitenverhältnis der Byron-Knoll-Karten
 
 
-// Kartenbild (Mitte = 0,0): aus dem Atlas (n9: wenige große Bilder statt einer Datei je Karte) als <svg> mit viewBox
-// auf den Ausschnitt, sonst (?atlas=0, unbekannte Karte) die Einzeldatei wie bisher. Gleiche Lage und Größe.
+// Kartenbild (Mitte = 0,0): die Einzeldatei (Standard; der Service-Worker liefert sie aus dem Kartenpaket), mit
+// ?atlas=1 (Versuch n9) aus dem Atlas als <svg> mit viewBox auf den Ausschnitt. Gleiche Lage und Größe.
 function face(deck, card, w, h) {
   const hi = hiDpi();
   const c = useAtlas() ? atlasCell(deck, card, hi) : null;

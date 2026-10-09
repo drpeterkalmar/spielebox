@@ -1,4 +1,4 @@
-// Kartenbilder aus dem Atlas (n9): Lage, SVG-Ausschnitt, CSS-Prozentlage, Regler ?atlas=0.
+// Kartenbilder aus dem Atlas (n9, Versuch ?atlas=1): Lage, SVG-Ausschnitt, CSS-Prozentlage, Regler.
 // Aufruf: node --test tests/node/cardsprite.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -58,8 +58,9 @@ test('spriteStyle: Prozentlage trifft die Karte bei jeder Elementgröße', () =>
   }
 });
 
-test('cardImgAttrs: Atlas als Hintergrund, ?atlas=0 → Einzeldatei', () => {
-  withSearch('', () => {
+test('cardImgAttrs: Standard Einzeldatei, ?atlas=1 → Atlas als Hintergrund', () => {
+  withSearch('', () => assert.deepEqual(cardImgAttrs('de', 'LK', true), { src: singleUrl('de', 'LK', true) }));
+  withSearch('?atlas=1', () => {
     const a = cardImgAttrs('de', 'LK', true);
     assert.equal(a.src, BLANK);
     assert.match(a.style, /de-a@2x\.webp/);

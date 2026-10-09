@@ -1,11 +1,13 @@
 // Kartenbilder aus den Atlanten (Technik n9, Audit #1): wo eine Karte im Atlas liegt und wie man sie zeichnet –
 // in SVG als verschachteltes <svg> mit viewBox auf den Kartenausschnitt (beschneidet von selbst), in HTML als
-// Hintergrund mit Prozent-Lage (passt bei jeder Elementgröße). Ohne Atlas (?atlas=0) die Einzeldatei wie bisher.
+// Hintergrund mit Prozent-Lage (passt bei jeder Elementgröße). Standard ist die Einzeldatei (wie vorher); der Atlas ist
+// ein Versuch (?atlas=1): gemessen kostet er am Kartentisch bis +100 MB Bildspeicher und macht den ersten Tisch ohne
+// Cache 3× langsamer. Weniger Anfragen bringen stattdessen die Kartenpakete im Service-Worker (tools/cardpack.py).
 // Rein (kein DOM) – geprüft in tests/node/cardsprite.test.mjs.
 import { ATLAS } from './cardatlas.js';
 import { urlFlag } from './flags.js';
 
-export const useAtlas = () => urlFlag('atlas', true);
+export const useAtlas = () => urlFlag('atlas', false);
 // Handy-Bildschirme (ab 1,5 dppx): doppelt aufgelöste Karten
 export const hiDpi = () => typeof devicePixelRatio === 'number' && devicePixelRatio >= 1.5;
 

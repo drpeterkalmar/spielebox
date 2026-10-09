@@ -11,6 +11,10 @@ tests/shots/deko/*
 tests/shots/schiffe-n8/*
 !tests/shots/schiffe-n8/vergleich_*.jpg
 !tests/shots/schiffe-n8/schaukeln.mp4
+# Technik n9: Collagen und Vergleiche (TECHNIK_BERICHT.md)
+!tests/shots/technik/
+tests/shots/technik/*
+!tests/shots/technik/*.jpg
 tests/out/*
 !tests/out/.keep
 __pycache__/

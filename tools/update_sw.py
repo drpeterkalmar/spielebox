@@ -2,6 +2,8 @@
 # dazu src/build.js (Version in der App). Nach jeder Änderung an App-Dateien: python3 tools/update_sw.py
 # Prüfmodus (CI): python3 tools/update_sw.py --check – rechnet nur nach, schreibt nichts, Exit 1 bei Abweichung.
 import hashlib, os, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cardpack
 CHECK = '--check' in sys.argv
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Nur Dateien, die im Git-Index stehen (eingecheckt oder mit git add vorgemerkt): halbfertige Dateien (z. B. neue
@@ -12,20 +14,24 @@ files = ['index.html', 'manifest.webmanifest', 'css/style.css']
 for d in ['src', 'lib', 'icons', 'assets']:
     for dp, dn, fn in os.walk(os.path.join(ROOT, d)):
         for f in sorted(fn):
-            if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.svg')) and not f.startswith('.'):
+            if f.endswith(('.js', '.png', '.css', '.webp', '.jpg', '.svg', '.bin')) and not f.startswith('.'):
                 files.append(os.path.relpath(os.path.join(dp, f), ROOT))
 # JPG-Texturen sind nur Rückfall (die App lädt .webp) → nicht vorab laden
 files = sorted(set(f for f in files if not (f.startswith('assets/wood/') and f.endswith('.jpg'))))
 skipped = [f for f in files if f not in TRACKED and f != 'src/build.js']
 files = [f for f in files if f in TRACKED or f == 'src/build.js']
-# Karten (n9): vorab nur die doppelt aufgelösten Atlanten (4 Dateien statt 84 Einzelkarten, tools/build_atlas.mjs).
-# Einzelkarten (Rückfall ?atlas=0, Lobby-Bildchen) und 1×-Atlanten lädt die Seite bei Bedarf (Bilder-Cache per Hash).
-files = [f for f in files if not (f.startswith('assets/cards/') and f.endswith('.webp')
-                                   and not (f.startswith('assets/cards/atlas/') and '@2x' in f))]
+# Karten (n9): vorab nur die 2 Kartenpakete (tools/cardpack.py: alle @2x-Einzelkarten eines Blatts bitgleich in einer
+# Datei) statt 84 Einzeldateien; der Service-Worker schneidet jede Karte daraus. 1×-Karten (Desktop) und die Atlanten
+# (Versuch ?atlas=1) lädt die Seite bei Bedarf (Bilder-Cache per Hash).
+packed, stale = cardpack.build(check=CHECK, tracked=TRACKED)
+if stale:
+    print('Kartenpakete passen nicht zu den Einzelkarten: ' + ', '.join(stale) + ' – python3 tools/update_sw.py ausführen')
+    sys.exit(1)
+files = [f for f in files if not (f.startswith('assets/cards/') and f.endswith('.webp'))]
 # Bilder (assets/): eigener, versionsloser Cache im Service-Worker; Schlüssel = Pfad + Inhalts-Hash je Datei.
 # Hash-Liste für alle eingecheckten Bilder (auch die nicht vorab geladenen 1×-Karten und JPG-Rückfälle).
 fhash = lambda f: hashlib.sha256(open(os.path.join(ROOT, f), 'rb').read()).hexdigest()[:10]
-asset_hash = {f: fhash(f) for f in sorted(t for t in TRACKED if t.startswith('assets/') and t.endswith(('.png', '.webp', '.jpg', '.svg')))}
+asset_hash = {f: fhash(f) for f in sorted(t for t in TRACKED if t.startswith('assets/') and t.endswith(('.png', '.webp', '.jpg', '.svg', '.bin')))}
 core = [f for f in files if not f.startswith('assets/')]
 pre = [f for f in files if f.startswith('assets/')]
 h = hashlib.sha256()
@@ -33,11 +39,13 @@ for f in files:
     if f == 'src/build.js': continue  # enthält selbst die Version
     h.update(f.encode()); h.update(open(os.path.join(ROOT, f), 'rb').read())
 h.update(repr(sorted(asset_hash.items())).encode())
+h.update(repr(sorted(packed.items())).encode())
 ver = h.hexdigest()[:10]
 tpl = open(os.path.join(ROOT, 'tools', 'sw.template.js')).read()
 lst = lambda xs: ',\n  '.join("'" + f + "'" for f in xs)
 out = (tpl.replace('__VERSION__', ver).replace('__CORE__', lst(core)).replace('__PRE__', lst(pre))
-       .replace('__ASSET_HASH__', ',\n  '.join(f"'{f}': '{x}'" for f, x in asset_hash.items())))
+       .replace('__ASSET_HASH__', ',\n  '.join(f"'{f}': '{x}'" for f, x in asset_hash.items()))
+       .replace('__PACKED__', ',\n  '.join(f"'{f}': ['{p}', {o}, {n}]" for f, (p, o, n) in sorted(packed.items()))))
 build = f"export const BUILD = '{ver}';\n"
 if CHECK:
     bad = [n for n, want in (('sw.js', out), ('src/build.js', build)) if open(os.path.join(ROOT, n)).read() != want]
