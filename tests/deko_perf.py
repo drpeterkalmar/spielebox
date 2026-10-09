@@ -5,6 +5,8 @@
 #   q z. B. "deko=0" (altes Aussehen)
 # Technik n9 (Profil Mittelklasse = CPU 4× gedrosselt, hoch + quer):
 #   python3 tests/deko_perf.py n9_vorher --form=hoch,quer --nur=lobby_idle,schnapsen_anim,halma_anim,vier_sieg --erster-tisch --trace
+#   --alt=<Ordner>     Vorher-Stand (z. B. git worktree add /tmp/spielebox_vorher f2cbf5f) und dieses Repo abwechselnd
+#                      in einem Lauf messen (Varianten „vorher“/„nachher“)
 #   --form=hoch,quer   Szenen in beiden Lagen (Schlüssel „szene“ bzw. „szene@quer“)
 #   --erster-tisch     Zeit bis zum ersten Tisch (Schnapsen, Karten sichtbar): kalt (leerer Cache) und warm (Service-Worker)
 #   --trace            je ein CDP-Trace (devtools.timeline) für Konfetti-Finale und Lobby: Layout/Stil/Paint-Ereignisse
@@ -149,16 +151,16 @@ def sw_list(sw, const):
     return [l.strip().strip("',") for l in sw.split(f'const {const} = [')[1].split('];')[0].split('\n') if l.strip().startswith("'")]
 
 
-def load_size(b, base, q):
+def load_size(b, base, q, root=ROOT):
     # Ladegröße: alle Dateien der Vorab-Liste (sw.js) roh/gzip + was die Lobby beim ersten Öffnen wirklich lädt
     # (seit dem Umbau zwei Listen: CORE_FILES und PRE = Bilder; vorher eine Liste ASSETS)
-    sw = open(os.path.join(ROOT, 'sw.js')).read()
+    sw = open(os.path.join(root, 'sw.js')).read()
     files = sw_list(sw, 'CORE_FILES') + sw_list(sw, 'PRE') or sw_list(sw, 'ASSETS')
     files = [f for f in files if f != './']
     pre = [f for f in files if f.startswith('assets/')]
     raw = gz = 0
     for f in files:
-        data = open(os.path.join(ROOT, f), 'rb').read()
+        data = open(os.path.join(root, f), 'rb').read()
         raw += len(data); gz += len(gzip.compress(data, 9))
     P = Page(b, base, 'hoch')
     got = []
@@ -281,6 +283,7 @@ if __name__ == '__main__':
     variants = None
     forms = ['hoch']
     want_first = want_trace = False
+    alt = None   # --alt=<Ordner>: Vorher-Stand (git worktree) gegen dieses Repo, Varianten „vorher“/„nachher“
     for a in sys.argv[2:]:
         if a.startswith('--reps='): reps = int(a.split('=')[1])
         elif a.startswith('--nur='): only = a.split('=', 1)[1].split(',')
@@ -288,21 +291,26 @@ if __name__ == '__main__':
         elif a.startswith('--form='): forms = a.split('=', 1)[1].split(',')
         elif a == '--erster-tisch': want_first = True
         elif a == '--trace': want_trace = True
+        elif a.startswith('--alt='): alt = a.split('=', 1)[1]
         else: q = a
     variants = variants or [q]
     out = {'name': name, 'variants': variants, 'forms': forms, 'profile': 'Mittelklasse: CPU 4× gedrosselt (Phase B), Pixel 7',
            'when': time.strftime('%Y-%m-%d %H:%M'), 'gpu': 'metal' if sys.platform == 'darwin' else 'vulkan' if os.environ.get('SB_VULKAN') else 'swiftshader',
            'size': {}, 'scenes': {}, 'first_table': {}, 'trace': {}}
-    with sync_playwright() as pw, Server() as srv:
+    if alt: variants = ['vorher', 'nachher']
+    roots = {'vorher': alt, 'nachher': ROOT} if alt else {}
+    with sync_playwright() as pw, Server() as srv, Server(alt or ROOT) as srv_alt:
+        base = lambda v: srv_alt.base if roots.get(v) == alt and alt else srv.base
+        qq = lambda v: '' if alt else v
         b = launch(pw)
         for v in variants:
-            out['size'][v] = load_size(b, srv.base, v)
+            out['size'][v] = load_size(b, base(v), qq(v), roots.get(v, ROOT))
             print(f'Ladegröße [{v or "Standard"}]', out['size'][v], flush=True)
         if want_first:
             for v in variants:
                 for form in forms:
                     key = v + ('' if form == 'hoch' else '@' + form)
-                    out['first_table'][key] = first_table(b, srv.base, v, form)
+                    out['first_table'][key] = first_table(b, base(v), qq(v), form)
                     print(f'Erster Tisch [{v or "Standard"} {form}]', out['first_table'][key], flush=True)
         for form in forms:
           for sc in SCENES:
@@ -311,7 +319,7 @@ if __name__ == '__main__':
             runs = {v: [] for v in variants}
             for r in range(reps):
                 for v in (variants if r % 2 == 0 else variants[::-1]):
-                    runs[v].append(run_scene(b, srv.base, *sc, v, form))
+                    runs[v].append(run_scene(b, base(v), *sc, qq(v), form))
             out['scenes'][key] = {}
             for v in variants:
                 rs = runs[v]
@@ -324,7 +332,7 @@ if __name__ == '__main__':
             for v in variants:
                 for scene in ('vier_sieg', 'lobby_idle'):
                     key = f'{scene}[{v or "Standard"}]'
-                    out['trace'][key] = trace_scene(b, srv.base, name, scene, v)
+                    out['trace'][key] = trace_scene(b, base(v), name + ('_' + v if alt else ''), scene, qq(v))
                     tr = out['trace'][key]
                     print(f"Trace {key}: " + ', '.join(f"{k} {s['count']}× {s['ms']} ms" for k, s in tr['main'].items()), flush=True)
                     for k, c in tr['not_composited'].items(): print(f'    nicht auf dem Compositor: {k} ({c}×)', flush=True)

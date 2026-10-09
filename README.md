@@ -223,9 +223,16 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
   Schaukeln/Wrack-Schräglage); `python3 tests/schiffe_n8.py check` (kein Leck im Gegner-Meer, Treffer schaukeln mit,
   Stufen 0/1/2, „Bewegung reduzieren“), `… shots <ordner>`, `… vergleich vorher nachher`, `… clip`,
   `… perf <name> --ab='deko=1|deko=2' [--alt=<Worktree alter Stand>]` (Bilder/Clip in `tests/shots/schiffe-n8/`).
+- Technik n9 (`TECHNIK_BERICHT.md`): `python3 tests/deko_perf.py <name> --alt=<Worktree alter Stand> --form=hoch,quer
+  --nur=lobby_idle,schnapsen_anim,halma_anim,vier_sieg --erster-tisch --trace` (Bildkosten je Bild, CPU, erster Tisch
+  kalt/warm, CDP-Trace); `python3 tests/technik_n9.py karten|speicher` (Atlas gegen Einzelkarten: Pixel je Karte,
+  Bildspeicher). Kartenpakete: `python3 tools/cardpack.py [--check]` (ruft `update_sw.py` selbst auf), Atlanten
+  `node tools/build_atlas.mjs [--check]`, Licht-Ebene `python3 tools/bake_material.py`, Icons `python3 tools/shrink_icons.py`.
+  URL-Regler: `?atlas=1` (Karten aus dem Atlas, Versuch), `?sprites=0` (Steine als Vektor), `?material=0` (ohne Licht-Ebene).
 - `python3 tests/test_nav.py` – Browser: schnelle Wechsel Lobby/Tisch ergeben eine Sitzung, Fehler beim Öffnen → Meldung.
 - `python3 tests/test_sw.py` – Service-Worker lokal: Kern-Cache je Version, Bilder-Cache versionslos (Update lädt nur
-  geänderte Bilder), offline mit Karten; `SW_ALT=<alter sw.js>` prüft zusätzlich den Umstieg vom alten Schema.
+  geänderte Bilder), offline mit Karten, Karten bitgleich aus dem Kartenpaket ohne Netzabruf; `SW_ALT=<alter sw.js>`
+  prüft zusätzlich den Umstieg vom alten Schema (nur neue Dateien werden geholt).
 - Debug-API im Browser: `window.__box` (Zustand, legale Züge, Züge, Tisch öffnen/beitreten).
 
 ## Credits

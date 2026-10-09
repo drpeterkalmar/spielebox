@@ -1,0 +1,877 @@
+{
+ "hinweis": "vorher = main f2cbf5f (git worktree), nachher = dieser Stand; abwechselnd in einem Lauf gemessen. Mac mini, Bildschirm gesperrt: rAF-Abstände gedrosselt (70–150 ms), maßgeblich sind Bildkosten (Hauptthread je Bild), Last, CPU, Trace.",
+ "lauf_a_2_wdh": {
+  "name": "n9_vergleich",
+  "variants": [
+   ""
+  ],
+  "forms": [
+   "hoch",
+   "quer"
+  ],
+  "profile": "Mittelklasse: CPU 4× gedrosselt (Phase B), Pixel 7",
+  "when": "2026-10-09 10:27",
+  "gpu": "metal",
+  "size": {
+   "vorher": {
+    "precache_files": 229,
+    "precache_images": 99,
+    "precache_raw_kb": 4604.2,
+    "precache_gzip_kb": 3759.9,
+    "lobby_requests": 149,
+    "lobby_raw_kb": 1589.8,
+    "lobby_gzip_kb": 813.1
+   },
+   "nachher": {
+    "precache_files": 151,
+    "precache_images": 18,
+    "precache_raw_kb": 4247.8,
+    "precache_gzip_kb": 3371.6,
+    "lobby_requests": 156,
+    "lobby_raw_kb": 1583.4,
+    "lobby_gzip_kb": 790.1
+   }
+  },
+  "scenes": {
+   "lobby_idle": {
+    "vorher": {
+     "frames": 203.5,
+     "p50": 41.65,
+     "p95": 91.7,
+     "p99": 116.65,
+     "max": 125.0,
+     "long": 66.0,
+     "fps": 20.15,
+     "cost50": 0.0,
+     "cost95": 0.15000000000000002,
+     "cost_max": 3.05,
+     "cost_ms_s": 1.75,
+     "busy": 0.3,
+     "cpu": 0.3,
+     "script": 0.05,
+     "layout": 0.0,
+     "style": 0.0,
+     "nodes": 702.5,
+     "heapMB": 3.3,
+     "moves": null,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 253.0,
+     "p50": 33.349999999999994,
+     "p95": 75.05,
+     "p99": 124.95,
+     "max": 133.35000000000002,
+     "long": 29.15,
+     "fps": 25.25,
+     "cost50": 0.0,
+     "cost95": 0.1,
+     "cost_max": 3.1,
+     "cost_ms_s": 1.4,
+     "busy": 0.2,
+     "cpu": 0.30000000000000004,
+     "script": 0.0,
+     "layout": 0.0,
+     "style": 0.0,
+     "nodes": 710.0,
+     "heapMB": 3.4,
+     "moves": null,
+     "errors": []
+    }
+   },
+   "vier_sieg": {
+    "vorher": {
+     "frames": 90.5,
+     "p50": 83.35,
+     "p95": 141.7,
+     "p99": 141.75,
+     "max": 150.05,
+     "long": 63.55,
+     "fps": 14.8,
+     "cost50": 0.55,
+     "cost95": 3.1500000000000004,
+     "cost_max": 5.300000000000001,
+     "cost_ms_s": 13.0,
+     "busy": 1.7,
+     "cpu": 10.3,
+     "script": 0.5,
+     "layout": 0.0,
+     "style": 0.1,
+     "nodes": 488.0,
+     "heapMB": 4.75,
+     "moves": 13.0,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 95.0,
+     "p50": 66.65,
+     "p95": 133.3,
+     "p99": 133.4,
+     "max": 141.7,
+     "long": 57.25,
+     "fps": 15.649999999999999,
+     "cost50": 0.35,
+     "cost95": 3.4,
+     "cost_max": 13.4,
+     "cost_ms_s": 14.3,
+     "busy": 1.55,
+     "cpu": 9.75,
+     "script": 0.55,
+     "layout": 0.0,
+     "style": 0.05,
+     "nodes": 522.5,
+     "heapMB": 4.5,
+     "moves": 13.0,
+     "errors": []
+    }
+   },
+   "schnapsen_anim": {
+    "vorher": {
+     "frames": 113.0,
+     "p50": 124.95,
+     "p95": 133.35000000000002,
+     "p99": 133.4,
+     "max": 133.4,
+     "long": 91.75,
+     "fps": 9.35,
+     "cost50": 0.2,
+     "cost95": 3.05,
+     "cost_max": 9.5,
+     "cost_ms_s": 7.800000000000001,
+     "busy": 2.95,
+     "cpu": 20.9,
+     "script": 0.6499999999999999,
+     "layout": 0.30000000000000004,
+     "style": 0.3,
+     "nodes": 3084.0,
+     "heapMB": 4.35,
+     "moves": 38.5,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 113.5,
+     "p50": 124.95,
+     "p95": 125.1,
+     "p99": 133.35000000000002,
+     "max": 133.4,
+     "long": 89.69999999999999,
+     "fps": 9.350000000000001,
+     "cost50": 0.2,
+     "cost95": 2.95,
+     "cost_max": 11.95,
+     "cost_ms_s": 7.5,
+     "busy": 2.75,
+     "cpu": 19.95,
+     "script": 0.6499999999999999,
+     "layout": 0.4,
+     "style": 0.25,
+     "nodes": 3941.0,
+     "heapMB": 4.25,
+     "moves": 39.0,
+     "errors": []
+    }
+   },
+   "halma_anim": {
+    "vorher": {
+     "frames": 160.0,
+     "p50": 83.3,
+     "p95": 116.7,
+     "p99": 133.3,
+     "max": 133.4,
+     "long": 87.94999999999999,
+     "fps": 13.25,
+     "cost50": 0.25,
+     "cost95": 3.7,
+     "cost_max": 6.85,
+     "cost_ms_s": 14.05,
+     "busy": 2.95,
+     "cpu": 10.0,
+     "script": 0.7,
+     "layout": 0.65,
+     "style": 0.35,
+     "nodes": 4433.5,
+     "heapMB": 4.0,
+     "moves": 38.5,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 153.5,
+     "p50": 83.3,
+     "p95": 108.35000000000001,
+     "p99": 133.35000000000002,
+     "max": 141.7,
+     "long": 92.1,
+     "fps": 12.7,
+     "cost50": 0.15000000000000002,
+     "cost95": 3.6,
+     "cost_max": 7.0,
+     "cost_ms_s": 12.3,
+     "busy": 2.8,
+     "cpu": 7.1,
+     "script": 0.6499999999999999,
+     "layout": 0.8,
+     "style": 0.35,
+     "nodes": 2089.0,
+     "heapMB": 4.2,
+     "moves": 38.0,
+     "errors": []
+    }
+   },
+   "lobby_idle@quer": {
+    "vorher": {
+     "frames": 183.5,
+     "p50": 50.0,
+     "p95": 91.75,
+     "p99": 116.60000000000001,
+     "max": 133.35000000000002,
+     "long": 65.55,
+     "fps": 18.200000000000003,
+     "cost50": 0.0,
+     "cost95": 0.1,
+     "cost_max": 3.0,
+     "cost_ms_s": 1.3,
+     "busy": 0.15000000000000002,
+     "cpu": 0.4,
+     "script": 0.0,
+     "layout": 0.0,
+     "style": 0.0,
+     "nodes": 703.5,
+     "heapMB": 3.3,
+     "moves": null,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 173.5,
+     "p50": 50.05,
+     "p95": 91.7,
+     "p99": 133.4,
+     "max": 133.4,
+     "long": 92.1,
+     "fps": 17.200000000000003,
+     "cost50": 0.0,
+     "cost95": 0.15000000000000002,
+     "cost_max": 3.1,
+     "cost_ms_s": 1.75,
+     "busy": 0.2,
+     "cpu": 0.2,
+     "script": 0.05,
+     "layout": 0.0,
+     "style": 0.0,
+     "nodes": 710.0,
+     "heapMB": 3.4,
+     "moves": null,
+     "errors": []
+    }
+   },
+   "vier_sieg@quer": {
+    "vorher": {
+     "frames": 119.0,
+     "p50": 33.3,
+     "p95": 133.3,
+     "p99": 133.4,
+     "max": 133.4,
+     "long": 41.599999999999994,
+     "fps": 19.65,
+     "cost50": 0.4,
+     "cost95": 3.25,
+     "cost_max": 6.25,
+     "cost_ms_s": 19.65,
+     "busy": 2.35,
+     "cpu": 12.25,
+     "script": 0.45,
+     "layout": 0.05,
+     "style": 0.1,
+     "nodes": 702.0,
+     "heapMB": 4.550000000000001,
+     "moves": 13.0,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 148.5,
+     "p50": 33.3,
+     "p95": 83.35000000000001,
+     "p99": 125.0,
+     "max": 133.4,
+     "long": 30.85,
+     "fps": 24.4,
+     "cost50": 0.25,
+     "cost95": 2.9,
+     "cost_max": 18.7,
+     "cost_ms_s": 14.35,
+     "busy": 1.55,
+     "cpu": 9.15,
+     "script": 0.45,
+     "layout": 0.0,
+     "style": 0.1,
+     "nodes": 731.0,
+     "heapMB": 4.65,
+     "moves": 13.0,
+     "errors": []
+    }
+   },
+   "schnapsen_anim@quer": {
+    "vorher": {
+     "frames": 168.0,
+     "p50": 75.0,
+     "p95": 133.35000000000002,
+     "p99": 133.4,
+     "max": 133.4,
+     "long": 63.3,
+     "fps": 13.9,
+     "cost50": 0.25,
+     "cost95": 3.45,
+     "cost_max": 10.399999999999999,
+     "cost_ms_s": 10.9,
+     "busy": 3.7,
+     "cpu": 23.1,
+     "script": 0.7,
+     "layout": 0.5,
+     "style": 0.55,
+     "nodes": 2488.5,
+     "heapMB": 4.4,
+     "moves": 38.5,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 135.0,
+     "p50": 116.6,
+     "p95": 141.7,
+     "p99": 141.7,
+     "max": 141.75,
+     "long": 70.65,
+     "fps": 11.15,
+     "cost50": 0.15000000000000002,
+     "cost95": 3.8499999999999996,
+     "cost_max": 13.65,
+     "cost_ms_s": 10.0,
+     "busy": 3.55,
+     "cpu": 21.35,
+     "script": 0.6,
+     "layout": 0.55,
+     "style": 0.55,
+     "nodes": 1334.0,
+     "heapMB": 4.1,
+     "moves": 38.5,
+     "errors": []
+    }
+   },
+   "halma_anim@quer": {
+    "vorher": {
+     "frames": 134.5,
+     "p50": 100.0,
+     "p95": 116.7,
+     "p99": 133.4,
+     "max": 141.65,
+     "long": 88.1,
+     "fps": 11.2,
+     "cost50": 0.55,
+     "cost95": 6.4,
+     "cost_max": 17.15,
+     "cost_ms_s": 20.95,
+     "busy": 3.45,
+     "cpu": 10.3,
+     "script": 0.5,
+     "layout": 0.7,
+     "style": 0.4,
+     "nodes": 2157.0,
+     "heapMB": 4.15,
+     "moves": 34.5,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 120.0,
+     "p50": 108.3,
+     "p95": 108.4,
+     "p99": 125.1,
+     "max": 133.35000000000002,
+     "long": 96.80000000000001,
+     "fps": 9.95,
+     "cost50": 0.15000000000000002,
+     "cost95": 3.9000000000000004,
+     "cost_max": 8.55,
+     "cost_ms_s": 10.8,
+     "busy": 3.15,
+     "cpu": 8.0,
+     "script": 0.75,
+     "layout": 0.6,
+     "style": 0.6,
+     "nodes": 2738.0,
+     "heapMB": 4.199999999999999,
+     "moves": 38.5,
+     "errors": []
+    }
+   }
+  },
+  "first_table": {
+   "vorher": {
+    "kalt": {
+     "table_ms": 339,
+     "images_ms": 796,
+     "first_table_ms": 796,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 475,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 191,
+     "images_ms": 621,
+     "first_table_ms": 621,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 472,
+     "atlas": 0,
+     "singles": 6
+    }
+   },
+   "vorher@quer": {
+    "kalt": {
+     "table_ms": 298,
+     "images_ms": 736,
+     "first_table_ms": 736,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 475,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 195,
+     "images_ms": 626,
+     "first_table_ms": 626,
+     "all_requests": 143,
+     "requests": 9,
+     "kb": 472,
+     "atlas": 0,
+     "singles": 6
+    }
+   },
+   "nachher": {
+    "kalt": {
+     "table_ms": 291,
+     "images_ms": 724,
+     "first_table_ms": 724,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 485,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 200,
+     "images_ms": 633,
+     "first_table_ms": 633,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 482,
+     "atlas": 0,
+     "singles": 6
+    }
+   },
+   "nachher@quer": {
+    "kalt": {
+     "table_ms": 296,
+     "images_ms": 728,
+     "first_table_ms": 728,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 485,
+     "atlas": 0,
+     "singles": 6
+    },
+    "warm": {
+     "table_ms": 214,
+     "images_ms": 642,
+     "first_table_ms": 642,
+     "all_requests": 150,
+     "requests": 10,
+     "kb": 482,
+     "atlas": 0,
+     "singles": 6
+    }
+   }
+  },
+  "trace": {
+   "vier_sieg[vorher]": {
+    "main": {
+     "UpdateLayoutTree": {
+      "count": 52,
+      "ms": 14.7,
+      "max_ms": 1.32
+     },
+     "Layout": {
+      "count": 52,
+      "ms": 6.7,
+      "max_ms": 0.93
+     },
+     "PrePaint": {
+      "count": 77,
+      "ms": 14.0,
+      "max_ms": 0.49
+     },
+     "Paint": {
+      "count": 121,
+      "ms": 23.3,
+      "max_ms": 0.69
+     },
+     "Layerize": {
+      "count": 77,
+      "ms": 12.9,
+      "max_ms": 0.57
+     },
+     "RasterTask": {
+      "count": 144,
+      "ms": 8.7,
+      "max_ms": 2.56
+     }
+    },
+    "layout_sources": {
+     "(ohne Skript: Stil/Animation)": 52
+    },
+    "not_composited": {
+     "?: stroke-width,stroke-opacity (Code 8224)": 8,
+     "?: border-bottom-color (Code 8224)": 1,
+     "?: border-left-color (Code 8224)": 1,
+     "?: border-right-color (Code 8224)": 1,
+     "?: border-top-color (Code 8224)": 1
+    }
+   },
+   "lobby_idle[vorher]": {
+    "main": {
+     "UpdateLayoutTree": {
+      "count": 15,
+      "ms": 8.0,
+      "max_ms": 1.87
+     },
+     "Layout": {
+      "count": 14,
+      "ms": 5.8,
+      "max_ms": 1.51
+     },
+     "PrePaint": {
+      "count": 24,
+      "ms": 3.6,
+      "max_ms": 0.58
+     },
+     "Paint": {
+      "count": 49,
+      "ms": 15.4,
+      "max_ms": 1.46
+     },
+     "Layerize": {
+      "count": 14,
+      "ms": 3.2,
+      "max_ms": 0.65
+     },
+     "RasterTask": {
+      "count": 51,
+      "ms": 12.6,
+      "max_ms": 5.18
+     }
+    },
+    "layout_sources": {
+     "(ohne Skript: Stil/Animation)": 14
+    },
+    "not_composited": {}
+   },
+   "vier_sieg[nachher]": {
+    "main": {
+     "UpdateLayoutTree": {
+      "count": 52,
+      "ms": 11.3,
+      "max_ms": 0.98
+     },
+     "Layout": {
+      "count": 25,
+      "ms": 4.4,
+      "max_ms": 0.94
+     },
+     "PrePaint": {
+      "count": 74,
+      "ms": 14.3,
+      "max_ms": 0.72
+     },
+     "Paint": {
+      "count": 59,
+      "ms": 10.3,
+      "max_ms": 1.13
+     },
+     "Layerize": {
+      "count": 74,
+      "ms": 6.1,
+      "max_ms": 0.48
+     },
+     "RasterTask": {
+      "count": 52,
+      "ms": 6.4,
+      "max_ms": 4.52
+     }
+    },
+    "layout_sources": {
+     "(ohne Skript: Stil/Animation)": 25
+    },
+    "not_composited": {}
+   },
+   "lobby_idle[nachher]": {
+    "main": {
+     "UpdateLayoutTree": {
+      "count": 17,
+      "ms": 7.9,
+      "max_ms": 2.18
+     },
+     "Layout": {
+      "count": 13,
+      "ms": 5.1,
+      "max_ms": 1.01
+     },
+     "PrePaint": {
+      "count": 22,
+      "ms": 2.9,
+      "max_ms": 0.34
+     },
+     "Paint": {
+      "count": 48,
+      "ms": 9.6,
+      "max_ms": 1.19
+     },
+     "Layerize": {
+      "count": 16,
+      "ms": 3.4,
+      "max_ms": 0.64
+     },
+     "RasterTask": {
+      "count": 39,
+      "ms": 11.9,
+      "max_ms": 4.92
+     }
+    },
+    "layout_sources": {
+     "(ohne Skript: Stil/Animation)": 13
+    },
+    "not_composited": {}
+   }
+  }
+ },
+ "lauf_b_4_wdh": {
+  "name": "n9_vergleich_b",
+  "variants": [
+   ""
+  ],
+  "forms": [
+   "hoch",
+   "quer"
+  ],
+  "profile": "Mittelklasse: CPU 4× gedrosselt (Phase B), Pixel 7",
+  "when": "2026-10-09 10:40",
+  "gpu": "metal",
+  "size": {
+   "vorher": {
+    "precache_files": 229,
+    "precache_images": 99,
+    "precache_raw_kb": 4604.2,
+    "precache_gzip_kb": 3759.9,
+    "lobby_requests": 149,
+    "lobby_raw_kb": 1589.8,
+    "lobby_gzip_kb": 813.1
+   },
+   "nachher": {
+    "precache_files": 151,
+    "precache_images": 18,
+    "precache_raw_kb": 4247.8,
+    "precache_gzip_kb": 3371.6,
+    "lobby_requests": 157,
+    "lobby_raw_kb": 1694.3,
+    "lobby_gzip_kb": 900.9
+   }
+  },
+  "scenes": {
+   "vier_sieg": {
+    "vorher": {
+     "frames": 147.0,
+     "p50": 33.3,
+     "p95": 125.0,
+     "p99": 133.35000000000002,
+     "max": 133.4,
+     "long": 30.4,
+     "fps": 24.25,
+     "cost50": 0.4,
+     "cost95": 2.95,
+     "cost_max": 5.15,
+     "cost_ms_s": 15.85,
+     "busy": 2.05,
+     "cpu": 12.95,
+     "script": 0.45,
+     "layout": 0.0,
+     "style": 0.1,
+     "nodes": 501.0,
+     "heapMB": 4.9,
+     "moves": 13.0,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 116.5,
+     "p50": 41.65,
+     "p95": 125.0,
+     "p99": 125.1,
+     "max": 133.4,
+     "long": 54.8,
+     "fps": 19.2,
+     "cost50": 0.3,
+     "cost95": 2.6500000000000004,
+     "cost_max": 4.8,
+     "cost_ms_s": 10.8,
+     "busy": 1.45,
+     "cpu": 9.100000000000001,
+     "script": 0.5,
+     "layout": 0.05,
+     "style": 0.0,
+     "nodes": 517.0,
+     "heapMB": 4.25,
+     "moves": 13.0,
+     "errors": []
+    }
+   },
+   "schnapsen_anim": {
+    "vorher": {
+     "frames": 141.5,
+     "p50": 99.94999999999999,
+     "p95": 133.3,
+     "p99": 133.4,
+     "max": 133.45,
+     "long": 84.69999999999999,
+     "fps": 11.75,
+     "cost50": 0.15000000000000002,
+     "cost95": 3.05,
+     "cost_max": 13.95,
+     "cost_ms_s": 8.75,
+     "busy": 3.0,
+     "cpu": 20.950000000000003,
+     "script": 0.7,
+     "layout": 0.25,
+     "style": 0.25,
+     "nodes": 3756.0,
+     "heapMB": 4.15,
+     "moves": 39.0,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 120.0,
+     "p50": 116.65,
+     "p95": 133.35000000000002,
+     "p99": 133.4,
+     "max": 133.4,
+     "long": 87.95,
+     "fps": 9.95,
+     "cost50": 0.2,
+     "cost95": 3.0,
+     "cost_max": 6.55,
+     "cost_ms_s": 6.5,
+     "busy": 2.95,
+     "cpu": 19.200000000000003,
+     "script": 0.7,
+     "layout": 0.4,
+     "style": 0.3,
+     "nodes": 3445.5,
+     "heapMB": 4.6,
+     "moves": 38.5,
+     "errors": []
+    }
+   },
+   "vier_sieg@quer": {
+    "vorher": {
+     "frames": 97.5,
+     "p50": 66.6,
+     "p95": 100.0,
+     "p99": 116.7,
+     "max": 133.4,
+     "long": 89.80000000000001,
+     "fps": 15.9,
+     "cost50": 0.55,
+     "cost95": 3.3,
+     "cost_max": 6.2,
+     "cost_ms_s": 17.0,
+     "busy": 2.05,
+     "cpu": 11.899999999999999,
+     "script": 0.35,
+     "layout": 0.0,
+     "style": 0.1,
+     "nodes": 702.0,
+     "heapMB": 4.45,
+     "moves": 13.0,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 98.0,
+     "p50": 58.35,
+     "p95": 100.05000000000001,
+     "p99": 133.3,
+     "max": 133.3,
+     "long": 84.65,
+     "fps": 16.2,
+     "cost50": 0.3,
+     "cost95": 3.3,
+     "cost_max": 6.05,
+     "cost_ms_s": 11.15,
+     "busy": 1.55,
+     "cpu": 7.95,
+     "script": 0.4,
+     "layout": 0.05,
+     "style": 0.1,
+     "nodes": 731.0,
+     "heapMB": 4.3,
+     "moves": 13.0,
+     "errors": []
+    }
+   },
+   "schnapsen_anim@quer": {
+    "vorher": {
+     "frames": 173.0,
+     "p50": 66.65,
+     "p95": 133.35000000000002,
+     "p99": 133.4,
+     "max": 133.5,
+     "long": 62.05,
+     "fps": 14.350000000000001,
+     "cost50": 0.2,
+     "cost95": 3.8,
+     "cost_max": 11.25,
+     "cost_ms_s": 12.65,
+     "busy": 3.95,
+     "cpu": 22.65,
+     "script": 0.7,
+     "layout": 0.5,
+     "style": 0.55,
+     "nodes": 2516.5,
+     "heapMB": 4.4,
+     "moves": 39.0,
+     "errors": []
+    },
+    "nachher": {
+     "frames": 163.0,
+     "p50": 75.0,
+     "p95": 133.4,
+     "p99": 133.4,
+     "max": 141.7,
+     "long": 62.0,
+     "fps": 13.5,
+     "cost50": 0.15000000000000002,
+     "cost95": 3.4,
+     "cost_max": 12.85,
+     "cost_ms_s": 10.2,
+     "busy": 3.75,
+     "cpu": 20.950000000000003,
+     "script": 0.7,
+     "layout": 0.5,
+     "style": 0.5,
+     "nodes": 1562.0,
+     "heapMB": 4.15,
+     "moves": 38.5,
+     "errors": []
+    }
+   }
+  },
+  "first_table": {},
+  "trace": {}
+ }
+}
