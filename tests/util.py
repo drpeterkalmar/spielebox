@@ -17,7 +17,8 @@ DEVICES = {'hoch': PIXEL7_HOCH, 'quer': PIXEL7_QUER, 'desktop': DESKTOP, 'quer_t
 # Berechtigung nur die Standardroute (VPN-Schnittstelle utun) – darüber erreichen sich zwei Kontexte nicht einmal
 # innerhalb derselben Seite. Mit erteilter (Schein-)Berechtigung nutzt Chrome alle Schnittstellen inkl. LAN/Loopback.
 # Die App selbst braucht keine Kamera; das betrifft nur den Testaufbau (Page(..., rtc_all=True)).
-ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist",
+# --mute-audio: Test-Browser immer stumm (Peter 08.10.: der Mac darf nicht bimmeln)
+ARGS = ["--use-angle=metal", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--mute-audio",
         "--disable-features=WebRtcHideLocalIpsWithMdns", "--allow-loopback-in-peer-connection",
         "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]
 # Linux (omen16): kein Metal – ANGLE über Vulkan bzw. SwiftShader (die Spielebox zeichnet SVG, WebGL braucht sie nicht)

@@ -22,8 +22,14 @@ SEED_JS = """(() => { let a = 0x5eed1234 >>> 0; const r = () => { a = (a + 0x6d2
   Math.random = r; const g = crypto.getRandomValues.bind(crypto);
   crypto.getRandomValues = (arr) => { for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(r() * 256); return arr; }; })();"""
 
-FRAMES_JS = """(() => { const f = window.__ft = { d: [], last: 0, on: true };
-  const loop = (ts) => { if (f.last) f.d.push(ts - f.last); f.last = ts; if (f.on) requestAnimationFrame(loop); };
+# Bildabstände (rAF) und Bildkosten: Zeit vom Start des Mess-Callbacks bis nach dem Rendern dieses Bildes (Nachricht,
+# die im Callback abgeschickt wird, läuft erst nach Stil/Layout/Malen) = Hauptthread-Arbeit je Bild. Die Messschleife
+# startet vor dem Effekt, ihr Callback läuft deshalb als erster im Bild. Die Bildkosten hängen nicht vom Bildtakt ab –
+# wichtig am Mac mit gesperrtem Bildschirm: dann drosselt macOS die Zeitgeber, rAF kommt nur noch alle 70–150 ms.
+FRAMES_JS = """(() => { const f = window.__ft = { d: [], c: [], last: 0, t0: 0, on: true };
+  const ch = new MessageChannel(); ch.port1.onmessage = () => { f.c.push(performance.now() - f.t0); };
+  const loop = (ts) => { if (f.last) f.d.push(ts - f.last); f.last = ts; f.t0 = performance.now(); ch.port2.postMessage(0);
+    if (f.on) requestAnimationFrame(loop); };
   requestAnimationFrame(loop); })()"""
 
 # eigener Platz spielt automatisch (Hold'em: mitgehen/checken, damit die Hand weiterläuft)
@@ -120,7 +126,7 @@ def run_scene(b, base, name, fixture, dur, kind, q, form='hoch'):
     time.sleep(dur)
     wall = time.time() - t0
     m1 = {m['name']: m['value'] for m in cdp.send('Performance.getMetrics')['metrics']}
-    d = P.ev("(() => { window.__ft.on = false; return window.__ft.d; })()")
+    d, c = P.ev("(() => { window.__ft.on = false; return [window.__ft.d, window.__ft.c]; })()")
     cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})
     nm = P.ev("__box.table() ? __box.table().nmoves : null")
     errs = P.app_errors()
@@ -129,6 +135,8 @@ def run_scene(b, base, name, fixture, dur, kind, q, form='hoch'):
     return {
         'frames': len(d), 'p50': round(pct(d, 50), 2), 'p95': round(pct(d, 95), 2), 'p99': round(pct(d, 99), 2), 'max': round(max(d) if d else 0, 1),
         'long': round(sum(1 for x in d if x > 33.4) / max(1, len(d)) * 100, 1), 'fps': round(len(d) / wall, 1),
+        'cost50': round(pct(c, 50), 2), 'cost95': round(pct(c, 95), 2), 'cost_max': round(max(c) if c else 0, 1),
+        'cost_ms_s': round(sum(c) / wall, 1),
         'busy': round(busy['TaskDuration'] * 100, 1), 'cpu': round(cpu * 100, 1), 'script': round(busy['ScriptDuration'] * 100, 1),
         'layout': round(busy['LayoutDuration'] * 100, 1), 'style': round(busy['RecalcStyleDuration'] * 100, 1),
         'nodes': m1.get('Nodes'), 'heapMB': round(m1.get('JSHeapUsedSize', 0) / 1e6, 1), 'moves': nm, 'errors': errs[:3]
@@ -177,7 +185,8 @@ FIRST_TABLE_JS = """async () => {
   while (!(window.__box && __box.table && __box.table() && __box.state().screen === 'table')) await new Promise((r) => setTimeout(r, 10));
   const tTable = performance.now();
   await new Promise((r) => setTimeout(r, 400));   // Bilder, die der Tisch gleich anfragt
-  const res = performance.getEntriesByType('resource').filter((e) => /assets\\//.test(e.name));
+  const all = performance.getEntriesByType('resource');
+  const res = all.filter((e) => /assets\\//.test(e.name));
   const imgs = await Promise.all([...document.querySelectorAll('svg.board image, svg.deko-layer image')].map((im) => {
     const href = im.getAttribute('href') || '';
     if (!href || href.startsWith('blob:') || href.startsWith('data:')) return 0;
@@ -185,7 +194,7 @@ FIRST_TABLE_JS = """async () => {
   }));
   const tImg = Math.max(0, ...res.map((e) => e.responseEnd), ...imgs);
   return { table_ms: Math.round(tTable), images_ms: Math.round(tImg), first_table_ms: Math.round(Math.max(tTable, tImg)),
-           requests: res.length, kb: Math.round(res.reduce((n, e) => n + (e.transferSize || e.encodedBodySize || 0), 0) / 1024),
+           all_requests: all.length, requests: res.length, kb: Math.round(res.reduce((n, e) => n + (e.transferSize || e.encodedBodySize || 0), 0) / 1024),
            atlas: res.filter((e) => /cards\\/atlas\\//.test(e.name)).length, singles: res.filter((e) => /cards\\/(de|fr)\\//.test(e.name)).length };
 }"""
 
@@ -309,7 +318,7 @@ if __name__ == '__main__':
                 med = {k: (statistics.median([x[k] for x in rs]) if isinstance(rs[0][k], (int, float)) and rs[0][k] is not None else rs[0][k]) for k in rs[0]}
                 med['runs'] = rs
                 out['scenes'][key][v] = med
-                print(f"  {key:12s} [{v or 'Standard':7s}] p50 {med['p50']:6.2f} ms  p95 {med['p95']:6.2f} ms  max {med['max']:6.1f}  lang {med['long']:4.1f} %  "
+                print(f"  {key:12s} [{v or 'Standard':7s}] Bildkosten p50 {med['cost50']:5.2f} p95 {med['cost95']:5.2f} max {med['cost_max']:5.1f} ms  Abstand p50 {med['p50']:6.2f} ms  p95 {med['p95']:6.2f} ms  max {med['max']:6.1f}  lang {med['long']:4.1f} %  "
                       f"Last {med['busy']:5.1f} %  CPU ges. {med['cpu']:5.1f} % (Skript {med['script']:4.1f}, Layout {med['layout']:4.1f}, Stil {med['style']:4.1f})  Züge {med['moves']}  {med['errors'] or ''}", flush=True)
         if want_trace:
             for v in variants:
