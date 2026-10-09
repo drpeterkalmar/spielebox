@@ -18,6 +18,7 @@ import * as store from '../store.js';
 import { onDeko } from './deko.js';
 import { clear as clearFx } from './fx.js';
 import { celebrate } from './sieg.js';
+import { setSpriteScale } from './sprites.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -76,6 +77,15 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const pTop2 = h('div', { class: 'pbar top' });
   const pBot2 = h('div', { class: 'pbar bottom' });
   const boardWrap = h('div', { class: 'board-wrap' });
+  // n9: Maßstab des Bretts (Gerätepixel je Brett-Einheit) für Stein-Bildchen in passender Größe (sprites.js). Der
+  // ResizeObserver meldet nach dem Layout – kein erzwungenes Layout beim Zeichnen.
+  const boardRO = typeof ResizeObserver === 'function' ? new ResizeObserver((ents) => {
+      const svg = boardWrap.querySelector('svg.board');
+      const vb = svg && svg.viewBox && svg.viewBox.baseVal;
+      const cr = ents[0] && ents[0].contentRect;
+      if (vb && vb.width && vb.height && cr && cr.width) setSpriteScale(Math.min(cr.width / vb.width, cr.height / vb.height) * (devicePixelRatio || 1));
+  }) : null;
+  if (boardRO) boardRO.observe(boardWrap);
   // Status-Zeile: antippen zeigt die letzten Ereignisse
   const statusTextEl = h('span', { class: 'status-t' });
   const statusEl = h('button', { class: 'status', 'aria-live': 'polite', title: 'Antippen: Was ist passiert?', data: { act: 'events' }, on: { click: () => openEvents() } },
@@ -158,6 +168,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     });
     boardWrap.appendChild(overlay);
     boardWrap.appendChild(evalBar);
+    // neues Brett (andere viewBox): Maßstab nach dem nächsten Layout neu messen (observe meldet sofort einmal)
+    if (boardRO) { boardRO.unobserve(boardWrap); boardRO.observe(boardWrap); }
     return true;
   }
 
@@ -623,7 +635,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (!on) { if (supported && !evalBtn.textContent) evalBtn.textContent = 'Wer gewinnt? …'; return; }
     const cfg = EVAL[evalRes.game];
     const p = Math.max(0, Math.min(1, evalRes.p));
-    evalBar.firstChild.style.height = `${(p * 100).toFixed(1)}%`;
+    evalBar.firstChild.style.transform = `scaleY(${p.toFixed(3)})`;   // n9: nur Compositor (statt height)
     if (cfg.label) { evalBtn.textContent = cfg.label(evalRes); evalBtn.title = cfg.title || ''; return; }
     const x = evalRes.x;
     const ax = Math.abs(x).toFixed(cfg.digits), zero = Number(ax) === 0;   // −0,3 → „±0“, nicht „−0“

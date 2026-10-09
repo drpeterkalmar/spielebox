@@ -167,7 +167,8 @@ def maumau(P, form):
         me = P.state()['mySeat']
         ok_cards = set(g['hands'][me]) | set(g['pile'])
         shown = set(P.ev("[...document.querySelectorAll('.board-maumau [data-card]')].map(e => e.dataset.card)"))
-        hrefs = P.ev("[...document.querySelectorAll('.board-maumau image')].map(e => e.getAttribute('href'))")
+        # Atlas (n9): Bildpfad nennt keine Karte – die Karte steht dann nur in data-card (oben geprüft)
+        hrefs = P.ev("[...document.querySelectorAll('.board-maumau image')].map(e => e.getAttribute('href')).filter(h => !/\\/atlas\\//.test(h))")
         bad = [x for x in shown if x not in ok_cards] + [h for h in hrefs if not any(cc in h for cc in ok_cards)]
         if bad: c.ok(False, f'{form}: fremde Karte im Bild {bad[:3]}')
     c.ok(True, f'{form}: Mau-Mau – {played} Karte(n) per Doppeltipp gelegt, sonst gezogen; nie eine fremde Karte im Bild')

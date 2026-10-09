@@ -78,7 +78,7 @@ with sync_playwright() as pw:
     if not old: c.ok(first >= n_pre, f'erste Installation holt die Bilder ({first} Abrufe unter assets/)')
 
     # Update: neue Version, ein vorab geladenes Bild geändert
-    changed = 'assets/cards/de/HA@2x.webp'
+    changed = 'assets/cards/atlas/de-a@2x.webp'   # vorab geladen (n9: Atlanten statt Einzelkarten)
     with open(os.path.join(DST, changed), 'ab') as f:
         f.write(b'\0')
     nh = hashlib.sha256(open(os.path.join(DST, changed), 'rb').read()).hexdigest()[:10]
@@ -98,7 +98,7 @@ with sync_playwright() as pw:
     P.ctx.set_offline(True)
     P.pg.reload()
     P.pg.wait_for_function('window.__box && window.__box.ready', timeout=30000)
-    ok = P.ev("Promise.all(['assets/cards/de/HA@2x.webp', 'assets/cards/fr/AS@2x.webp', 'assets/wood/light.webp', 'assets/pieces/wK.svg'].map((u) => fetch(u).then((r) => r.ok, () => false)))")
+    ok = P.ev("Promise.all(['assets/cards/atlas/de-a@2x.webp', 'assets/cards/atlas/fr-b@2x.webp', 'assets/wood/light.webp', 'assets/pieces/wK.svg'].map((u) => fetch(u).then((r) => r.ok, () => false)))")
     c.ok(all(ok), f'offline: Karten, Holz, Figuren aus dem Cache {ok}')
     P.ev("__box.local('bot', 'schnapsen', {}, 'weiss', 1)")
     time.sleep(1.0)

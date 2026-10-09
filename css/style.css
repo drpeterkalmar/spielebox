@@ -51,8 +51,12 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
 .btn.big small { font-weight: 500; font-size: 13.5px; opacity: .8; }
 .btn.small { min-height: var(--tap); padding: 6px 14px; font-size: 15px; }
 .btn.link { background: none; border: none; box-shadow: none; color: inherit; text-decoration: underline; text-underline-offset: 3px; font-weight: 500; padding: 8px 10px; }
-.btn.pulse { animation: pulse 1.6s ease-in-out infinite; }
-@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(228,165,60,.7); } 50% { box-shadow: 0 0 0 8px rgba(228,165,60,0); } }
+/* n9 (nur Compositor): Ring als eigenes Pseudo-Element, das sich per transform/opacity ausdehnt – statt box-shadow
+   zu animieren (das malte den Knopf in jedem Frame neu) */
+.btn.pulse { position: relative; }
+.btn.pulse::after { content: ''; position: absolute; inset: -1.5px; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 4px rgba(228,165,60,.7); opacity: 0; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 0; transform: scale(1); } 15% { opacity: 1; transform: scale(1); } 60% { opacity: 0; transform: scale(1.06, 1.18); } }
 .icon-btn {
   width: var(--tap); height: var(--tap); flex: none; border-radius: 12px; border: none; background: rgba(255,255,255,.08);
   color: inherit; font-size: 24px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
@@ -87,6 +91,9 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
   flex-direction: column; align-items: center; gap: 6px; min-height: 150px; text-align: center;
 }
 .game:active { transform: scale(.98); }
+/* n9: jede Kachel rechnet und malt für sich (Effekte/Animationen lösen keine Neuberechnung der ganzen Lobby aus);
+   Kacheln außerhalb des Bildes werden erst gezeichnet, wenn sie hereinscrollen (Größe bis dahin geschätzt) */
+.games > .game { contain: layout paint style; content-visibility: auto; contain-intrinsic-size: auto 172px; }
 .game .mini { width: 74px; height: 74px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,.25); }
 .game-t { font-weight: 750; font-size: 19px; }
 .game-sub { font-size: 13.5px; color: var(--muted); }
@@ -132,9 +139,9 @@ h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
 .sw-label { font-weight: 650; }
 .sw-sub { font-size: 13.5px; color: var(--muted); }
 .sw-knob { width: 50px; height: 30px; border-radius: 15px; background: #cdbfa8; position: relative; flex: none; transition: background .15s; }
-.sw-knob::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .15s; }
+.sw-knob::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .15s; }
 .switch.on .sw-knob { background: var(--ok); }
-.switch.on .sw-knob::after { left: 23px; }
+.switch.on .sw-knob::after { transform: translateX(20px); }
 .bot-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
 .bot-row .btn { min-width: 96px; min-height: 56px; }
 .menu-item { min-height: 54px; border: none; border-bottom: 1px solid var(--line); background: none; text-align: left; padding: 0 6px; font-weight: 600; font-size: 17.5px; }
@@ -177,7 +184,7 @@ body[data-screen='table'] .toast { max-width: min(92vw, 560px); }
 /* Hochformat: Brett so breit wie möglich, Spielerleisten direkt darüber/darunter */
 .board-wrap { position: relative; flex: 0 1 auto; width: 100%; aspect-ratio: 1 / 1; min-height: 0; }
 .board-wrap > svg.board { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; filter: drop-shadow(0 8px 16px rgba(0,0,0,.4)); }
-.pbar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 14px; margin: 4px 2px; background: rgba(0,0,0,.18); min-height: 52px; border: 2px solid transparent; transition: background .2s, border-color .2s; }
+.pbar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 14px; margin: 4px 2px; background: rgba(0,0,0,.18); min-height: 52px; border: 2px solid transparent; transition: background .2s, border-color .2s; contain: layout paint style; }
 .pbar.active { background: rgba(228,165,60,.22); border-color: rgba(240,190,90,.85); }
 .stone-ico { width: 26px; height: 26px; flex: none; }
 .pb-text { flex: 1; min-width: 0; }
@@ -186,7 +193,7 @@ body[data-screen='table'] .toast { max-width: min(92vw, 560px); }
 .pb-score { font-weight: 800; font-size: 20px; min-width: 32px; text-align: right; }
 .tag { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 9px; margin-left: 6px; vertical-align: 2px; }
 .tag.off { background: rgba(239,91,79,.25); color: #ffd4cf; }
-.tside { padding: 2px 10px 8px; display: flex; flex-direction: column; gap: 6px; }
+.tside { padding: 2px 10px 8px; display: flex; flex-direction: column; gap: 6px; contain: layout style; }
 .side-players { display: none; }
 .status { font: inherit; color: inherit; background: none; border: none; padding: 2px 8px; border-radius: 10px; font-size: 19px; font-weight: 750; text-align: center; min-height: 48px; cursor: pointer; }
 .status:active { background: rgba(0,0,0,.15); }
@@ -225,13 +232,14 @@ body[data-screen='table'] .toast { max-width: min(92vw, 560px); }
 .board .hint-can { fill: none; stroke: rgba(40, 175, 105, .75); stroke-width: 5; stroke-dasharray: 8 8; }
 .board .hint-sel { fill: rgba(255, 224, 120, .2); stroke: #ffd24a; stroke-width: 8; }
 .board .hint-take { fill: none; stroke: #e5483b; stroke-width: 8; animation: take 1s ease-in-out infinite; }
+/* n9: Puls nur über opacity (Strichstärke animieren hieß SVG-Layout und Neumalen in jedem Frame) */
 .board .hint-x { stroke: #e5483b; stroke-width: 9; stroke-linecap: round; fill: none; }
-@keyframes take { 50% { stroke-width: 3; stroke-opacity: .5; } }
+@keyframes take { 50% { opacity: .4; } }
 .board .ghost { opacity: .6; }
 .board .pc.dim { opacity: .35; }
 .board .coord { fill: rgba(255, 236, 206, .85); font: 700 21px system-ui, sans-serif; text-anchor: middle; }
 .board .sqnum { fill: rgba(255, 245, 225, .5); font: 600 17px system-ui, sans-serif; }
-.board .pc { will-change: transform; }
+/* n9: will-change setzt svg.js nur, solange ein Stein/eine Karte animiert wird (nicht dauerhaft auf allen) */
 
 /* ---------- Querformat (Handy quer, Tablet, Desktop) ---------- */
 @media (orientation: landscape) {
@@ -289,9 +297,9 @@ input, select, textarea { font-size: max(16px, 1em); }
 
 /* Kartentisch */
 .board .felt { fill: #1d5a3f; stroke: rgba(0,0,0,.35); stroke-width: 4; }
-.board-cards .card { will-change: transform; }
 .board-cards .card.dim { opacity: .5; }
-.board-cards .card.sel image, .board-cards .card.sel rect:last-of-type { filter: drop-shadow(0 0 10px #ffd24a); }
+/* Kartenbild = <image> (Einzeldatei) oder <svg class=card-face> (Atlas, n9): Leuchten am Ausschnitt, nicht am ganzen Atlas */
+.board-cards .card.sel > image, .board-cards .card.sel > .card-face, .board-cards .card.sel > rect:last-of-type { filter: drop-shadow(0 0 10px #ffd24a); }
 .board-cards .card.done { opacity: .82; }
 .board .card-rank { font-family: Georgia, 'Times New Roman', serif; font-weight: 800; text-anchor: middle; }
 .board .card-fig { font-family: Georgia, serif; font-weight: 800; text-anchor: middle; }
@@ -385,7 +393,7 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 
 /* Wer gewinnt? */
 .evalbar { position: absolute; left: 0; top: 6%; bottom: 6%; width: 7px; border-radius: 4px; background: #2b2320; overflow: hidden; z-index: 3; pointer-events: none; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
-.evalbar .evalfill { position: absolute; left: 0; right: 0; bottom: 0; height: 50%; background: #f3ead8; transition: height .4s ease; }
+.evalbar .evalfill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%; background: #f3ead8; transform-origin: 50% 100%; transform: scaleY(.5); transition: transform .4s ease; }
 .evalbar.hidden, .eval-btn.hidden { display: none; }
 .eval-btn { align-self: center; border: none; background: rgba(0,0,0,.2); color: #fbf3e4; border-radius: 12px; min-height: 48px; padding: 4px 14px; font-weight: 650; font-size: 14.5px; font-variant-numeric: tabular-nums; }
 @media (orientation: landscape) { .eval-btn, .fair-badge { align-self: flex-start; } }
@@ -489,8 +497,11 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .wg-cat.can .wg-val { color: #1c7c4a; font-weight: 800; }
 .wg-cat.best { border-color: #2fbf71; box-shadow: 0 0 0 2px rgba(47, 191, 113, .45); }
 .wg-cat.sel { border-color: #ffd24a; background: #ffe9a8; box-shadow: 0 0 0 3px rgba(255, 210, 74, .6); }
-.wg-cat.just { animation: wg-just 1.6s ease-out 2; }
-@keyframes wg-just { 30% { background: rgba(255, 210, 74, .7); } }
+/* z-index: Überlagerung über dem Hintergrund, aber unter Text und Wert (wie vorher die Hintergrundfarbe) */
+.wg-cat.just { position: relative; z-index: 0; }
+.wg-cat.just::after { content: ''; position: absolute; inset: -2px; z-index: -1; border-radius: inherit; background: rgba(255, 210, 74, .7); pointer-events: none;
+  opacity: 0; animation: wg-just 1.6s ease-out 2; }
+@keyframes wg-just { 30% { opacity: 1; } }
 .wg-cat[disabled] { opacity: 1; }
 .wg-name { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wg-val { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -564,7 +575,7 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board .mm-badge { fill: #2b1c0d; stroke: #f0c04d; stroke-width: 4; }
 .board .mm-badge.pen { fill: #8a2018; }
 .board .mm-badge-t { font: 800 32px system-ui, sans-serif; fill: #fff6dd; text-anchor: middle; }
-.board-cards .card.drawn image { filter: drop-shadow(0 0 12px #6fe3a4); }
+.board-cards .card.drawn > image, .board-cards .card.drawn > .card-face { filter: drop-shadow(0 0 12px #6fe3a4); }
 .pbar.top.solo { display: none; }
 table.wg-block td, table.wg-block th { padding: 3px 5px; font-size: 14px; }
 
@@ -668,7 +679,7 @@ table.wg-block td, table.wg-block th { padding: 3px 5px; font-size: 14px; }
 .board .he-seat.out { opacity: .38; }
 .board .he-turn { fill: rgba(255, 210, 74, .16); stroke: #ffd24a; stroke-width: 6; }
 .board circle.he-turn { animation: he-pulse 1.4s ease-in-out infinite; }
-@keyframes he-pulse { 50% { stroke-opacity: .35; } }
+@keyframes he-pulse { 50% { opacity: .45; } }
 .board .he-seat.win .he-av { stroke: #ffd24a; stroke-width: 7; }
 .board .he-label rect { fill: rgba(20, 14, 8, .82); stroke: rgba(255, 236, 190, .5); stroke-width: 2; }
 .board .he-label text { font: 800 25px system-ui, sans-serif; fill: #fff6e0; text-anchor: middle; }
@@ -795,7 +806,11 @@ html.deko .board .he-seat.folded .dk-av { opacity: .45; }
 html.deko .board .he-room { fill: #1c3128; }
 
 /* Kein endloses Pulsieren im Leerlauf: Hinweise pulsieren ein paar Mal und bleiben dann ruhig stehen */
-html.deko .board .v4-win { animation: take 1s ease-in-out 3; filter: drop-shadow(0 0 6px rgba(255, 246, 200, .9)); }
+html.deko .board .v4-win { animation: take 1s ease-in-out 3; }
+/* n9: Leuchten ohne Filter (TODO Heavy-Job: am Bild mit dem alten drop-shadow vergleichen, Breiten/Deckkraft abstimmen) */
+html.deko .board .v4-win-glow { fill: none; stroke: #fff6c8; pointer-events: none; animation: take 1s ease-in-out 3; }
+html.deko .board .v4-win-glow.g0 { stroke-width: 25; stroke-opacity: .16; }
+html.deko .board .v4-win-glow.g1 { stroke-width: 16; stroke-opacity: .3; }
 html.deko .board .hint-take { animation: take 1s ease-in-out 4; }
 html.deko .board circle.he-turn { animation: he-pulse 1.4s ease-in-out 3; }
 html.deko .board .mark-sq.hint { animation: take 1.2s ease-in-out 4; }

@@ -3,6 +3,7 @@
 // (Gewinnersteine hüpfen, König kippt um, Chips regnen …, siehe celebrate() der Ansichten). Dauer ≈ 2,5 s, danach
 // steht alles still. Bei reduzierter Bewegung oder abgeschalteten Effekten: nichts davon.
 import { DEKO } from './deko.js';
+import { trackWillChange } from './svg.js';
 import { confetti, cannons, rain, stars } from './fx.js';
 
 // Steine einer Liste der Reihe nach kurz hüpfen lassen (Elemente mit place()-Lage)
@@ -11,8 +12,8 @@ export function hopWave(els, { delay = 0, step = 70, up = 1.22 } = {}) {
   els.forEach((el, k) => {
     if (!el || !el.animate || el.dataset.x === undefined) return;
     const t = `translate(${el.dataset.x}px, ${el.dataset.y}px)`;
-    el.animate([{ transform: `${t} scale(1)` }, { transform: `${t} scale(${up})`, offset: 0.45, easing: 'ease-in' }, { transform: `${t} scale(.96)`, offset: 0.8 }, { transform: `${t} scale(1)` }],
-      { duration: 520, delay: delay + k * step, easing: 'ease-out' });
+    trackWillChange(el, el.animate([{ transform: `${t} scale(1)` }, { transform: `${t} scale(${up})`, offset: 0.45, easing: 'ease-in' }, { transform: `${t} scale(.96)`, offset: 0.8 }, { transform: `${t} scale(1)` }],
+      { duration: 520, delay: delay + k * step, easing: 'ease-out' }));
   });
 }
 

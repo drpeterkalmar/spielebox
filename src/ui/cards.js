@@ -4,14 +4,23 @@
 // bzw. eigene Karten. Rücken: eigenes Muster.
 import { s } from './svg.js';
 import { DEKO } from './deko.js';
+import { useAtlas, atlasCell, svgSprite, singleUrl, hiDpi } from './cardsprite.js';
 
 export const CARD_W = 180, CARD_H = 290;
 // Fotos/Grafiken werden erst benutzt, wenn sie im Repo liegen (Liste von tools/cards → assets/cards/*.json)
 export const ASSETS = { de: true, fr: true };
 const FR_RATIO = 697 / 480;   // Seitenverhältnis der Byron-Knoll-Karten
 
-// Handy-Bildschirme (≥ 2 dppx): doppelt aufgelöste Karten
-const hiDpi = () => typeof devicePixelRatio === 'number' && devicePixelRatio >= 1.5;
+
+// Kartenbild (Mitte = 0,0): aus dem Atlas (n9: wenige große Bilder statt einer Datei je Karte) als <svg> mit viewBox
+// auf den Ausschnitt, sonst (?atlas=0, unbekannte Karte) die Einzeldatei wie bisher. Gleiche Lage und Größe.
+function face(deck, card, w, h) {
+  const hi = hiDpi();
+  const c = useAtlas() ? atlasCell(deck, card, hi) : null;
+  if (!c) return s('image', { href: singleUrl(deck, card, hi), x: -w / 2, y: -h / 2, width: w, height: h, preserveAspectRatio: 'none' });
+  const sp = svgSprite(c, -w / 2, -h / 2, w, h);
+  return s('svg', sp.outer, s('image', sp.inner));
+}
 
 export function frHeight(w = CARD_W) {
   return w * (ASSETS.fr ? FR_RATIO : CARD_H / CARD_W);
@@ -62,7 +71,7 @@ export function deCard(card, w = CARD_W) {
   if (ASSETS.de) {
     if (DEKO.on) softShadow(g, w, h, w * 0.07);
     else g.append(s('rect', { x: -w / 2 + 3, y: -h / 2 + 6, width: w, height: h, rx: w * 0.07, fill: 'rgba(0,0,0,.28)' }));
-    g.append(s('image', { href: `assets/cards/de/${card}${hiDpi() ? '@2x' : ''}.webp`, x: -w / 2, y: -h / 2, width: w, height: h, preserveAspectRatio: 'none' }));
+    g.append(face('de', card, w, h));
     if (DEKO.on) gloss(g, w, h, w * 0.07);
     return g;
   }
@@ -115,7 +124,7 @@ export function frCard(card, w = CARD_W) {
   if (ASSETS.fr) {
     if (DEKO.on) softShadow(g, w, h, w * 0.06);
     else g.append(s('rect', { x: -w / 2 + 3, y: -h / 2 + 6, width: w, height: h, rx: w * 0.06, fill: 'rgba(0,0,0,.28)' }));
-    g.append(s('image', { href: `assets/cards/fr/${card}${hiDpi() ? '@2x' : ''}.webp`, x: -w / 2, y: -h / 2, width: w, height: h, preserveAspectRatio: 'none' }));
+    g.append(face('fr', card, w, h));
     if (DEKO.on) gloss(g, w, h, w * 0.06);
     return g;
   }

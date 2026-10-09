@@ -1,6 +1,7 @@
 // Hold'em-Hilfe: kurze Regel-Karte mit Hand-Rangliste (Kartenbilder) und „Wie setze ich?“ in einfacher Sprache.
 // Hinweis: nur Spielchips, kein Geld. (DOM, wird von Lobby und Tisch-Menü benutzt.)
 import { h } from '../../ui/dom.js';
+import { cardImgAttrs, hiDpi } from '../../ui/cardsprite.js';
 import { HANDS_PER_LEVEL, fmtChips } from './engine.js';
 
 const RANKING = [
@@ -16,8 +17,7 @@ const RANKING = [
   ['Höchste Karte', 'Nichts davon – die höchste Karte zählt', ['AC', 'QD', '8H', '5S', '2C']]
 ];
 
-const hiDpi = () => typeof devicePixelRatio === 'number' && devicePixelRatio >= 1.5;
-const cardImg = (c) => h('img', { class: 'he-rank-card', src: `assets/cards/fr/${c}${hiDpi() ? '@2x' : ''}.webp`, alt: c, width: 34, height: 49 });
+const cardImg = (c) => h('img', { class: 'he-rank-card', ...cardImgAttrs('fr', c, hiDpi()), alt: c, width: 34, height: 49 });
 
 export function handRanking() {
   return h('ol', { class: 'he-ranking', data: { ranking: '' } }, ...RANKING.map(([name, sub, cards]) =>

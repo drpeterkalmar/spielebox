@@ -7,6 +7,7 @@ import { HOLES, CAMP, CAMPS, CAMP_OF, OPPOSITE } from './engine.js';
 import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap, ball } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
 import { boardLayers } from '../../ui/deko.js';
+import { useMaterial, MAT_LIGHT } from '../../ui/material.js';
 import { hopWave } from '../../ui/sieg.js';
 import { SEAT_COLORS, SEAT_SYMBOLS } from '../../ui/seatcolors.js';
 
@@ -72,7 +73,8 @@ export function createBoard(host, { onMove, onHint }) {
       const col = seat >= 0 ? SEAT_COLORS[seat] : tseat >= 0 ? SEAT_COLORS[tseat] : null;
       if (col) gB.append(s('polygon', { points: poly(grow(campPoly(k), -24)), fill: col, opacity: seat >= 0 ? 0.3 : 0.15 }));
     }
-    if (L) gB.append(s('circle', { cx: 0, cy: 0, r: 760, fill: 'url(#dk-vig)', opacity: 0.6 }));
+    // n9 Material (?material=1): vorgebackene Licht-Ebene statt Vignetten-Verlauf (TODO Heavy-Job: Deckkraft am Bild)
+    if (L) gB.append(s('circle', { cx: 0, cy: 0, r: 760, ...(useMaterial() ? MAT_LIGHT : { fill: 'url(#dk-vig)', opacity: 0.6 }) }));
     const holes = s('g', { class: 'holes' });
     HOLES.forEach((_, i) => {
       const [x, y] = xy(i);

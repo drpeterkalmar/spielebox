@@ -77,7 +77,11 @@ export function createBoard(host, { onMove, onHint }) {
     if (lm !== null && gs.cols[lm] && gs.cols[lm].length) gTop.append(s('circle', { cx: cx(lm), cy: cy(gs.cols[lm].length - 1), r: 12, class: 'v4-last' }));
     // Gewinnreihe
     if (gs.win && gs.win.line) {
-      for (const [c, r] of gs.win.line) gTop.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 2, class: 'v4-win' }));
+      for (const [c, r] of gs.win.line) {
+        // Deko: Leuchten als zwei breite, blasse Ringe darunter (n9: kein drop-shadow-Filter auf animierten Ringen)
+        if (DEKO.on) for (const k of [0, 1]) gTop.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 2, class: `v4-win-glow g${k}` }));
+        gTop.append(s('circle', { cx: cx(c), cy: cy(r), r: R + 2, class: 'v4-win' }));
+      }
     }
     if (!legal) { setHint(''); return; }
     const cols = legal.map((m) => m.col);

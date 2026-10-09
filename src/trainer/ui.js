@@ -296,7 +296,7 @@ export function showTrainer(root, nav) {
       evalBtn.classList.toggle('pending', evalOn() && !evalRes);
       if (!evalOn()) return;
       if (!evalRes) { evalBtn.textContent = 'Wer gewinnt? …'; return; }
-      evalBar.firstChild.style.height = `${(Math.max(0, Math.min(1, evalRes.p)) * 100).toFixed(1)}%`;
+      evalBar.firstChild.style.transform = `scaleY(${Math.max(0, Math.min(1, evalRes.p)).toFixed(3)})`;   // n9: nur Compositor
       if (evalRes.text) { evalBtn.textContent = `Wer gewinnt? ${evalRes.text}`; return; }
       const cfg = EVAL.schach, x = evalRes.x;
       const ax = Math.abs(x).toFixed(cfg.digits), zero = Number(ax) === 0;
