@@ -2,15 +2,17 @@
 // Filz mit Licht von oben, gebackener weicher Schatten. Alles wird einmal gezeichnet und liegt in der Ebene unter dem
 // Brett (deko.js boardLayers) – Zug-Animationen rastern es nicht neu. Licht kommt immer von links oben.
 import { s } from './svg.js';
-import { urlFlag } from './flags.js';
+import { useMaterial, MATERIAL_DEFAULT } from './flags.js';
 
-// n9 (Audit #5): eine vorgebackene Licht-Ebene (Licht links oben + Vignette + Mikro-Normalen, tools/bake_material.py)
-// ersetzt den Vignetten-Verlauf auf Spielfläche und Filz, dazu eine feine Fase an der Rahmenkante. ?material=0|1.
-// Standard aus, bis der Heavy-Job es am Bild abgenommen hat (A/B-Collage) – dann MATERIAL_DEFAULT = true.
-export const MATERIAL_DEFAULT = false;
-export const useMaterial = () => urlFlag('material', MATERIAL_DEFAULT);
+// n9 (Audit #5): eine vorgebackene Licht-Ebene (Licht links oben + leichte Vignette + Mikro-Normalen,
+// tools/bake_material.py) liegt über der Randabdunklung von Spielfläche und Filz, dazu eine feine Fase an der
+// Rahmenkante. ?material=0 schaltet beides ab (Standard an, flags.js).
+export { useMaterial, MATERIAL_DEFAULT };
 export const MAT_LIGHT = { fill: 'url(#dk-matlight)', style: 'mix-blend-mode: soft-light', class: 'dk-matlight' };
 const LIGHT = MAT_LIGHT;
+
+// Licht-Ebene (nur mit Material) über der Randabdunklung: Licht links oben + feine Struktur, eine Fläche
+export const matLight = (x, y, w, h, rx) => (useMaterial() ? [rr(x, y, w, h, rx, LIGHT)] : []);
 
 // gebackener Schatten unter einer Form (Kopie, schwarz, nach unten versetzt, weichgezeichnet)
 export function shadowUnder(g, shape, { dy = 12, op = 0.5, soft = 'dk-soft' } = {}) {
@@ -43,7 +45,8 @@ export function woodFrame(g, x, y, w, h, rx, { shadow = true, fill = 'url(#sb-wo
 export function inset(g, x, y, w, h, rx, fill) {
   if (fill) g.append(rr(x, y, w, h, rx, { fill }));
   g.append(
-    rr(x, y, w, h, rx, useMaterial() ? LIGHT : { fill: 'url(#dk-vig)' }),
+    rr(x, y, w, h, rx, { fill: 'url(#dk-vig)' }),
+    ...matLight(x, y, w, h, rx),
     rr(x, y, w, h, rx, { fill: 'url(#dk-sheen)' }),
     rr(x - 1.5, y - 1.5, w + 3, h + 3, rx + 1, { fill: 'none', stroke: 'rgba(30,14,4,.55)', 'stroke-width': 3 }),
     s('path', { d: `M ${x + rx} ${y + h + 2.5} H ${x + w - rx}`, stroke: 'rgba(255,236,205,.35)', 'stroke-width': 2, fill: 'none' }));
@@ -51,7 +54,7 @@ export function inset(g, x, y, w, h, rx, fill) {
 
 // nur Glanz + Innenschatten über einer schon gezeichneten Fläche (z. B. Schachbrett aus Feldern)
 export function lacquer(g, x, y, w, h, rx = 0) {
-  g.append(rr(x, y, w, h, rx, useMaterial() ? LIGHT : { fill: 'url(#dk-vig)' }), rr(x, y, w, h, rx, { fill: 'url(#dk-sheen)' }));
+  g.append(rr(x, y, w, h, rx, { fill: 'url(#dk-vig)' }), ...matLight(x, y, w, h, rx), rr(x, y, w, h, rx, { fill: 'url(#dk-sheen)' }));
 }
 
 // Filz (Rechteck): Grundfarbe, Rauschen, Licht von oben, Randabdunklung, Ziernaht
@@ -59,12 +62,12 @@ export function feltRect(g, x, y, w, h, rx, { cls = 'felt', stitch = true, color
   g.append(rr(x, y, w, h, rx, color ? { fill: color } : { class: cls }),
     rr(x, y, w, h, rx, { fill: 'url(#dk-noise)', opacity: 0.9 }),
     rr(x, y, w, h, rx, { fill: 'url(#dk-spot)' }),
-    rr(x, y, w, h, rx, useMaterial() ? LIGHT : { fill: 'url(#dk-feltvig)' }));
+    rr(x, y, w, h, rx, { fill: 'url(#dk-feltvig)' }), ...matLight(x, y, w, h, rx));
   if (stitch) g.append(rr(x + 16, y + 16, w - 32, h - 32, Math.max(4, rx - 8), { fill: 'none', stroke: 'rgba(255,236,190,.2)', 'stroke-width': 2.5, 'stroke-dasharray': '10 7' }));
 }
 
 // Filz (Ellipse, Hold'em)
 export function feltEllipse(g, cx, cy, rx, ry, { cls = 'felt' } = {}) {
   const e = (a) => s('ellipse', { cx, cy, rx, ry, ...a });
-  g.append(e({ class: cls }), e({ fill: 'url(#dk-noise)', opacity: 0.9 }), e({ fill: 'url(#dk-spot)' }), e(useMaterial() ? LIGHT : { fill: 'url(#dk-feltvig)' }));
+  g.append(e({ class: cls }), e({ fill: 'url(#dk-noise)', opacity: 0.9 }), e({ fill: 'url(#dk-spot)' }), e({ fill: 'url(#dk-feltvig)' }), ...(useMaterial() ? [e(LIGHT)] : []));
 }

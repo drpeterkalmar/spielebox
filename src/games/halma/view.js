@@ -74,7 +74,8 @@ export function createBoard(host, { onMove, onHint }) {
       if (col) gB.append(s('polygon', { points: poly(grow(campPoly(k), -24)), fill: col, opacity: seat >= 0 ? 0.3 : 0.15 }));
     }
     // n9 Material (?material=1): vorgebackene Licht-Ebene statt Vignetten-Verlauf (TODO Heavy-Job: Deckkraft am Bild)
-    if (L) gB.append(s('circle', { cx: 0, cy: 0, r: 760, ...(useMaterial() ? MAT_LIGHT : { fill: 'url(#dk-vig)', opacity: 0.6 }) }));
+    if (L) gB.append(s('circle', { cx: 0, cy: 0, r: 760, fill: 'url(#dk-vig)', opacity: 0.6 }));
+    if (L && useMaterial()) gB.append(s('circle', { cx: 0, cy: 0, r: 760, ...MAT_LIGHT }));
     const holes = s('g', { class: 'holes' });
     HOLES.forEach((_, i) => {
       const [x, y] = xy(i);

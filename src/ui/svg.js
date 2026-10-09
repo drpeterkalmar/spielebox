@@ -1,7 +1,8 @@
 // SVG-Helfer für die Bretter: Holzmuster (Poly Haven, CC0), Stein-Verläufe, Schatten, Krone, Animation.
 // Mit Deko (src/ui/deko.js): Steine mit Glanzlicht und weichem Schatten, Krone mit Goldverlauf, Züge mit leichtem Anheben.
 import { DEKO, whenNoise } from './deko.js';
-import { spriteImage } from './sprites.js';
+import { spriteImage, spriteLater } from './sprites.js';
+import { useMaterial } from './flags.js';
 export const NS = 'http://www.w3.org/2000/svg';
 
 export function s(tag, attrs = {}, ...children) {
@@ -102,7 +103,8 @@ export function ensureDekoDefs() {
       s('path', { d: 'M-8 1.5 C-3 -4 3 4.5 8 -1', fill: 'none', stroke: 'rgba(45,15,4,.75)', 'stroke-width': 1.8, 'stroke-linecap': 'round' }),
       s('ellipse', { cx: -4.5, cy: -4, rx: 4.5, ry: 2, transform: 'rotate(-18 -4.5 -4)', fill: '#ffe2c4', opacity: 0.45 })));
   // n9 Material: vorgebackene Licht-Ebene (tools/bake_material.py), streckt sich über die ganze Fläche (soft-light)
-  defs.append(s('pattern', { id: 'dk-matlight', patternContentUnits: 'objectBoundingBox', width: 1, height: 1 },
+  // Licht-Ebene nur laden, wenn das Material an ist (?material=0: kein Abruf)
+  if (useMaterial()) defs.append(s('pattern', { id: 'dk-matlight', patternContentUnits: 'objectBoundingBox', width: 1, height: 1 },
     s('image', { href: 'assets/wood/light-overlay.webp', width: 1, height: 1, preserveAspectRatio: 'none' })));
   // Filz-Rauschen als Muster (Kachel kommt asynchron aus deko.js)
   const noise = s('pattern', { id: 'dk-noise', patternUnits: 'userSpaceOnUse', width: 256, height: 256 });
@@ -130,7 +132,8 @@ function dekoPiece(color, r, king) {
   const white = color === 0;
   const g = s('g', { class: 'pc ' + (white ? 'pc-w' : 'pc-b') });
   // vorgezeichnetes Bild (ein Element statt sieben); bis es fertig ist, dieselbe Form als Vektor
-  const img = spriteImage(s, `st:${white ? 'w' : 'b'}:${king ? 'k' : ''}`, r);
+  const key = `st:${white ? 'w' : 'b'}:${king ? 'k' : ''}`;
+  const img = spriteImage(s, key, r);
   if (img) { g.append(img); return g; }
   g.append(
     s('ellipse', { class: 'pc-sh', cx: r * 0.14, cy: r * 0.24, rx: r * 1.12, ry: r * 1.04, fill: 'url(#dk-shadow)' }),
@@ -143,6 +146,7 @@ function dekoPiece(color, r, king) {
     s('ellipse', { cx: -r * 0.28, cy: -r * 0.34, rx: r * 0.5, ry: r * 0.3, transform: `rotate(-30 ${-r * 0.28} ${-r * 0.34})`, fill: 'url(#dk-spec)', opacity: white ? 0.7 : 0.3 }),
     s('ellipse', { cx: -r * 0.4, cy: -r * 0.46, rx: r * 0.17, ry: r * 0.1, transform: `rotate(-32 ${-r * 0.4} ${-r * 0.46})`, fill: '#fff', opacity: white ? 0.95 : 0.55 }));
   if (king) g.appendChild(crown(r * 0.62));
+  spriteLater(s, key, r, [...g.childNodes]);
   return g;
 }
 
@@ -150,7 +154,8 @@ function dekoPiece(color, r, king) {
 const PIPS = (o) => ({ 1: [[0, 0]], 2: [[-o, -o], [o, o]], 3: [[-o, -o], [0, 0], [o, o]], 4: [[-o, -o], [o, -o], [-o, o], [o, o]], 5: [[-o, -o], [o, -o], [0, 0], [-o, o], [o, o]], 6: [[-o, -o], [o, -o], [-o, 0], [o, 0], [-o, o], [o, o]] });
 export function die3d(v, size, { used = false, blank = false, cls = '' } = {}) {
   const g = s('g', { class: 'die dk-die' + (used ? ' used' : '') + (blank ? ' blank' : '') + (cls ? ' ' + cls : '') });
-  const img = spriteImage(s, `die:${blank ? 0 : v}`, size / 1.62);
+  const dkey = `die:${blank ? 0 : v}`;
+  const img = spriteImage(s, dkey, size / 1.62);
   if (img) { g.append(img); if (used) g.setAttribute('opacity', 0.55); return g; }
   const h = size / 2, rx = size * 0.2;
   g.append(
@@ -163,19 +168,22 @@ export function die3d(v, size, { used = false, blank = false, cls = '' } = {}) {
       s('circle', { cx: px + size * 0.022, cy: py + size * 0.026, r: size * 0.05, fill: '#fff', opacity: 0.18 }));
   }
   if (used) g.setAttribute('opacity', 0.55);
+  spriteLater(s, dkey, size / 1.62, [...g.childNodes]);
   return g;
 }
 
 // farbige Kugel/Scheibe (Halma-Murmel, Ludo-Figur von oben, Vier-Stein): Grundfarbe + Licht + Glanzpunkt + Schatten
 export function ball(col, r, { shadow = true, ring = false } = {}) {
   const g = s('g', { class: 'pc dk-ball' });
-  const img = shadow ? spriteImage(s, `ball:${col}:${ring ? 'r' : ''}`, r) : null;
+  const bkey = `ball:${col}:${ring ? 'r' : ''}`;
+  const img = shadow ? spriteImage(s, bkey, r) : null;
   if (img) { g.append(img); return g; }
   if (shadow) g.append(s('ellipse', { class: 'pc-sh', cx: r * 0.16, cy: r * 0.26, rx: r * 1.1, ry: r * 1.02, fill: 'url(#dk-shadow)' }));
   g.append(s('circle', { r, fill: col, stroke: 'rgba(0,0,0,.55)', 'stroke-width': r * 0.07 }),
     s('circle', { r: r * 0.965, fill: 'url(#dk-ball)' }));
   if (ring) g.append(s('circle', { r: r * 0.66, fill: 'none', stroke: 'rgba(255,255,255,.3)', 'stroke-width': r * 0.08 }));
   g.append(s('ellipse', { cx: -r * 0.32, cy: -r * 0.4, rx: r * 0.36, ry: r * 0.22, transform: `rotate(-30 ${-r * 0.32} ${-r * 0.4})`, fill: 'url(#dk-spec)', opacity: 0.9 }));
+  if (shadow) spriteLater(s, bkey, r, [...g.childNodes]);
   return g;
 }
 

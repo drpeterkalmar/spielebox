@@ -5,7 +5,7 @@
 //   (?h=…), so lädt ein Update nur fehlende oder geänderte Bilder nach; alte Fassungen werden beim Aktivieren entfernt.
 // Kartenpakete (n9): die @2x-Einzelkarten liegen bitgleich in 2 Paketen (tools/cardpack.py). Vorab geladen werden nur
 // die Pakete; eine Karten-Anfrage beantwortet der Worker mit dem Ausschnitt aus dem Paket (Blob.slice, ohne Kopie).
-const VERSION = '53a9b52014';
+const VERSION = '3896d093aa';
 const CORE = 'spielebox-core-' + VERSION;
 const ASSETS = 'spielebox-assets';
 const CORE_FILES = [
@@ -339,7 +339,7 @@ const ASSET_HASH = {
   'assets/wood/dark.webp': 'e8d44bb775',
   'assets/wood/frame.jpg': '56dcbc378c',
   'assets/wood/frame.webp': '737426a5c8',
-  'assets/wood/light-overlay.webp': '3a6a6d667d',
+  'assets/wood/light-overlay.webp': 'bc61655046',
   'assets/wood/light.jpg': 'a9a5d250d3',
   'assets/wood/light.webp': 'ddd41ed8ab'
 };

@@ -8,7 +8,7 @@ import * as E from './engine.js';
 import { evaluate, handName, catName, draws, bestFive } from './eval.js';
 import { handClass, PERCENTILE } from './equity.js';
 import { s, ensureDefs, place, flyIn, fadeIn, toScreen, onTap, ball } from '../../ui/svg.js';
-import { spriteImage } from '../../ui/sprites.js';
+import { spriteImage, spriteLater } from '../../ui/sprites.js';
 import { holdemTimes, OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
@@ -41,6 +41,7 @@ function dkChip(g, x, y, r, col) {
   const img = spriteImage(s, 'chip:' + col, r, x, y);
   if (img) { g.append(img); return; }
   const ry = r * 0.42, e = (a) => s('ellipse', { cx: x, rx: r, ry, ...a });
+  const n0 = g.childNodes.length;
   g.append(e({ cy: y + 5, fill: 'rgba(0,0,0,.28)' }),
     e({ cy: y + 3.5, fill: col, stroke: 'rgba(0,0,0,.45)', 'stroke-width': 1.5 }),
     e({ cy: y + 3.5, fill: 'url(#dk-chipedge)' }),
@@ -48,6 +49,7 @@ function dkChip(g, x, y, r, col) {
     e({ cy: y, fill: 'none', stroke: '#fff7e6', 'stroke-width': 2.6, 'stroke-dasharray': `${r * 0.42} ${r * 0.36}` }),
     s('ellipse', { cx: x, cy: y, rx: r * 0.62, ry: ry * 0.62, fill: 'none', stroke: 'rgba(255,247,230,.55)', 'stroke-width': 1.6 }),
     s('ellipse', { cx: x - r * 0.25, cy: y - ry * 0.35, rx: r * 0.45, ry: ry * 0.32, fill: '#fff', opacity: 0.22 }));
+  spriteLater(s, 'chip:' + col, r, [...g.childNodes].slice(n0), x, y);
 }
 // Betrag in Chips zerlegen (größte zuerst), höchstens 3 Stapel × 6 Chips
 function dkStacks(amount) {

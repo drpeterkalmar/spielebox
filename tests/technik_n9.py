@@ -143,3 +143,61 @@ if __name__ == '__main__':
     for a in sys.argv[2:]:
         if a.startswith('--nur='): only = a.split('=', 1)[1].split(',')
     {'karten': karten, 'speicher': speicher}[cmd](only)
+
+
+# ---------- A/B-Bilder: Varianten (Wurzel + URL-Regler) fotografieren und als Collage nebeneinanderlegen ----------
+# Variante = (Name, Wurzelordner oder None = dieses Repo, Regler). Vorher-Stand: git worktree add /tmp/spielebox_vorher f2cbf5f
+def ab_shots(variants, names, forms=('hoch', 'quer')):
+    from deko_rundgang import shoot_scene
+    with sync_playwright() as pw:
+        b = launch(pw)
+        for label, root, q in variants:
+            with Server(root or ROOT) as srv:
+                for name in names:
+                    for form in forms:
+                        _, errs = shoot_scene(b, srv.base, name, form, 'technik_' + label, q)
+                        if errs: print(f'  ❌ {label} {name} {form}: {errs[:2]}')
+                print(f'  📷 {label}', flush=True)
+        b.close()
+
+
+def ab_collage(labels, names, forms=('hoch', 'quer'), prefix='ab', crop=None):
+    """Collage je Szene und Lage: Varianten nebeneinander (verkleinert), optional darunter ein Ausschnitt in voller Größe
+    (crop = (x0, y0, x1, y1) relativ 0..1) – dort sieht man Material und Schärfe."""
+    from PIL import Image, ImageDraw, ImageFont
+    font = ImageFont.load_default()
+    for fp in ['/System/Library/Fonts/Supplemental/Arial Bold.ttf', '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf']:
+        try: font = ImageFont.truetype(fp, 30); break
+        except Exception: pass
+    made = []
+    for name in names:
+        for form in forms:
+            fs = [os.path.join(ROOT, 'tests', 'shots', 'deko', 'technik_' + l, f'{name}_{form}.png') for l in labels]
+            fs = [f if os.path.exists(f) else f.replace('.png', '_2.png') for f in fs]
+            if not all(os.path.exists(f) for f in fs): continue
+            ims = [Image.open(f).convert('RGB') for f in fs]
+            k = 0.42 if form == 'hoch' else 0.36
+            sm = [im.resize((int(im.width * k), int(im.height * k)), Image.LANCZOS) for im in ims]
+            cr = []
+            if crop:
+                for im in ims:
+                    W, H = im.size
+                    c = im.crop((int(crop[0] * W), int(crop[1] * H), int(crop[2] * W), int(crop[3] * H)))
+                    s = sm[0].width / c.width
+                    cr.append(c.resize((sm[0].width, int(c.height * s)), Image.LANCZOS) if s < 1 else c)
+            pad, head = 14, 48
+            W = sum(i.width for i in sm) + pad * (len(sm) + 1)
+            H = head + max(i.height for i in sm) + pad + (max(c.height for c in cr) + pad if cr else 0)
+            out = Image.new('RGB', (W, H), (24, 24, 24))
+            d = ImageDraw.Draw(out)
+            x = pad
+            for i, (l, im) in enumerate(zip(labels, sm)):
+                d.text((x, 8), l, fill=(255, 214, 120) if i else (230, 230, 230), font=font)
+                out.paste(im, (x, head))
+                if cr: out.paste(cr[i], (x, head + im.height + pad))
+                x += im.width + pad
+            p = os.path.join(OUT, f'{prefix}_{name}_{form}.jpg')
+            out.save(p, quality=84, optimize=True)
+            made.append(p)
+    print('\n'.join(made))
+    return made

@@ -3,7 +3,7 @@
 // nochmal antippen → einwerfen (Schutz vor Fehltipps, wie das Ausspielen bei Schnapsen). Gewinnreihe leuchtet.
 import { COLS, ROWS } from './engine.js';
 import { s, ensureDefs, toBoard, toScreen, onTap } from '../../ui/svg.js';
-import { spriteImage } from '../../ui/sprites.js';
+import { spriteImage, spriteLater } from '../../ui/sprites.js';
 import { OWN, vierFall } from '../../tempo.js';
 import { DEKO, boardLayers } from '../../ui/deko.js';
 import { shadowUnder } from '../../ui/material.js';
@@ -60,6 +60,7 @@ export function createBoard(host, { onMove, onHint }) {
         s('circle', { r: R * 0.66, fill: 'none', stroke: 'rgba(0,0,0,.22)', 'stroke-width': 5, transform: 'translate(1.5 2)' }),
         s('circle', { r: R * 0.66, fill: 'none', stroke: 'rgba(255,255,255,.42)', 'stroke-width': 4 }),
         s('ellipse', { cx: -R * 0.34, cy: -R * 0.42, rx: R * 0.34, ry: R * 0.18, transform: `rotate(-30 ${-R * 0.34} ${-R * 0.42})`, fill: '#fff', opacity: 0.6 }));
+      spriteLater(s, 'v4:' + COLORS[seat], R, [...g.childNodes]);
       return g;
     }
     g.append(s('circle', { r: R, fill: COLORS[seat], stroke: 'rgba(0,0,0,.45)', 'stroke-width': 3 }),

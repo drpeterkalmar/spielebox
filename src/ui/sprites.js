@@ -2,8 +2,10 @@
 // gezeichnet (Blob-URL, kein Netz) und dann als ein einziges <image> je Stein benutzt. Das spart gegenüber Vektor-Steinen
 // (bis zu 7 Formen mit Verläufen) Arbeit im Hauptthread und beim Rastern. Erzeugt wird erst bei Bedarf (nur die Sorten
 // des gerade gespielten Spiels); bis ein Bild fertig ist (wenige ms), zeichnet die Ansicht die gleiche Form als Vektor.
-// Kein extra Neuzeichnen, wenn ein Bild fertig wird (das würde z. B. eine angetippte Spalte/Karte verwerfen) – der nächste
-// Zug zeichnet ohnehin neu und nimmt dann die Bilder.
+// Kein extra Neuzeichnen, wenn ein Bild fertig wird (das würde z. B. eine angetippte Spalte/Karte verwerfen). n9: Statt
+// auf den nächsten Zug zu warten, tauscht spriteLater() die Vektor-Formen eines Steins an Ort und Stelle gegen das
+// fertige Bild (die Gruppe des Steins bleibt, samt Lage, Klassen und laufender Animation); ebenso bekommt ein Bild in
+// der Rückfall-Größe die passende Kachel, sobald sie fertig ist.
 // Licht wie überall von links oben, Schatten nach rechts unten. Maße: Kachel S × S Pixel, Objekt-Radius RS.
 // n9 „je Größe“: Die Kachel wird in der Pixelgröße gebacken, in der der Stein auf dem Bildschirm erscheint (Stufen
 // TILES, Maßstab aus setSpriteScale) – große Steine (Desktop, Dame) bleiben scharf, kleine (Halma) kosten beim Rastern
@@ -16,6 +18,7 @@ export const RS = S * 0.36;    // Radius des Objekts in der Kachel (Platz für S
 export const TILES = [48, 64, 96, 128, 168, 224, 288];
 const cache = new Map();       // Schlüssel@Kachel → URL | null (wird gezeichnet) | false (geht nicht)
 const anySize = new Map();     // Schlüssel → zuletzt fertige URL irgendeiner Größe (Rückfall statt Vektor beim Größenwechsel)
+const waiting = new Map();     // Schlüssel@Kachel → [Funktion(url)] – wartet, bis das Bild fertig ist
 const useSprites = urlFlag('sprites', true);
 
 // kleinste Kachelstufe, die einen Stein mit Radius pxR (Gerätepixel) ohne Hochskalieren trägt
@@ -41,8 +44,11 @@ function make(id, key, tile, draw) {
       const url = b ? URL.createObjectURL(b) : false;
       cache.set(id, url);
       if (url) anySize.set(key, url);
+      const fs = waiting.get(id);
+      waiting.delete(id);
+      if (url && fs) for (const f of fs) f(url);
     }, 'image/png');
-  } catch { cache.set(id, false); }
+  } catch { cache.set(id, false); waiting.delete(id); }
 }
 
 // URL des Bildchens oder null (dann bitte als Vektor zeichnen); stößt das Zeichnen beim ersten Aufruf an.
@@ -187,10 +193,40 @@ const DRAW = {
   }
 };
 
-// Bild-Element für eine Sorte, zentriert auf (0, 0); r = gewünschter Objekt-Radius in Brett-Einheiten
-export function spriteImage(s, key, r, cx = 0, cy = 0) {
-  const url = sprite(key, pxPerUnit ? tileFor(r * pxPerUnit) : S);
-  if (!url) return null;
+const tileOf = (r) => (pxPerUnit ? tileFor(r * pxPerUnit) : S);
+function onReady(key, tile, f) {
+  const id = key + '@' + tile;
+  if (!waiting.has(id)) waiting.set(id, []);
+  waiting.get(id).push(f);
+}
+function makeImage(s, url, r, cx, cy) {
   const w = (S * r) / RS;
   return s('image', { href: url, x: cx - w / 2, y: cy - w / 2, width: w, height: w, class: 'dk-spr' });
+}
+
+// Bild-Element für eine Sorte, zentriert auf (0, 0); r = gewünschter Objekt-Radius in Brett-Einheiten.
+// Ist die passende Kachel noch nicht fertig, kommt eine andere Größe; sie wird gegen die passende getauscht.
+export function spriteImage(s, key, r, cx = 0, cy = 0) {
+  const tile = tileOf(r);
+  const url = sprite(key, tile);
+  if (!url) return null;
+  const img = makeImage(s, url, r, cx, cy);
+  if (cache.get(key + '@' + tile) !== url) onReady(key, tile, (u) => img.setAttribute('href', u));
+  return img;
+}
+
+// Stein wurde als Vektor gezeichnet (Bild noch nicht fertig): sobald es fertig ist, die Formen nodes durch das Bild
+// ersetzen – nur wenn sie noch im Dokument hängen (sonst wurde längst neu gezeichnet). attrs: z. B. transform.
+export function spriteLater(s, key, r, nodes, cx = 0, cy = 0, attrs = null) {
+  if (!DEKO.on || !useSprites || typeof document === 'undefined' || !nodes.length) return;
+  const tile = tileOf(r);
+  if (cache.get(key + '@' + tile) === false) return;
+  onReady(key, tile, (url) => {
+    const first = nodes[0];
+    if (!first.isConnected || !first.parentNode) return;
+    const img = makeImage(s, url, r, cx, cy);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) img.setAttribute(k, v);
+    first.parentNode.insertBefore(img, first);
+    for (const n of nodes) n.remove();
+  });
 }

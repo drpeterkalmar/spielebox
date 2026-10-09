@@ -22,8 +22,10 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "assets" / "wood" / "light-overlay.webp"
 N = 512
 SEED = 9
-# Startwerte (Grauwert-Abweichung von 128 bei voller Wirkung). TODO Heavy-Job: am Bild abstimmen.
-STRENGTH = {"light": 26.0, "vignette": 34.0, "micro": 7.0}
+# Grauwert-Abweichung von 128 bei voller Wirkung. Abgestimmt am Bild (09.10., A/B-Collagen tests/shots/technik/mat_*):
+# die Ebene liegt ZUSÄTZLICH über der bisherigen Randabdunklung (dk-vig/dk-feltvig) – allein wirkte sie flach und hell.
+# Darum hier nur eine leichte zusätzliche Vignette, dafür deutlicheres Licht von links oben und feine Struktur.
+STRENGTH = {"light": 30.0, "vignette": 14.0, "micro": 11.0}
 LIGHT_DIR = np.array([-0.62, -0.78])   # Licht kommt von links oben (Bildkoordinaten: x nach rechts, y nach unten)
 
 

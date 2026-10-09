@@ -1,4 +1,4 @@
-// Material-Regler (n9 E2): ?material=0|1, Standard bis zur Abnahme aus.
+// Material-Regler (n9 E2): ?material=0|1, Standard an (seit der Abnahme am Bild).
 // Aufruf: node --test tests/node/material.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,6 +15,8 @@ test('useMaterial: Standard, an, aus', () => {
   withSearch('?material=1', () => assert.equal(useMaterial(), true));
   withSearch('?material=0', () => assert.equal(useMaterial(), false));
 });
+
+test('Standard: Material an', () => assert.equal(MATERIAL_DEFAULT, true));
 
 test('MAT_LIGHT: Muster der Licht-Ebene, weiches Licht', () => {
   assert.equal(MAT_LIGHT.fill, 'url(#dk-matlight)');

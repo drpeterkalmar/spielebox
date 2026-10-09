@@ -7,7 +7,7 @@ import { OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
 import { DEKO, boardLayers } from '../../ui/deko.js';
-import { spriteImage } from '../../ui/sprites.js';
+import { spriteImage, spriteLater } from '../../ui/sprites.js';
 import { woodFrame, feltRect } from '../../ui/material.js';
 
 const SIZE = 1000;
@@ -84,7 +84,11 @@ export function createBoard(host, { onHint }) {
       const tr = `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot})`;
       const img = spriteImage(s, 'bean', 13.5 * k);
       if (img) { img.setAttribute('transform', tr); pile.append(img); }
-      else pile.append(s('use', { href: '#dk-bean', x: -15 * k, y: -11 * k, width: 30 * k, height: 22 * k, transform: tr }));
+      else {
+        const u = s('use', { href: '#dk-bean', x: -15 * k, y: -11 * k, width: 30 * k, height: 22 * k, transform: tr });
+        pile.append(u);
+        spriteLater(s, 'bean', 13.5 * k, [u], 0, 0, { transform: tr });
+      }
     }
     g.append(pile);
   }
