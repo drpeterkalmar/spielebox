@@ -1,5 +1,6 @@
 // Grundbausteine des Tisch-Protokolls, gemeinsam für table.js, fairhost.js und takeover.js (ohne Ring-Import).
 export const TIMING = {
+  tick: 1000,        // Takt des Tischs (Herzschlag prüfen, Uhr, Vertretung)
   heartbeat: 4000,   // Host meldet sich regelmäßig (Stand seq/epoch, Anwesenheit)
   hostGone: 45000,   // so lange kein Host → sitzender Spieler mit Zustand übernimmt (> 3 Relay-Herzschläge)
   takeoverStep: 5000, // … gestaffelt: je Mensch, der in Sitzfolge nach dem Host vor einem sitzt, so viel später
@@ -14,7 +15,12 @@ export const TIMING = {
   awayMove: 10000,   // Spieler nicht erreichbar UND so lange stumm: dann automatischer Zug (bis 05.10.: 3000 – kürzer als
                      // ein Wiederaufbau nach App-Wechsel/Bildschirmsperre am iPhone, Gutachten P2-10)
   awayStart: 15000,  // … aber erst, wenn der Host selbst so lange läuft (sonst kennt er die Verbindungen noch nicht)
-  timerUnit: 1000    // ms je Sekunde der Option opts.timer (Tests: kleiner)
+  timerUnit: 1000,   // ms je Sekunde der Option opts.timer (Tests: kleiner)
+  // n10 E3 (extras.js): Revanche-Angebot gilt 60 s, Reaktionen höchstens alle 3 s je Spieler, Vertretung durch den
+  // Computer nach 60 s ohne Verbindung (Link ?vertretung=<s>, 0 = aus)
+  rematchOffer: 60000,
+  emoteGap: 3000,
+  vertretung: (() => { try { const v = parseFloat(new URLSearchParams(globalThis.location?.search || '').get('vertretung')); return v >= 0 ? v * 1000 : 60000; } catch { return 60000; } })()
 };
 
 export const clone = (x) => JSON.parse(JSON.stringify(x));

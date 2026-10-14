@@ -195,8 +195,11 @@ await ok('Ganze Partie Mühle bis zum Ende, alle Stände gleich, Punkte gezählt
   const pts = Object.values(h.table.score).reduce((a, b) => a + b, 0);
   assert.equal(pts, 1);
   console.log(`   Ergebnis: ${r.winner === null ? 'Remis' : ['Weiß', 'Schwarz'][r.winner] + ' gewinnt'} (${r.reason}) nach ${h.table.nmoves} Zügen`);
-  // Revanche: Farben getauscht
+  // Revanche (n10: online ein Angebot, der andere nimmt an): Farben getauscht
   g.act('rematch');
+  await until(() => h.table.rematch && g.table.rematch, 2000, 'Revanche-Angebot');
+  assert.equal(h.table.round, 1, 'ohne Annahme keine neue Partie');
+  h.act('rematch');
   await until(() => h.table.round === 2 && g.table.round === 2, 2000, 'Revanche');
   assert.equal(seatOf(h.table, 'H'), 1);
   assert.equal(h.table.status, 'play');
@@ -270,6 +273,8 @@ await ok('Remis anbieten/ablehnen/annehmen und Aufgeben', async () => {
   assert.equal(h.table.result.winner, null);
   assert.equal(h.table.score.H, 0.5);
   g.act('rematch');
+  await until(() => h.table.rematch);
+  h.act('rematch');
   await until(() => g.table.round === 2 && g.table.status === 'play');
   g.act('resign');
   await until(() => h.table.status === 'over');
@@ -277,6 +282,8 @@ await ok('Remis anbieten/ablehnen/annehmen und Aufgeben', async () => {
   assert.match(h.table.result.reason, /Anna gibt auf/);
   // alte Aufgabe (Runde 2) wirkt nach neuer Revanche nicht mehr
   h.act('rematch');
+  await until(() => g.table.rematch);
+  g.act('rematch');
   await until(() => g.table.round === 3);
   g.link.send({ t: 'act', a: 'resign', round: 2 }, 'H');
   await sleep(50);

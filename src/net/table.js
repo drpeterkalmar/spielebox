@@ -25,6 +25,7 @@ import { randomHex, CHAIN } from './fair.js';
 import { TIMING, newer, seatOf } from './tablebase.js';
 import { fairHostMethods, fairChunks, sameFair } from './fairhost.js';
 import { takeoverMethods } from './takeover.js';
+import { extrasMethods, newClock } from './extras.js';
 export { TIMING, newer, seatOf } from './tablebase.js';
 export { FAIR_CHUNK, fairChunks, mergeFairLog } from './fairhost.js';
 
@@ -40,7 +41,9 @@ export function newTable({ game, opts, host, hostSeat = 0, now = Date.now() }) {
     v: 1, game, opts: o, hostPid: host.pid, epoch: 1, seq: 0, round: 1, seats,
     gs: g.engine.initialState(o), status: 'wait', result: null, drawOffer: null,
     last: null, hist: [], nmoves: 0, score: {}, created: now, updated: now,
-    id: Math.random().toString(36).slice(2, 12), fair: null, fairNeed: null
+    id: Math.random().toString(36).slice(2, 12), fair: null, fairNeed: null,
+    // n10 E3: Bedenkzeit (nur Spiele mit g.clock, Option „uhr“), Revanche-Angebot, vertretene Plätze
+    clock: g.clock && opts ? newClock(opts.uhr, seats.length) : null, rematch: null, subs: null
   };
 }
 
@@ -140,6 +143,8 @@ export class TableSession {
       // lokal: beide Sitze sofort belegt, Partie läuft
       if (this.table.status === 'wait' && this.table.seats.every(Boolean)) this.table.status = 'play';
       if (this.table.status === 'play') this._resolveChance();
+      // Bedenkzeit auch gegen den Computer / an einem Gerät: Uhr prüfen
+      if (this.table.clock) this._timer = this.timers.setInterval(() => this._clockTick(this.now()), 500);
       this._changed({ kind: 'start' });
       this._maybeBot();
       return;
@@ -147,7 +152,7 @@ export class TableSession {
     this.link.onMessage = (msg, from) => this._onMessage(msg, from);
     this.link.onPeers = (peers, fresh) => this._onPeers(peers, fresh);
     this.link.onStatus = () => this._emit('net', this.netStatus());
-    this._timer = this.timers.setInterval(() => this._tick(), 1000);
+    this._timer = this.timers.setInterval(() => this._tick(), TIMING.tick);
     this._hello();
     if (this.table) {
       if (this.role === 'host' && this.table.status === 'play') { this._ensureFair(); if (this._resolveChance()) this._save(this.table); }
@@ -215,6 +220,7 @@ export class TableSession {
     const people = t.seats.filter((x) => x && !x.bot);
     t.seats = Array(n).fill(null);
     people.slice(0, n).forEach((p, i) => { t.seats[i] = p; });
+    t.clock = g.clock && opts ? newClock(opts.uhr, n) : null;
     this._reset(false);
     return { ok: true };
   }
@@ -227,6 +233,7 @@ export class TableSession {
     if (t.status !== 'play') return { ok: false, reason: 'Partie läuft nicht' };
     if (turnOf(t) !== seat) return { ok: false, reason: 'Nicht am Zug' };
     if (!eng.isLegal(t.gs, move)) return { ok: false, reason: 'Zug nicht erlaubt' };
+    if (t.clock && !this._clockMove(seat)) return { ok: true };   // Zeit war schon um: Partie verloren
     const d = eng.describeMove(t.gs, move) + note;
     const prevGs = t.gs;
     t.gs = eng.applyMove(t.gs, move);
@@ -246,11 +253,8 @@ export class TableSession {
   _applyAct(seat, { a, round }) {
     const t = this.table;
     if (round !== t.round) return { ok: false, reason: 'veraltet' };
-    if (a === 'rematch') {
-      if (t.status !== 'over') return { ok: false, reason: 'Partie läuft noch' };
-      this._reset(true);
-      return { ok: true };
-    }
+    if (a === 'rematch' || a === 'rematch-decline') return this._rematchAct(seat, a);
+    if (a === 'moretime') return this._giftTime(seat);
     if (a === 'fill-bots') {
       if (t.status !== 'wait') return { ok: false, reason: 'Partie läuft schon' };
       t.seats = t.seats.map((x, i) => x || { pid: 'bot' + i, name: `Computer ${i + 1}`, bot: 2 });
@@ -337,6 +341,9 @@ export class TableSession {
     t.fair = null;
     t.fairNeed = null;
     t.fairPriv = null;
+    t.rematch = null;
+    t.subs = null;
+    if (t.clock) t.clock = newClock(t.clock.cfg, t.seats.length);
     if (t.status === 'play') this._startRound();
     this._commit({ kind: 'reset' });
     this._maybeBot();
@@ -427,13 +434,14 @@ export class TableSession {
     const t = this.table;
     if (!this.bot || !t || t.status !== 'play' || this.botBusy || this.closed) return;
     const seat = turnOf(t);
-    if (!this._isBot(seat)) return;
+    const level = this._botLevel(seat);   // auch vertretene Plätze (extras.js)
+    if (!level) return;
     this.botBusy = true;
     const seq = t.seq;
     const t0 = this.now();
     const eng = this.engine;
     const gs = eng.HIDDEN ? eng.viewFor(t.gs, seat) : t.gs;   // Computer sieht nur, was ihm zusteht
-    Promise.resolve(this.bot.choose(t.game, gs, t.seats[seat].bot, { note: (x) => this._note(x) })).then((move) => {
+    Promise.resolve(this.bot.choose(t.game, gs, level, { note: (x) => this._note(x) })).then((move) => {
       const wait = Math.max(0, (this.botDelayFor ? this.botDelayFor(t, move) : TIMING.botDelay) - (this.now() - t0));
       this._botTimer = this.timers.setTimeout(() => {
         this.botBusy = false;
@@ -607,6 +615,8 @@ export class TableSession {
     const t = this.table;
     const isHost = this.role === 'host';
     if (t && from.pid === t.hostPid) this.hostSeen = this.now();
+    // vertretener Spieler meldet sich → sofort wieder selbst am Zug
+    if (isHost && t && t.subs) this._subTick(this.now());
     if (typeof msg.build === 'string' && this.build && msg.build !== this.build && !this._versionWarned) {
       // andere App-Version (Update nur bei einem angekommen): einmal erklären, statt still Unpassendes zu zeigen
       this._versionWarned = true;
@@ -655,6 +665,9 @@ export class TableSession {
         break;
       case 'fair':
         if (isHost) this._hostOnFair(from, msg);
+        break;
+      case 'emote':
+        this._onEmoteMsg(from, msg);
         break;
       case 'fairlog':
         if (isHost && !Array.isArray(msg.log)) this._hostOnFairLog(from, msg);
@@ -720,7 +733,7 @@ export class TableSession {
     const eng = this.engine;
     if (!eng.timeoutMove || t.status !== 'play') { this._turn = null; return; }
     const seat = turnOf(t);
-    if (seat === null || this._isBot(seat) || !t.seats[seat]) { this._turn = null; return; }
+    if (seat === null || this._isBot(seat) || !t.seats[seat] || (t.subs && t.subs[seat])) { this._turn = null; return; }
     const key = `${t.round}|${t.nmoves}|${seat}`;
     if (!this._turn || this._turn.key !== key) this._turn = { key, since: now };
     const elapsed = now - this._turn.since;
@@ -745,6 +758,9 @@ export class TableSession {
     const now = this.now();
     this._checkDirect(now);
     if (this.role === 'host' && t) {
+      this._subTick(now);
+      this._clockTick(now);
+      if (t.rematch && now - t.rematch.at > TIMING.rematchOffer) { t.rematch = null; this._commit({ kind: 'act', a: 'rematch-expired' }); }
       this._autoMove(now);
       if (!this._lastHb || now - this._lastHb >= TIMING.heartbeat) {
         this._lastHb = now;
@@ -803,4 +819,4 @@ export class TableSession {
   }
 }
 
-Object.assign(TableSession.prototype, fairHostMethods, takeoverMethods);
+Object.assign(TableSession.prototype, fairHostMethods, takeoverMethods, extrasMethods);

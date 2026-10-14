@@ -286,6 +286,8 @@ def ziehen(b, base):
         rate = hits / max(1, tries)
         out[f'schach_{form}'] = {'versuche': tries, 'richtig': hits, 'quote': round(rate, 3)}
         c.ok(rate >= 0.98, f'{form}: Messgröße 2 – Schach per Ziehen {hits}/{tries} richtig gelandet ({rate * 100:.0f} %, Streuung ±30 % Feld)')
+        try: wait(lambda: P.ev("document.querySelectorAll('.drag-fly').length") == 0, 1.5)
+        except TimeoutError: pass
         c.ok(P.ev("document.querySelectorAll('.drag-fly').length") == 0, f'{form}: nach dem Ziehen kein Abbild übrig')
         c.ok(P.ev("document.querySelectorAll('.drag-src').length") == 0, f'{form}: kein Geisterbild übrig')
         # Tippen mit kleinem Wackeln (< Schwelle) ist nie Ziehen: Figur wird gewählt, kein Abbild entsteht
@@ -386,13 +388,15 @@ def ziehen(b, base):
     P.ev("__box.local('bot', 'muehle', {}, 'weiss', 1)")
     wait(lambda: tbl(P) and my_turn(P), 15)
     P.ev("__box.move({ to: 0 })")
-    # warten, bis der Computer gesetzt hat und sein Stein noch gleitet (ich bin laut Stand schon dran)
-    wait(lambda: tbl(P)['turn'] == 0 and P.ev("__box.busy()"), 10, 'Computer-Zug läuft')
-    free = [i for i in range(24) if P.ev(f"__box.table().gs.board[{i}]") < 0 and i not in (0,)]
-    tgt = free[-1]
+    # Ziel vorher wählen (Punkt 23; dass er noch frei ist, prüft „buffered“ mit)
+    tgt = 23
     xy = P.ev(f"__box.target({tgt})")
+    # warten, bis der Computer gesetzt hat und sein Stein noch gleitet (ich bin laut Stand schon dran), dann sofort tippen
+    t0 = time.time()
+    while time.time() - t0 < 10 and not P.ev("__box.state().table.turn === 0 && __box.busy()"):
+        time.sleep(0.01)
+    buffered = P.ev("__box.busy() && __box.table().gs.board[23] < 0")
     P.tap_xy(*xy)
-    buffered = P.ev("__box.busy()")
     wait(lambda: not P.ev("__box.busy()"), 5)
     time.sleep(0.3)
     placed = P.ev(f"__box.table().gs.board[{tgt}]") == 0
@@ -427,7 +431,47 @@ def piece_on(fen_board, sq):
     return False
 
 
-PARTS = {'klang': klang, 'ziehen': ziehen}
+# ---------- E3: Online-Paket (lokal prüfbare Teile; Netz: tests/e2e_n10.py) ----------
+def online(b, base):
+    out = {}
+    for form in ['hoch', 'quer', 'desktop']:
+        P = Page(b, base, form).open('?nosw&tempo=flott')
+        # Lobby: Schach mit Bedenkzeit 5+3 gegen den Computer
+        P.tap('[data-game="schach"]')
+        P.pg.wait_for_selector('[aria-label="Bedenkzeit"]')
+        P.shot(f'e3_lobby_bedenkzeit_{form}', SHOTS)
+        sb = P.small_buttons()
+        c.ok(sb == [], f'{form}: Auswahlblatt mit Bedenkzeit – Knöpfe ≥ 48 px {sb[:3]}')
+        P.tap('[aria-label="Bedenkzeit"] [data-v="5+3"]')
+        P.tap('[data-act="bot"]')
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'schach' and my_turn(P), 15)
+        clocks = P.ev("[...document.querySelectorAll('[data-clock]')].filter(e => e.getClientRects().length).map(e => e.textContent)")
+        c.ok(len(clocks) >= 2 and all(x == '5:00' for x in clocks), f'{form}: Uhren 5:00 in beiden Leisten {clocks}')
+        P.ev("__box.botMove(1)")
+        wait(lambda: my_turn(P) and tbl(P)['nmoves'] == 2, 15)
+        P.ev("__box.botMove(1)")
+        wait(lambda: my_turn(P) and tbl(P)['nmoves'] == 4, 15)
+        time.sleep(2.2)
+        clocks = P.ev("[...document.querySelectorAll('[data-clock].run')].filter(e => e.getClientRects().length).map(e => e.textContent)")
+        c.ok(len(clocks) >= 1 and all(x != '5:00' and x.startswith('5:') or x.startswith('4:') for x in clocks), f'{form}: eigene Uhr läuft {clocks}')
+        P.shot(f'e3_uhr_{form}', SHOTS)
+        sb = P.small_buttons()
+        c.ok(sb == [], f'{form}: Tisch mit Uhr – Knöpfe ≥ 48 px {sb[:3]}')
+        bc = P.board_check()
+        c.ok(bc['inside'], f'{form}: Brett ganz sichtbar mit Uhr')
+        c.ok(not P.ev("!!document.querySelector('[data-act=moretime]')"), f'{form}: gegen den Computer kein „+15 s“')
+        c.ok(P.ev("document.querySelector('[data-act=emote]').classList.contains('hidden')"), f'{form}: gegen den Computer kein Reaktions-Knopf')
+        # Einstellungen: Reaktionen abschaltbar
+        P.tap('[data-act="menu"]'); P.tap('[data-act="tempo"]')
+        P.pg.wait_for_selector('[data-setting="emotes"]')
+        P.tap('[data-setting="emotes"] [data-v="false"]')
+        c.ok(P.ev("JSON.parse(localStorage.getItem('sb.settings')).emotes") is False, f'{form}: Reaktionen aus gespeichert')
+        c.ok(P.app_errors() == [], f'{form}: 0 Fehler {P.app_errors()[:3]}')
+        P.close()
+    return out
+
+
+PARTS = {'klang': klang, 'ziehen': ziehen, 'online': online}
 
 if __name__ == '__main__':
     want = [a for a in sys.argv[1:] if a in PARTS] or list(PARTS)

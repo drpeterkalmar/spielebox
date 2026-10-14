@@ -42,8 +42,12 @@ export const GAMES = {
     ui: muehleUi,
     blurb: '9 Steine, Mühlen schließen, Springen ab 3',
     seats: 2,
+    clock: true,   // n10 E3: Bedenkzeit (Fischer) als Tisch-Option
     // Beschreibung der Optionen für das Auswahlblatt (Mühle hat keine)
-    options: [],
+    options: [
+      { key: 'uhr', type: 'choice', label: 'Bedenkzeit', choices: [
+        { value: 'aus', label: 'ohne' }, { value: '3+2', label: '3+2', sub: 'min + s je Zug' }, { value: '5+3', label: '5+3' }, { value: '10+5', label: '10+5' }, { value: '15+10', label: '15+10' }], dflt: 'aus', table: true }
+    ],
     variantName: () => 'Mühle',
     draws: true
   },
@@ -55,13 +59,16 @@ export const GAMES = {
     ui: dameUi,
     blurb: 'Deutsch 8×8 oder International 10×10',
     seats: 2,
+    clock: true,   // n10 E3: Bedenkzeit (Fischer) als Tisch-Option
     options: [
       { key: 'rules', type: 'choice', label: 'Regeln', choices: [
         { value: 'deutsch', label: 'Deutsch', sub: '8×8, 12 Steine' },
         { value: 'international', label: 'International', sub: '10×10, 20 Steine' }
       ] },
       { key: 'kurz', type: 'switch', label: 'Kurze Dame', sub: 'Dame zieht und schlägt nur 1 Feld weit' },
-      { key: 'pusten', type: 'switch', label: 'Pusten', sub: 'Kein Schlagzwang – wer nicht schlägt, wird gepustet' }
+      { key: 'pusten', type: 'switch', label: 'Pusten', sub: 'Kein Schlagzwang – wer nicht schlägt, wird gepustet' },
+      { key: 'uhr', type: 'choice', label: 'Bedenkzeit', choices: [
+        { value: 'aus', label: 'ohne' }, { value: '3+2', label: '3+2', sub: 'min + s je Zug' }, { value: '5+3', label: '5+3' }, { value: '10+5', label: '10+5' }, { value: '15+10', label: '15+10' }], dflt: 'aus', table: true }
     ],
     variantName: (o) => {
       const opts = dame.normalizeOptions(o);
@@ -80,7 +87,11 @@ export const GAMES = {
     ui: schachUi,
     blurb: 'Klassisch, mit Remis-Angebot und PGN',
     seats: 2,
-    options: [],
+    clock: true,   // n10 E3: Bedenkzeit (Fischer) als Tisch-Option
+    options: [
+      { key: 'uhr', type: 'choice', label: 'Bedenkzeit', choices: [
+        { value: 'aus', label: 'ohne' }, { value: '3+2', label: '3+2', sub: 'min + s je Zug' }, { value: '5+3', label: '5+3' }, { value: '10+5', label: '10+5' }, { value: '15+10', label: '15+10' }], dflt: 'aus', table: true }
+    ],
     variantName: () => 'Schach',
     draws: true
   },
@@ -183,7 +194,11 @@ export const GAMES = {
     ui: vierUi,
     blurb: '7 × 6, Steine fallen, vier in einer Linie',
     seats: 2,
-    options: [],
+    clock: true,   // n10 E3: Bedenkzeit (Fischer) als Tisch-Option
+    options: [
+      { key: 'uhr', type: 'choice', label: 'Bedenkzeit', choices: [
+        { value: 'aus', label: 'ohne' }, { value: '3+2', label: '3+2', sub: 'min + s je Zug' }, { value: '5+3', label: '5+3' }, { value: '10+5', label: '10+5' }, { value: '15+10', label: '15+10' }], dflt: 'aus', table: true }
+    ],
     variantName: () => 'Vier in einer Reihe'
   },
   maumau: {
@@ -231,7 +246,11 @@ export const GAMES = {
     ui: reversiUi,
     blurb: '8 × 8, einschließen und umdrehen',
     seats: 2,
-    options: [],
+    clock: true,   // n10 E3: Bedenkzeit (Fischer) als Tisch-Option
+    options: [
+      { key: 'uhr', type: 'choice', label: 'Bedenkzeit', choices: [
+        { value: 'aus', label: 'ohne' }, { value: '3+2', label: '3+2', sub: 'min + s je Zug' }, { value: '5+3', label: '5+3' }, { value: '10+5', label: '10+5' }, { value: '15+10', label: '15+10' }], dflt: 'aus', table: true }
+    ],
     variantName: () => 'Reversi'
   },
   paare: {

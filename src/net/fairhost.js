@@ -49,7 +49,7 @@ export const fairHostMethods = {
   _seed(seat) {
     const t = this.table;
     const p = t.seats[seat];
-    const who = p && p.bot ? `bot${seat}|${this.me.pid}` : this.me.pid;
+    const who = p && (p.bot || this._botLevel(seat)) && p.pid !== this.me.pid ? `bot${seat}|${this.me.pid}` : this.me.pid;
     const gen = t.fair && t.fair.round === t.round ? t.fair.gen || 0 : 0;
     return sha256(`${this.secret}|${t.id || t.created}|${t.round}|${who}${gen ? '|g' + gen : ''}`);
   },
@@ -64,7 +64,7 @@ export const fairHostMethods = {
     t.fairPriv = null;
     this._priv();
     t.seats.forEach((p, i) => {
-      if (p && (p.bot || p.pid === this.me.pid)) t.fair.commits[i] = chainLink(this._seed(i), 0, this.chain);
+      if (p && this._hostHolds(i)) t.fair.commits[i] = chainLink(this._seed(i), 0, this.chain);
     });
   },
 
@@ -94,7 +94,7 @@ export const fairHostMethods = {
     const t = this.table;
     const p = t.seats[seat];
     if (!p) return null;
-    if (p.bot || p.pid === this.me.pid) return k <= this.chain ? chainLink(this._seed(seat), k, this.chain) : null;
+    if (this._hostHolds(seat)) return k <= this.chain ? chainLink(this._seed(seat), k, this.chain) : null;
     const pend = this._priv().pending[seat];
     return pend && pend[k] ? pend[k] : null;
   },

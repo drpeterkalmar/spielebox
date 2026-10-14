@@ -36,6 +36,7 @@ export function openSettings() {
     (v) => { const st = store.settings(); st[key] = v; store.saveSettings(st); }, { setting: key });
   const ton = onOff('sound', 'Ton', 'leise Klack- und Kartengeräusche', 'ganz still');
   const vib = onOff('vibration', 'Vibration', 'kurz bei Sieg, Schach, Mühle, Rauswurf', 'nie');
+  const emo = onOff('emotes', 'Reaktionen', 'Emoji der Mitspieler zeigen, selbst senden', 'keine Emoji');
   const optik = seg('Optik', OPTIK, DEKO.level, (v) => { setDekoLevel(v); ensureDekoDefs(); prepareCardArt(); }, { setting: 'deko' });
   return sheet('Einstellungen',
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Computer-Tempo' }), tempo),
@@ -43,6 +44,7 @@ export function openSettings() {
     h('p', { class: 'muted small', text: 'Meldungen bleiben mindestens 5 Sekunden stehen (antippen schließt sie). Verpasstes steht unter der Status-Zeile: einfach antippen.' }),
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Ton' }), ton),
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Vibration' }), vib),
+    h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Reaktionen (online)' }), emo),
     h('p', { class: 'muted small', text: 'Steht das Handy auf lautlos, bleibt die Spielebox still. Vibriert wird nur bei großen Momenten, höchstens alle 1,5 Sekunden (am iPhone gar nicht).' }),
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Optik' }), optik),
     h('p', { class: 'muted small', text: DEKO.url !== null

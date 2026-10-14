@@ -878,3 +878,25 @@ html.deko .board .atout-label { font-size: 29px; }
 html.deko .evalbar { width: 8px; border-radius: 5px; background: linear-gradient(90deg, #1a1210, #3a2e28 55%, #1a1210); box-shadow: 0 0 0 1px rgba(255,236,200,.28), 0 2px 6px rgba(0,0,0,.4); }
 html.deko .evalbar .evalfill { background: linear-gradient(90deg, #d8ccb4, #fffaf0 50%, #d8ccb4); }
 html.deko .toast { background: linear-gradient(rgba(52, 36, 18, .97), rgba(30, 20, 10, .97)); box-shadow: inset 0 1px 0 rgba(255, 220, 150, .2), 0 6px 18px rgba(0,0,0,.4); }
+
+/* n10 E3: Online-Paket – Reaktionen, Vertretung, Bedenkzeit, Revanche-Angebot */
+.emote-btn { font-size: 22px; }
+.emote-btn.hidden { display: none; }
+.emote-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.emote-pick { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 76px; padding: 8px 4px; }
+.emote-pick .emote-e { font-size: 32px; line-height: 1.1; }
+.emote-pick .emote-t { font-size: 13px; }
+.emote-bubble { position: fixed; z-index: 40; pointer-events: none; display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px;
+  background: #fffaf0; color: #2a2118; border-radius: 18px 18px 18px 4px; box-shadow: 0 6px 16px rgba(0,0,0,.35);
+  animation: emote-in 2.5s ease-out forwards; }
+.emote-bubble .emote-e { font-size: 30px; line-height: 1; }
+.emote-bubble .emote-t { font-size: 13px; font-weight: 700; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes emote-in { 0% { opacity: 0; transform: translateY(10px) scale(.7); } 10% { opacity: 1; transform: translateY(0) scale(1.06); }
+  16% { transform: scale(1); } 85% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-12px); } }
+.tag.sub { background: rgba(240,181,76,.28); color: #ffe8b8; }
+.pb-clock { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 17px; padding: 3px 8px; border-radius: 8px; background: rgba(0,0,0,.25); min-width: 58px; text-align: center; }
+.pb-clock.run { background: #f6efe0; color: #1f1a14; }
+.pb-clock.low { background: #c0392b; color: #fff; }
+.btn.nudge { animation: nudge 1.2s ease-in-out 3; }
+@keyframes nudge { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.08); } 60% { transform: scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .btn.nudge, .emote-bubble { animation: none; } }

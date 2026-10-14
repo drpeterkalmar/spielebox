@@ -195,6 +195,9 @@ def run(pw, srv_base, relay, name, rtc_all=True, full=True):
         A.shot(f'e2e_{name}_host_ende', 'dev'); B.shot(f'e2e_{name}_gast_ende', 'dev')
         # Revanche und Wiederaufnahme
         B.tap('[data-act="rematch"]')
+        # n10: online ist Revanche ein Angebot – der Host nimmt an
+        wait(lambda: A.ev("!!document.querySelector('[data-offer=rematch]')"), 60, 'Revanche-Angebot beim Host')
+        A.tap('[data-act="rematch"]')
         wait(lambda: tbl(A)['round'] == 2 and tbl(A)['status'] == 'play' and tbl(B)['round'] == 2, 60, 'Revanche')
         c.ok(A.state()['mySeat'] == 1, f'{name}: Revanche mit getauschten Farben')
         for k in range(4):

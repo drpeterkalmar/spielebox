@@ -94,16 +94,22 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
   if (g.colors) body.push(segmented('Du spielst', colorItems, color, (v) => { color = v; }));
   const sh = sheet(title || g.title, ...body);
   const go = (fn) => () => { remember(); sh.close(); fn(); };
+  // Tisch-Optionen (n10: Bedenkzeit) kennt die Engine nicht – an den normalisierten Optionen vorbei mitgeben
+  const norm = () => {
+    const o = g.engine.normalizeOptions(opts);
+    for (const x of g.options) if (x.table && opts[x.key] !== undefined) o[x.key] = opts[x.key];
+    return o;
+  };
   sh.body.append(
-    h('button', { class: 'btn primary big', data: { act: 'online' }, on: { click: go(() => onOnline(gameId, g.engine.normalizeOptions(opts), color)) } },
+    h('button', { class: 'btn primary big', data: { act: 'online' }, on: { click: go(() => onOnline(gameId, norm(), color)) } },
       h('span', { text: onlineLabel || 'Online-Tisch aufmachen' }), h('small', { text: onlyOnline ? 'am selben Tisch, gleiche Wörter' : typeof g.seats === 'function' ? 'Du bekommst 3 Wörter für die Mitspieler' : 'Du bekommst 3 Wörter für deinen Mitspieler' }))
   );
   if (!onlyOnline) {
     sh.body.append(
       h('div', { class: 'bot-row' },
         segmented(typeof g.seats === 'function' ? 'Mit Computer-Spielern' : 'Gegen den Computer', LEVELS, level, (v) => { level = v; }),
-        h('button', { class: 'btn', data: { act: 'bot' }, on: { click: go(() => onLocal('bot', gameId, g.engine.normalizeOptions(opts), color, level)) } }, 'Spielen')),
-      h('button', { class: 'btn', data: { act: 'hotseat' }, on: { click: go(() => onLocal('hotseat', gameId, g.engine.normalizeOptions(opts), 'weiss')) } }, typeof g.seats === 'function' ? 'Alle an diesem Gerät' : 'Zu zweit an diesem Gerät'),
+        h('button', { class: 'btn', data: { act: 'bot' }, on: { click: go(() => onLocal('bot', gameId, norm(), color, level)) } }, 'Spielen')),
+      h('button', { class: 'btn', data: { act: 'hotseat' }, on: { click: go(() => onLocal('hotseat', gameId, norm(), 'weiss')) } }, typeof g.seats === 'function' ? 'Alle an diesem Gerät' : 'Zu zweit an diesem Gerät'),
       h('button', { class: 'btn link', on: { click: () => sheet('Regeln', lobbyRules(gameId)) } }, 'Regeln lesen')
     );
   }

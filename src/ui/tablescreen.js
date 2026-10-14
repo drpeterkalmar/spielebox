@@ -24,6 +24,8 @@ import { play as playSound } from './sound.js';
 import { buzz } from './haptik.js';
 import { boardToy } from './spielzeug.js';
 import { noteCommit, recentDrop, gate } from './drag.js';
+import { EMOTES, EMOTE_NAMES, clockLeft } from '../net/extras.js';
+import { urlFlag } from './flags.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -71,10 +73,14 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
 
   const title = h('div', { class: 'tb-title' });
   const pill = h('button', { class: 'pill', data: { net: '' }, on: { click: () => openNet() } });
+  // n10: Reaktionen (6 feste Emoji) – nur online, sitzend, nicht abgeschaltet
+  const emotesOn = () => mode === 'online' && urlFlag('emotes', true) && store.settings().emotes !== false;
+  const emoteBtn = h('button', { class: 'icon-btn emote-btn hidden', 'aria-label': 'Reaktion senden', text: '😊', data: { act: 'emote' }, on: { click: () => openEmotes() } });
   const bar = h('header', { class: 'tbar' },
     h('button', { class: 'icon-btn back', 'aria-label': 'Zur Übersicht', text: '‹', on: { click: () => onLeave() } }),
     title,
     pill,
+    emoteBtn,
     h('button', { class: 'icon-btn', 'aria-label': 'Menü', text: '⋯', data: { act: 'menu' }, on: { click: () => openMenu() } }));
   const pTop = h('div', { class: 'pbar top' });
   const pBot = h('div', { class: 'pbar bottom' });
@@ -209,11 +215,13 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const here = mode !== 'online' || !s || s.bot || s.pid === session.me.pid || isHere(s.pid);
     el.className = `pbar ${el.classList.contains('top') ? 'top' : 'bottom'}${active ? ' active' : ''}`;
     el.dataset.seat = seat;
+    const sub2 = t.subs && t.subs[seat];
     el.append(
       gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
-        h('div', { class: 'pb-name' }, seatLabel(t, seat), !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
+        h('div', { class: 'pb-name' }, seatLabel(t, seat), sub2 ? h('span', { class: 'tag sub', text: 'Computer vertritt' }) : !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
         h('div', { class: 'pb-sub', text: sub })),
+      t.clock ? h('div', { class: 'pb-clock', data: { clock: seat } }) : null,
       h('div', { class: 'pb-score', title: 'Punkte an diesem Tisch', text: fmtScore(score) }));
   }
 
@@ -225,7 +233,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     return h('div', { class: 'pchip' + (active ? ' active' : ''), data: { seat } },
       gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
-        h('div', { class: 'pb-name' }, seatLabel(t, seat), !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
+        h('div', { class: 'pb-name' }, seatLabel(t, seat), t.subs && t.subs[seat] ? h('span', { class: 'tag sub', text: 'Computer vertritt' }) : !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
         h('div', { class: 'pb-sub', text: s || t.status !== 'wait' ? gameUi(t.game).sub(shownOf(t), seat, viewer()) : 'Platz frei' })));
   }
 
@@ -252,6 +260,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     playerBar(pBot, t, bs);
     playerBar(pTop2, t, 1 - bs);
     playerBar(pBot2, t, bs);
+    if (t.clock) paintClock();
   }
 
   function isHere(pid) {
@@ -307,7 +316,19 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       }
     }
     if (t.status === 'over') {
-      if (seat !== null || mode !== 'online') actions.append(btn('Revanche', 'rematch', () => session.act('rematch'), 'btn primary'));
+      // n10: online mit anderen Menschen ist Revanche ein Angebot, das alle annehmen müssen
+      const offer = mode === 'online' && t.seats.filter((x) => x && !x.bot).length >= 2;
+      const r = t.rematch;
+      if (offer && r && seat !== null) {
+        const mine = r.seats.includes(seat);
+        const who = r.seats.filter((x) => x !== seat).map((x) => nameOf(t, x)).join(', ');
+        offerEl.append(h('div', { class: 'offer-box', data: { offer: 'rematch' } }, mine
+          ? h('span', { text: who ? `Revanche: ${who} ist dabei – warte auf die anderen` : 'Revanche angeboten – warte auf Antwort' })
+          : h('span', { text: `${who} möchte eine Revanche` }),
+          mine ? btn('Zurückziehen', 'rematch-decline', () => session.act('rematch-decline'), 'btn small')
+            : btn('Nein danke', 'rematch-decline', () => session.act('rematch-decline'), 'btn small')));
+        if (!mine) actions.append(btn('Revanche annehmen', 'rematch', () => session.act('rematch'), 'btn primary nudge'));
+      } else if (seat !== null || mode !== 'online') actions.append(btn(offer ? 'Revanche anbieten' : 'Revanche', 'rematch', () => session.act('rematch'), 'btn primary'));
       if (session.role === 'host') actions.append(btn('Anderes Spiel', 'another', () => onAnotherGame()));
       actions.append(btn('Übersicht', 'leave', () => onLeave()));
       return;
@@ -329,6 +350,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       else if (gu.idle && !locked(t)) actions.append(...gu.idle(shownOf(t), view, { mode, seat: viewer() ?? null, newLocal: mode !== 'online' ? onNewLocal : null, animating, act: (a) => { const r = session.act(a, viewer()); if (r && r.ok === false && r.reason) toast(r.reason); } }));
       if (gu.hidden || !gameOf(t.game).draws) return; // Aufgeben steht dann im Menü
     }
+    // n10: Bedenkzeit – dem Gegner 15 s schenken
+    if (t.clock && mode === 'online' && t.seats.length === 2 && t.clock.since !== null) actions.append(btn('+15 s für Gegner', 'moretime', () => session.act('moretime'), 'btn small'));
     const canOffer = mode !== 'bot' && gameOf(t.game).draws && (t.drawOffer === null || t.drawOffer === undefined);
     if (canOffer) actions.append(btn(mode === 'hotseat' ? 'Remis' : 'Remis anbieten', 'draw-offer', () => confirmAct('Remis', mode === 'hotseat' ? 'Partie als Remis beenden?' : 'Remis anbieten?', 'draw-offer')));
     actions.append(btn('Aufgeben', 'resign', () => confirmAct('Aufgeben', mode === 'hotseat' ? `${t.seats[turnOf(t)].name} gibt auf?` : 'Wirklich aufgeben?', 'resign')));
@@ -394,7 +417,11 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     pill.dataset.net = st.mode;
     pill.textContent = st.text;
     pill.title = st.relay ? `Relays offen: ${st.relay.open}/${st.relay.total}` : '';
-    netEl.classList.toggle('hidden', !(mode === 'online' && st.mode === 'getrennt'));
+    // n10: Gastgeber, dessen fehlende Mitspieler alle vom Computer vertreten werden – sein Netz ist in Ordnung
+    const t = session.table;
+    const covered = session.role === 'host' && t && t.subs && t.seats.every((x, i) => !x || x.bot || x.pid === session.me.pid || t.subs[i] || isHere(x.pid));
+    if (covered && st.mode === 'getrennt') pill.textContent = 'Mitspieler weg';
+    netEl.classList.toggle('hidden', !(mode === 'online' && st.mode === 'getrennt' && !covered));
   }
 
   // ---------- Anzeige-Warteschlange ----------
@@ -476,6 +503,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     shownStatus = t.status;
     renderFair(t);
     requestEval(t);
+    emoteBtn.classList.toggle('hidden', !(emotesOn() && session.mySeat !== null && session.mySeat !== undefined && t.status !== 'wait'));
+    noteSubs(t);
+    startClock(t);
     statusEl.dataset.state = t.status;
     if (!legal) hintEl.textContent = t.status === 'play' && t.game === 'muehle' && session.mySeat === null ? '' : (legal === null && t.status === 'play' && session.mySeat !== null && turnOf(t) !== session.mySeat ? '' : hintText);
     renderActions(t);
@@ -485,6 +515,64 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     screen.dataset.game = t.game;
     lastTable = t;
     return dur;
+  }
+
+  // ---------- Online-Paket (n10 E3): Reaktionen, Vertretung, Uhr ----------
+  function openEmotes() {
+    const sh = sheet('Reaktion senden', h('div', { class: 'emote-grid' }, ...EMOTES.map((e, i) => h('button', { class: 'btn emote-pick', data: { emote: String(i) }, on: { click: () => {
+      sh.close();
+      const r = session.emote(i);
+      if (r && r.ok === false && r.reason) toast(r.reason === 'zu schnell' ? 'Kurz warten – höchstens eine Reaktion alle 3 Sekunden' : r.reason);
+    } } }, h('span', { class: 'emote-e', text: e }), h('span', { class: 'emote-t', text: EMOTE_NAMES[i] })))),
+    h('p', { class: 'muted small', text: 'Ausschalten: Einstellungen → Reaktionen.' }));
+  }
+
+  // Sprechblase über der Leiste des Absenders, 2,5 s
+  function showEmote({ e, seat }) {
+    if (!emotesOn() || !EMOTES[e]) return;
+    const t = session.table;
+    const bars = [...screen.querySelectorAll(`.pbar[data-seat="${seat}"], .pchip[data-seat="${seat}"]`)].filter((el) => el.getClientRects().length && el.getBoundingClientRect().height > 0);
+    const r = (bars[0] || boardWrap).getBoundingClientRect();
+    const b = h('div', { class: 'emote-bubble', data: { emoteSeat: String(seat) }, 'aria-live': 'polite' }, h('span', { class: 'emote-e', text: EMOTES[e] }), h('span', { class: 'emote-t', text: t ? nameOf(t, seat) : '' }));
+    Object.assign(b.style, { left: `${Math.round(Math.min(innerWidth - 150, r.left + r.width * 0.55))}px`, top: `${Math.round(Math.max(4, r.top - 54))}px` });
+    screen.appendChild(b);
+    addEvent(`${t ? nameOf(t, seat) : ''}: ${EMOTES[e]} ${EMOTE_NAMES[e]}`);
+    setTimeout(() => b.remove(), 2500);
+  }
+
+  // Vertretung beginnt/endet → Banner
+  let subsShown = null;
+  function noteSubs(t) {
+    const now = t.subs ? Object.keys(t.subs).map(Number) : [];
+    if (subsShown && mode === 'online') {
+      for (const x of now) if (!subsShown.includes(x)) pushBanner(x === session.mySeat ? 'Der Computer hat für dich gespielt, solange du weg warst' : `Verbindung zu ${nameOf(t, x)} weg – der Computer spielt für ${nameOf(t, x)} weiter`);
+      for (const x of subsShown) if (!now.includes(x)) pushBanner(x === session.mySeat ? 'Du bist wieder da und spielst selbst weiter' : `${nameOf(t, x)} ist zurück und spielt selbst weiter`);
+    }
+    subsShown = now;
+  }
+
+  // Bedenkzeit: Anzeige in den Leisten, läuft nur, solange eine Uhr tickt (4× je Sekunde, nur Text)
+  let clockTimer = null, clockRef = null;
+  const fmtClock = (ms) => { const s0 = Math.max(0, Math.ceil(ms / 1000)); const m = Math.floor(s0 / 60), sec = s0 % 60; return s0 < 10 ? `0:0${sec}` : `${m}:${String(sec).padStart(2, '0')}`; };
+  function paintClock() {
+    const t = session.table;
+    if (!t || !t.clock) return;
+    if (!clockRef || clockRef.seq !== t.seq || clockRef.round !== t.round) clockRef = { seq: t.seq, round: t.round, at: Date.now() };
+    const elapsed = t.clock.since !== null ? Date.now() - clockRef.at + Math.max(0, (t.updated || 0) - t.clock.since) : 0;
+    const turn = t.status === 'play' ? turnOf(t) : null;
+    for (const el of screen.querySelectorAll('[data-clock]')) {
+      const seat = Number(el.dataset.clock);
+      const ms = clockLeft(t.clock, seat, turn, elapsed);
+      el.textContent = fmtClock(ms);
+      el.classList.toggle('run', turn === seat && t.clock.since !== null);
+      el.classList.toggle('low', ms < 10000);
+    }
+  }
+  function startClock(t) {
+    paintClock();
+    const run = !!t.clock && t.status === 'play' && t.clock.since !== null;
+    if (run && !clockTimer) clockTimer = setInterval(paintClock, 250);
+    else if (!run && clockTimer) { clearInterval(clockTimer); clockTimer = null; }
   }
 
   // ---------- Klänge und Vibration (n10 E1) ----------
@@ -731,6 +819,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const offChange = session.on('change', (t, info) => render(info));
   const offNet = session.on('net', () => { renderStatusPill(); if (session.table && lastTable) renderPlayers(session.table); if (!session.table) renderOverlay(null); });
   const offToast = session.on('toast', (text) => toast(text));
+  const offEmote = session.on('emote', (x) => showEmote(x));
   const offToastLog = onToast((text) => addEvent(text));
   // Optik umgestellt (Einstellungen): Brett neu aufbauen
   // n10: Brett-Spielzeug – Rand des Bretts antippen → Holz-Tock und ein wenig Staub
@@ -748,7 +837,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     banner: () => (banner ? banner.text : null),
     destroy() {
       clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); cueTimers.forEach(clearTimeout); offToy(); gate.busy = false; gate.drop(); removeEventListener('resize', onResize);
-      offChange(); offNet(); offToast(); offToastLog(); offDeko(); clearFx(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
+      offChange(); offNet(); offToast(); offEmote(); clearInterval(clockTimer); offToastLog(); offDeko(); clearFx(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
     }
   };
 }
