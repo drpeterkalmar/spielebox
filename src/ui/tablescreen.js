@@ -19,6 +19,10 @@ import { onDeko } from './deko.js';
 import { clear as clearFx } from './fx.js';
 import { celebrate } from './sieg.js';
 import { setSpriteScale } from './sprites.js';
+import { moveCues, hapticCue, HAPTIK } from '../movesound.js';
+import { play as playSound } from './sound.js';
+import { buzz } from './haptik.js';
+import { boardToy } from './spielzeug.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -441,6 +445,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       // Hold'em: Ergebnis der Hand melden, sobald die Karten aufgedeckt sind (nicht erst nach dem neuen Austeilen)
       const ht = t.game === 'holdem' ? holdemTimes(anim, t.gs) : null;
       noteMove(t, info, ht ? ht.chip + ht.toPot + ht.runout : dur);
+      cueMove(t, info, anim);
     }
     animating = dur > 0 || queue.length > 0;
     animBy = dur > 0 && !anim.own ? info.by : null;
@@ -456,7 +461,10 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (t.status === 'over' && shownStatus === 'play' && info.kind === 'move' && dur > 0) {
       const w = t.result && t.result.winner;
       // erst nach dem Nachzeichnen am Ende des Zugs (sonst ersetzt das Brett die hüpfenden Steine)
-      celebrate({ t, view, wrap: boardWrap, game: t.game, delay: dur + 120, mine: w !== null && w !== undefined && (mode === 'hotseat' || w === session.mySeat) });
+      const mine = w !== null && w !== undefined && (mode === 'hotseat' || w === session.mySeat);
+      celebrate({ t, view, wrap: boardWrap, game: t.game, delay: dur + 120, mine });
+      // n10: eigener Sieg – Gewinn-Ton und kurze Vibration (Hold'em macht das in der Ansicht selbst)
+      if (mine && t.game !== 'holdem') later(dur + 120, () => { playSound('sieg'); if (mode !== 'hotseat') buzz(HAPTIK.sieg); });
     }
     shownStatus = t.status;
     renderFair(t);
@@ -470,6 +478,17 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     screen.dataset.game = t.game;
     lastTable = t;
     return dur;
+  }
+
+  // ---------- Klänge und Vibration (n10 E1) ----------
+  let cueTimers = [];
+  const later = (ms, fn) => { if (ms <= 0) { fn(); return; } const id = setTimeout(() => { cueTimers = cueTimers.filter((x) => x !== id); fn(); }, ms); cueTimers.push(id); };
+  function cueMove(t, info, anim) {
+    const d = t.last && t.last.d;
+    for (const c of moveCues({ game: t.game, move: info.move, prevGs: info.prevGs, gs: t.gs, a: anim, d })) later(c.at, () => playSound(c.k));
+    const me = mode === 'hotseat' ? null : session.mySeat;
+    const hz = hapticCue({ game: t.game, move: info.move, by: info.by, gs: t.gs, me });
+    if (hz) later(Math.max(0, animMs(t.game, info.move, info.prevGs, t.gs, anim) - 60), () => buzz(hz));
   }
 
   // ---------- Ereignisse: Liste und Banner ----------
@@ -691,7 +710,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     }, 'eval-toggle'));
     if (t) items.push(item('Regeln', () => sheet('Regeln', gameUi(t.game).rules(t.opts)), 'rules'));
     items.push(item('Was ist passiert? (letzte Ereignisse)', openEvents, 'events'));
-    items.push(item(`Computer-Tempo: ${LEVEL_NAMES[level()]}`, () => openSettings(), 'tempo'));
+    items.push(item(`Einstellungen (Tempo ${LEVEL_NAMES[level()]}, Ton ${store.settings().sound === false ? 'aus' : 'an'})`, () => openSettings(), 'tempo'));
     if (t && t.game === 'schnapsen' && viewer() !== null && viewer() !== undefined && !locked(t)) items.push(item('Deine Stiche ansehen', openStiche, 'stiche'));
     if (t && gameUi(t.game).menu) items.push(...gameUi(t.game).menu(shownOf(t), { item, share: shareText, sheet, rerender: () => { evalKey = ''; render({ kind: 'state' }); } }));
     if (t && t.status === 'play' && session.mySeat !== null && gameUi(t.game).actions && (gameUi(t.game).hidden || !gameOf(t.game).draws)) {
@@ -707,6 +726,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const offToast = session.on('toast', (text) => toast(text));
   const offToastLog = onToast((text) => addEvent(text));
   // Optik umgestellt (Einstellungen): Brett neu aufbauen
+  // n10: Brett-Spielzeug – Rand des Bretts antippen → Holz-Tock und ein wenig Staub
+  const offToy = boardToy(boardWrap, () => (session.table ? session.table.game : null));
   const offDeko = onDeko(() => { if (view) { view.destroy(); view = null; viewGame = null; } render({ kind: 'state' }); });
   render({ kind: 'start' });
 
@@ -719,7 +740,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     events: () => events.slice(),
     banner: () => (banner ? banner.text : null),
     destroy() {
-      clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); removeEventListener('resize', onResize);
+      clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); cueTimers.forEach(clearTimeout); offToy(); removeEventListener('resize', onResize);
       offChange(); offNet(); offToast(); offToastLog(); offDeko(); clearFx(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
     }
   };

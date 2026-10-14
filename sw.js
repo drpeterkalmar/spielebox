@@ -5,7 +5,7 @@
 //   (?h=…), so lädt ein Update nur fehlende oder geänderte Bilder nach; alte Fassungen werden beim Aktivieren entfernt.
 // Kartenpakete (n9): die @2x-Einzelkarten liegen bitgleich in 2 Paketen (tools/cardpack.py). Vorab geladen werden nur
 // die Pakete; eine Karten-Anfrage beantwortet der Worker mit dem Ausschnitt aus dem Paket (Blob.slice, ohne Kopie).
-const VERSION = 'e85f75d76b';
+const VERSION = '0389f65ab3';
 const CORE = 'spielebox-core-' + VERSION;
 const ASSETS = 'spielebox-assets';
 const CORE_FILES = [
@@ -99,6 +99,7 @@ const CORE_FILES = [
   'src/games/wuerfel/rules.js',
   'src/games/wuerfel/ui.js',
   'src/games/wuerfel/view.js',
+  'src/movesound.js',
   'src/net/crypto.js',
   'src/net/fair.js',
   'src/net/fairhost.js',
@@ -130,12 +131,14 @@ const CORE_FILES = [
   'src/ui/fxsvg.js',
   'src/ui/gameicons.js',
   'src/ui/gameui.js',
+  'src/ui/haptik.js',
   'src/ui/lobby.js',
   'src/ui/material.js',
   'src/ui/seatcolors.js',
   'src/ui/settings.js',
   'src/ui/sieg.js',
   'src/ui/sound.js',
+  'src/ui/spielzeug.js',
   'src/ui/sprites.js',
   'src/ui/svg.js',
   'src/ui/tablescreen.js',

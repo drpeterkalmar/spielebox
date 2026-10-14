@@ -13,6 +13,7 @@ import { holdemTimes, OWN } from '../../tempo.js';
 import { frCard, backCard, ensureCardDefs, frHeight } from '../../ui/cards.js';
 import { SEAT_COLORS } from '../../ui/seatcolors.js';
 import { chipSound, winSound } from '../../ui/sound.js';
+import { buzz } from '../../ui/haptik.js';
 import { DEKO, boardLayers } from '../../ui/deko.js';
 import { woodFrame, feltRect, feltEllipse, shadowUnder } from '../../ui/material.js';
 import * as FXS from '../../ui/fxsvg.js';
@@ -467,9 +468,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     });
   }
 
-  function haptic(p) {
-    try { if (navigator.vibrate) navigator.vibrate(p); } catch { /* egal */ }
-  }
+  function haptic(p) { buzz(p); }   // n10: gemeinsamer Schalter „Vibration“, Abstand ≥ 1,5 s
 
   // Bedenkzeit online: Ring + Restsekunden
   function startClock(state, ctx) {

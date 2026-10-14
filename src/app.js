@@ -16,6 +16,8 @@ import { fxState, freeze } from './ui/fx.js';
 import { prepareCardArt } from './ui/cards.js';
 import { prepare as prepareSprites } from './ui/sprites.js';
 import { BUILD } from './build.js';
+import { soundLog } from './ui/sound.js';
+import { haptikLog } from './ui/haptik.js';
 import { botDelay, levelFrom } from './tempo.js';
 
 const params = new URLSearchParams(location.search);
@@ -352,6 +354,9 @@ window.__box = {
   // Verzierungen (Deko-Stufe, Effekte)
   deko: () => ({ level: DEKO.level, on: DEKO.on, fx: DEKO.fx, quality: DEKO.quality }),
   fx: () => fxState(),
+  // n10: gespielte Töne und Vibrationen (Tests zählen sie; Test-Browser laufen stumm)
+  sounds: () => soundLog(),
+  haptik: () => haptikLog(),
   freeze: (on = true) => freeze(on)
 };
 

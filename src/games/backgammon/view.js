@@ -2,6 +2,7 @@
 // Bar in der Mitte; gezeigt immer aus Sicht des eigenen Sitzes (Schwarz sieht das Brett gespiegelt, Heimfeld rechts unten).
 // Im Hochformat wird das Brett um 90° gedreht (Heimfeld unten), damit jeder Punkt ≥ 48 px breit bleibt.
 // Bedienung: Stein antippen → Ziele leuchten → Ziel antippen; „Zurück“/„Fertig“/„Abtragen“ kommen als Knöpfe.
+import { play } from '../../ui/sound.js';
 import { partialSteps, applySteps, isComplete } from './engine.js';
 import { s, ensureDefs, piece, place, animatePath, animateSteps, toBoard, toScreen, onTap, die3d } from '../../ui/svg.js';
 import { OWN } from '../../tempo.js';
@@ -244,7 +245,11 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   }
 
   function addStep(st) {
+    const hits0 = steps.length ? applySteps(gs, steps).hits || 0 : 0;
     steps = [...steps, { from: st.from, to: st.to, die: st.die }];
+    // n10: eigener Teilzug klackt beim Landen (Schlagen tiefer)
+    const hit = (applySteps(gs, steps).hits || 0) > hits0;
+    timers.push(setTimeout(() => play(hit ? 'schlag' : 'klack'), 190));
     sel = null;
     // Stein gleich weiter führen, wenn er noch Ziele hat
     const ns = partialSteps(gs, steps);

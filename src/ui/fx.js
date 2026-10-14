@@ -240,6 +240,16 @@ export function stars(p, { count = 8, spread = 4, size = 20 } = {}) {
   start();
 }
 
+// Staub (Brett-Spielzeug, n10): ein paar Körnchen springen vom angetippten Holz auf
+export function dust(p, { count = 6 } = {}) {
+  if (!p || !begin()) return;
+  for (let k = cnt(count); k > 0; k--) {
+    const a = rnd(-2.8, -0.35), v = rnd(0.8, 2.2);
+    spawn({ x: p[0], y: p[1], vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rnd(450, 700), size: rnd(10, 16), grow: 8, vr: rnd(-0.05, 0.05), drag: 0.9, grav: 0.05, spr: 'dust' });
+  }
+  start();
+}
+
 // Konfetti von oben (Sieg); rect = Bereich (Brett), sonst ganzes Bild
 export function confetti({ rect = null, count = 110, life = 2600 } = {}) {
   if (!begin()) return;
@@ -287,4 +297,4 @@ export function freeze(on = true) {
 // Tests: läuft gerade ein Effekt? wie viele Partikel?
 export function fxState() { return { particles: n, running: !!raf, canvas: !!canvas && !canvas.hidden }; }
 
-export const fx = { at, later, stars, confetti, cannons, rain, clear, state: fxState };
+export const fx = { at, later, stars, dust, confetti, cannons, rain, clear, state: fxState };
