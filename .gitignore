@@ -15,6 +15,10 @@ tests/shots/schiffe-n8/*
 !tests/shots/technik/
 tests/shots/technik/*
 !tests/shots/technik/*.jpg
+# Feinschliff n10: Collagen (N10_VORLAGEN_BERICHT.md)
+!tests/shots/n10/
+tests/shots/n10/*
+!tests/shots/n10/*.jpg
 tests/out/*
 !tests/out/.keep
 __pycache__/

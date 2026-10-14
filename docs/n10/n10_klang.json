@@ -1,0 +1,197 @@
+{
+ "klang": {
+  "spiele": {
+   "muehle": {
+    "zuege": 5,
+    "toene": 6,
+    "arten": [
+     "klack"
+    ],
+    "min_abstand": 145
+   },
+   "dame": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "klack",
+     "schlag"
+    ],
+    "min_abstand": 135
+   },
+   "schach": {
+    "zuege": 5,
+    "toene": 6,
+    "arten": [
+     "klack",
+     "schlag"
+    ],
+    "min_abstand": 132
+   },
+   "schnapsen": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "karte"
+    ],
+    "min_abstand": 153
+   },
+   "backgammon": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "klack",
+     "wuerfel"
+    ],
+    "min_abstand": 134
+   },
+   "blackjack": {
+    "zuege": 5,
+    "toene": 4,
+    "arten": [
+     "karte",
+     "klack"
+    ],
+    "min_abstand": 219
+   },
+   "halma": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "klack"
+    ],
+    "min_abstand": 153
+   },
+   "ludo": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "klack",
+     "wuerfel"
+    ],
+    "min_abstand": 129
+   },
+   "schiffe": {
+    "zuege": 5,
+    "toene": 4,
+    "arten": [
+     "platsch",
+     "schlag"
+    ],
+    "min_abstand": 139
+   },
+   "vier": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "klack"
+    ],
+    "min_abstand": 171
+   },
+   "maumau": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "karte"
+    ],
+    "min_abstand": 141
+   },
+   "wuerfel": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "klack",
+     "wuerfel"
+    ],
+    "min_abstand": 159
+   },
+   "reversi": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "klack"
+    ],
+    "min_abstand": 141
+   },
+   "paare": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "karte"
+    ],
+    "min_abstand": 135
+   },
+   "holdem": {
+    "zuege": 5,
+    "toene": 5,
+    "arten": [
+     "tock"
+    ],
+    "min_abstand": 133
+   }
+  },
+  "audio": {
+   "klack": {
+    "peak_dbfs": -24.4,
+    "anteil_300_700": 0.984,
+    "schwerpunkt_hz": 499
+   },
+   "schlag": {
+    "peak_dbfs": -23.5,
+    "anteil_300_700": 0.956,
+    "schwerpunkt_hz": 397
+   },
+   "karte": {
+    "peak_dbfs": -32.8,
+    "anteil_300_700": 0.65,
+    "schwerpunkt_hz": 707
+   },
+   "wuerfel": {
+    "peak_dbfs": -27.8,
+    "anteil_300_700": 0.979,
+    "schwerpunkt_hz": 526
+   },
+   "platsch": {
+    "peak_dbfs": -28.5,
+    "anteil_300_700": 0.863,
+    "schwerpunkt_hz": 530
+   },
+   "kipp": {
+    "peak_dbfs": -29.9,
+    "anteil_300_700": 0.951,
+    "schwerpunkt_hz": 594
+   },
+   "tock": {
+    "peak_dbfs": -24.0,
+    "anteil_300_700": 0.818,
+    "schwerpunkt_hz": 329
+   },
+   "sieg": {
+    "peak_dbfs": -24.1,
+    "anteil_300_700": 0.996,
+    "schwerpunkt_hz": 550
+   },
+   "sechs": {
+    "peak_dbfs": -26.1,
+    "anteil_300_700": 0.781,
+    "schwerpunkt_hz": 643
+   },
+   "chip": {
+    "peak_dbfs": -28.9,
+    "anteil_300_700": 0.986,
+    "schwerpunkt_hz": 513
+   },
+   "chips": {
+    "peak_dbfs": -28.8,
+    "anteil_300_700": 0.978,
+    "schwerpunkt_hz": 548
+   }
+  },
+  "spiele_mit_ton": 15,
+  "haptik_schach": [
+   {
+    "p": 30,
+    "at": 1791969426262
+   }
+  ]
+ }
+}

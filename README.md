@@ -17,6 +17,18 @@ Schritt, ein fertiger Schnapsen-Stich bleibt 2 s liegen. Wichtiges („Computer 
 nimmt einen Stein“, „Pasch!“) steht als Banner über der Gegnerleiste; die letzten 5 Ereignisse zeigt ein Tipp auf die
 Status-Zeile. Meldungen kommen nacheinander, stehen je mindestens 5 s, Antippen schließt. Alle Zeiten: `src/tempo.js`.
 
+**Klang, Ziehen, Online (n10):** Jeder Zug ist leise zu hören (Stein klackt beim Landen, Schlagen klingt tiefer, Karten
+wischen, Würfel rattern); Vibration nur bei großen Momenten (eigener Sieg, „Schach!“, Mühle oder Rauswurf gegen dich),
+höchstens alle 1,5 s. Beides unter *Einstellungen* abschaltbar; steht das Handy auf lautlos, bleibt die Spielebox still.
+Wer auf den Holzrand tippt, hört ein „Tock“. Figuren (Schach, Dame, Mühle) und Karten (Schnapsen, Mau-Mau) lassen sich
+**ziehen** – Antippen geht weiter wie bisher. Ein Tipp, während der Computer noch zieht, wird danach ausgeführt.
+Online ist **Revanche** ein Angebot (der andere nimmt an), es gibt **6 Reaktionen** (😊-Knopf oben: 👋 👍 😮 😅 🙏 🎉,
+kein freier Text) und – verliert jemand die Verbindung – spielt nach **60 s der Computer** für ihn weiter, bis er zurück
+ist. Schach, Dame, Mühle, Reversi und Vier gibt es auf Wunsch mit **Bedenkzeit** (3+2 … 15+10, Standard ohne).
+Würfel rollen spannend aus, am Ende gibt es kleine **Auszeichnungen** (z. B. „Meiste Sechsen“; ändern nie das Ergebnis),
+und die *Einstellungen* zeigen eine **Statistik** dieses Geräts. Bedienung nach bewährten Mustern freier
+Online-Brettspiel-Plattformen (Übersicht: [VORLAGEN.md](VORLAGEN.md), Bericht: [N10_VORLAGEN_BERICHT.md](N10_VORLAGEN_BERICHT.md)).
+
 ## Idee
 - **Tisch aufmachen:** Spiel wählen → die App zeigt drei Wörter, z. B. *Baum · Ball · Wolke*.
 - **Beitreten:** Der Mitspieler tippt die drei Wörter ein (Autovervollständigung, Reihenfolge egal, Tippfehler und
@@ -229,11 +241,26 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
   Bildspeicher). Kartenpakete: `python3 tools/cardpack.py [--check]` (ruft `update_sw.py` selbst auf), Atlanten
   `node tools/build_atlas.mjs [--check]`, Licht-Ebene `python3 tools/bake_material.py`, Icons `python3 tools/shrink_icons.py`.
   URL-Regler: `?atlas=1` (Karten aus dem Atlas, Versuch), `?sprites=0` (Steine als Vektor), `?material=0` (ohne Licht-Ebene).
+- Feinschliff n10 (`N10_VORLAGEN_BERICHT.md`): `node tests/node/klang.test.mjs`, `drag.test.mjs`, `online.test.mjs`,
+  `spannung.test.mjs`, `schnapsen_exakt.test.mjs` (alle in `npm test`), `ehrung.swarm.test.mjs` (Schwarm, 10 000 Partien);
+  `python3 tests/smoke_n10.py klang|ziehen|online|spannung` (Browser hoch/quer/Desktop, stumm; Klänge offline gerendert
+  und per FFT geprüft, Ziehen mit echten Touch-/Maus-Ereignissen), `python3 tests/e2e_n10.py [--relay] [--vertretung=60]`
+  (3 Geräte über echte Relays: Uhr, Reaktion, Vertretung, Revanche-Angebot); `node tools/selfplay.mjs [--games=…]
+  [--pairs=2:1,3:2] [--n=100]` (Selbstspiel aller Computer-Stufen mit 95-%-Intervall).
+  URL-Regler (0 = wie vor n10): `?ton=0`, `?haptik=0`, `?spielzeug=0`, `?ziehen=0`, `?emotes=0`, `?vertretung=60`
+  (Sekunden, 0 = aus), `?ausrollen=0`, `?ehrung=0`, `?fehler=0.15` (Fehlerquote der leichten Stufe, 0 = aus).
 - `python3 tests/test_nav.py` – Browser: schnelle Wechsel Lobby/Tisch ergeben eine Sitzung, Fehler beim Öffnen → Meldung.
 - `python3 tests/test_sw.py` – Service-Worker lokal: Kern-Cache je Version, Bilder-Cache versionslos (Update lädt nur
   geänderte Bilder), offline mit Karten, Karten bitgleich aus dem Kartenpaket ohne Netzabruf; `SW_ALT=<alter sw.js>`
   prüft zusätzlich den Umstieg vom alten Schema (nur neue Dateien werden geholt).
 - Debug-API im Browser: `window.__box` (Zustand, legale Züge, Züge, Tisch öffnen/beitreten).
+
+## Änderungen
+- **n10 (14.10.2026) – Feinschliff nach Vorlagen:** Klänge in allen 15 Spielen, Vibration, Brett-Spielzeug (E1);
+  Ziehen von Karten und Figuren, Eingabe-Puffer (E2); Revanche als Angebot, Reaktionen, Computer-Vertretung,
+  Bedenkzeit (E3); Würfel-Auslauf, Auszeichnungen, Schnapsen-Computer mit Gedächtnis und exakter Endphase, menschliche
+  Fehler der leichten Stufe, Statistik (E4). Einzelheiten und Messungen: `N10_VORLAGEN_BERICHT.md`.
+- **n9 (09.10.2026) – Technik:** Licht-Ebene, Steine als Bilder, nur Compositor-Animationen, Kartenpakete (`TECHNIK_BERICHT.md`).
 
 ## Credits
 - Programm, Bretter, Steine, Icons, Wortliste: eigene Arbeit, MIT-Lizenz (© 2026 Peter Kalmar).

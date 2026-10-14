@@ -1,0 +1,23 @@
+{
+ "ziehen": {
+  "schach_hoch": {
+   "versuche": 30,
+   "richtig": 30,
+   "quote": 1.0
+  },
+  "schach_quer": {
+   "versuche": 30,
+   "richtig": 30,
+   "quote": 1.0
+  },
+  "schach_desktop": {
+   "versuche": 30,
+   "richtig": 30,
+   "quote": 1.0
+  },
+  "puffer": {
+   "tipp_waehrend_animation": true,
+   "ausgefuehrt": true
+  }
+ }
+}
