@@ -218,7 +218,21 @@ export function createBoard(host, { onMove, onHint, onStiche }) {
     // eigener Stichstapel → Stich-Blatt (außer der Tipp trifft eine angehobene Handkarte)
     if (hitPile(p[0], p[1]) && !(sel && hitHand(p[0], p[1]))) { if (onStiche) onStiche(); return; }
     tap(p[0], p[1]);
+  }, {
+    // n10: Karte aus der Hand nach oben ziehen = ausspielen; bleibt sie über der Hand, bleibt sie nur angehoben
+    pick: (x, y) => {
+      if (!legal || !gs || gs.phase !== 'play') return null;
+      const card = hitHand(x, y);
+      return card && playable().has(card) ? { el: gHand.querySelector(`[data-hand="${card}"]`), selected: sel === card } : null;
+    },
+    drop: (x, y) => {
+      dragCard = sel;
+      if (sel && y < HAND_Y - (HAND_W * RATIO) / 2 - 20) tap(TRICK[0], TRICK[1]);
+      else render();
+    },
+    land: () => { const el = dragCard && gTrick.querySelector(`[data-trick="${dragCard}"]`); return el ? [Number(el.dataset.x), Number(el.dataset.y)] : TRICK; }
   });
+  let dragCard = null;
 
   return {
     svg,

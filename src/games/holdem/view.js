@@ -127,7 +127,19 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
   L = boardLayers(svg, host);
   if (L) fu = L.under.appendChild(s('g'));
   drawFelt();
-  onTap(svg, () => {});
+  // n10: eigene Karten lassen sich anfassen und ein Stück ziehen (nur Anschauen) – losgelassen springen sie zurück
+  onTap(svg, () => {}, {
+    pick: (x, y) => {
+      if (!seated) return null;
+      let best = null, bd = Infinity;
+      for (const el of gMe.querySelectorAll('[data-hole]')) {
+        const dx = Math.abs(x - Number(el.dataset.x)), dy = Math.abs(y - Number(el.dataset.y));
+        if (dx < ME_W / 2 && dy < ME_W * 0.75 && dx < bd) { bd = dx; best = el; }
+      }
+      return best && best.dataset.hole !== 'x' ? { el: best, selected: true } : null;
+    },
+    drop: () => {}
+  });
 
   const mq = typeof matchMedia === 'function' ? matchMedia('(orientation: portrait)') : null;
   const onOrient = () => { layout(isTall()); drawFelt(); if (gs) { clearTimers(); renderLive(gs); } };

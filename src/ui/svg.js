@@ -3,6 +3,7 @@
 import { DEKO, whenNoise } from './deko.js';
 import { spriteImage, spriteLater } from './sprites.js';
 import { useMaterial } from './flags.js';
+import { dragOn, isDrag, tiltDeg, gate, ZIEH, commitCount, markDrop, recentDrop } from './drag.js';
 export const NS = 'http://www.w3.org/2000/svg';
 
 export function s(tag, attrs = {}, ...children) {
@@ -324,17 +325,104 @@ export function toScreen(svg, x, y) {
   return [p.x, p.y];
 }
 
-// Tipp-Erkennung ohne Doppelauslösung: pointerup nahe am pointerdown
-export function onTap(svg, fn) {
-  let down = null;
-  svg.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+// Tipp-Erkennung ohne Doppelauslösung: pointerup nahe am pointerdown.
+// n10 E2: drag = { pick(bx, by) → { el, selected } | null, land(bx, by) → [x, y] | null, drop(bx, by)? } schaltet Ziehen
+// ein (drag.js): Ziehen = Tipp auf das Stück (falls nicht schon gewählt) + Tipp aufs Ziel (bzw. drop()). Während
+// gate.busy (fremder Zug wird noch ausgespielt) wird ein Tipp gemerkt statt verworfen.
+export function onTap(svg, fn, drag = null) {
+  let down = null, dr = null;
+  const useDrag = !!drag && dragOn();
+  if (useDrag) svg.classList.add('drag-on');
+  const tap = (x, y) => { if (gate.busy) gate.hold(fn, [x, y]); else fn(x, y); };
+  svg.addEventListener('pointerdown', (e) => {
+    if (dr) return;   // zweiter Finger während des Ziehens
+    down = { x: e.clientX, y: e.clientY, id: e.pointerId, type: e.pointerType };
+  });
+  if (useDrag) {
+    svg.addEventListener('pointermove', (e) => {
+      if (!down || down.id !== e.pointerId) return;
+      if (dr) { dragMove(e); return; }
+      if (gate.busy || !isDrag(e.clientX - down.x, e.clientY - down.y, down.type)) return;
+      const p0 = toBoard(svg, down.x, down.y);
+      const pk = p0 && drag.pick(p0[0], p0[1]);
+      if (pk && pk.el) dragStart(pk, p0, e);
+    });
+  }
   svg.addEventListener('pointerup', (e) => {
     if (!down || down.id !== e.pointerId) return;
-    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+    const d = down;
     down = null;
-    if (moved > 24) return;
+    if (dr) { dragEnd(e, d); return; }
+    const moved = Math.hypot(e.clientX - d.x, e.clientY - d.y);
+    if (moved > ZIEH.tapPx) return;
     e.preventDefault();
-    fn(e.clientX, e.clientY);
+    tap(e.clientX, e.clientY);
   });
-  svg.addEventListener('pointercancel', () => { down = null; });
+  svg.addEventListener('pointercancel', () => { down = null; if (dr) dragAbort(); });
+
+  function pose(x, y, tilt, k) { return `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${tilt.toFixed(2)}deg) scale(${k})`; }
+
+  function dragStart(pk, p0, e) {
+    // Stück wählen wie beim Tippen (ist es schon gewählt, bliebe ein zweiter Tipp ein Abwählen bzw. Ausspielen)
+    if (!pk.selected) fn(down.x, down.y);
+    const cur = drag.pick(p0[0], p0[1]);
+    const el = (cur && cur.el) || pk.el;
+    if (!el.isConnected) return;
+    const home = [Number(el.dataset.x) || 0, Number(el.dataset.y) || 0];
+    const fly = el.cloneNode(true);
+    fly.removeAttribute('data-hand'); fly.removeAttribute('data-i'); fly.removeAttribute('data-sq');
+    fly.classList.add('drag-fly');
+    fly.classList.remove('dim', 'sel');
+    el.classList.add('drag-src');   // Geisterbild am Start
+    svg.append(fly);
+    try { svg.setPointerCapture(e.pointerId); } catch { /* egal */ }
+    dr = { el, fly, home, off: [home[0] - p0[0], home[1] - p0[1]], tilt: 0, lx: e.clientX, lt: e.timeStamp, selected: !!pk.selected, pos: home };
+    svg.dataset.dragging = '1';
+    dragMove(e);
+  }
+
+  function dragMove(e) {
+    const p = toBoard(svg, e.clientX, e.clientY);
+    if (!p) return;
+    const dt = Math.max(1, e.timeStamp - dr.lt);
+    dr.tilt = tiltDeg((e.clientX - dr.lx) / dt, dr.tilt);
+    dr.lx = e.clientX; dr.lt = e.timeStamp;
+    dr.pos = [p[0] + dr.off[0], p[1] + dr.off[1]];
+    dr.fly.style.transform = pose(dr.pos[0], dr.pos[1], dr.tilt, 1.08);
+  }
+
+  function settle(to, committed) {
+    const { fly, el, pos, tilt } = dr;
+    dr = null;
+    delete svg.dataset.dragging;
+    const done = () => { fly.remove(); el.classList.remove('drag-src'); };
+    if (!fly.animate || reduced()) { done(); return; }
+    const frames = committed
+      ? [{ transform: pose(pos[0], pos[1], tilt, 1.08) }, { transform: pose(to[0], to[1], 0, ZIEH.plopp), offset: 0.55 }, { transform: pose(to[0], to[1], 0, 1) }]
+      : [{ transform: pose(pos[0], pos[1], tilt, 1.08) }, { transform: pose(to[0], to[1], 0, 1) }];
+    const a = fly.animate(frames, { duration: committed ? ZIEH.landung : ZIEH.zurueck, easing: 'ease-out', fill: 'forwards' });
+    a.onfinish = done;
+    a.oncancel = done;
+  }
+
+  function dragEnd(e, d) {
+    const moved = Math.hypot(e.clientX - d.x, e.clientY - d.y);
+    if (moved <= ZIEH.tapPx) {
+      // kaum bewegt: wie ein Tipp (war das Stück schon gewählt, ist das der zweite Tipp)
+      const sel = dr.selected;
+      settle(dr.home, false);
+      if (sel) tap(d.x, d.y);
+      return;
+    }
+    const p = toBoard(svg, e.clientX, e.clientY);
+    const c0 = commitCount();
+    markDrop();
+    if (p && drag.drop) drag.drop(p[0], p[1]); else tap(e.clientX, e.clientY);
+    const committed = commitCount() > c0;
+    if (!committed) recentDrop(0);
+    const land = committed && p && drag.land ? drag.land(p[0], p[1]) : null;
+    settle(committed ? land || dr.pos : dr.home, committed);
+  }
+
+  function dragAbort() { if (dr) settle(dr.home, false); }
 }

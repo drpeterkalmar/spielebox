@@ -194,6 +194,15 @@ export function createBoard(host, { onMove, onHint }) {
   onTap(svg, (cx, cy) => {
     const p = toBoard(svg, cx, cy);
     if (p) tapSquare(nearest(p[0], p[1]));
+  }, {
+    // n10: Stein ziehen – aufs Endfeld einer Sprungkette gezogen, schlägt er die ganze Kette (wie Tippen aufs Endfeld)
+    pick: (x, y) => {
+      if (!legal || prefix.length) return null;
+      const i = nearest(x, y);
+      const el = i === null ? null : gPieces.querySelector(`[data-i="${i}"]`);
+      return el && legal.some((m) => m.from === i) ? { el, selected: sel === i } : null;
+    },
+    land: (x, y) => { const i = nearest(x, y); return i === null ? null : center(i); }
   });
 
   return {

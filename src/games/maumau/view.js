@@ -130,6 +130,20 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
 
   const needsWish = (card) => card[1] === 'U' && gs.opts.unter && (legal || []).some((x) => x.type === 'play' && x.card === card && x.wish);
 
+  // Handkarte unter (x, y): die nächste, passende bevorzugt (enge Hand)
+  function handHit(x, y) {
+    const ok = okCards();
+    let hit = null, bd = Infinity;
+    for (const p of handPos) {
+      const lift = sel === p.card ? -70 : ok.has(p.card) ? -26 : 0;
+      const h = HAND_W * RATIO;
+      if (y < p.y + lift - h / 2 - 20 || y > p.y + h / 2 + 30) continue;
+      const d = Math.abs(x - p.x) - (ok.has(p.card) ? Math.max(0, HAND_W / 2 - handGap / 2) : 0);
+      if (Math.abs(x - p.x) <= Math.max(handGap / 2 + 6, ok.has(p.card) ? HAND_W / 2 : 0) && d < bd) { bd = d; hit = p.card; }
+    }
+    return hit;
+  }
+
   function tap(x, y) {
     if (!legal || gs.phase !== 'play') return;
     // Stapel → ziehen
@@ -141,15 +155,7 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     // Ablage mit angehobener Karte → legen
     if (sel && !needsWish(sel) && Math.abs(x - PILE[0]) < 110 && Math.abs(y - PILE[1]) < 160) return playMove(sel);
     const ok = okCards();
-    let hit = null, bd = Infinity;
-    for (const p of handPos) {
-      const lift = sel === p.card ? -70 : ok.has(p.card) ? -26 : 0;
-      const h = HAND_W * RATIO;
-      if (y < p.y + lift - h / 2 - 20 || y > p.y + h / 2 + 30) continue;
-      // nächste Karte, passende bevorzugt (enge Hand)
-      const d = Math.abs(x - p.x) - (ok.has(p.card) ? Math.max(0, HAND_W / 2 - handGap / 2) : 0);
-      if (Math.abs(x - p.x) <= Math.max(handGap / 2 + 6, ok.has(p.card) ? HAND_W / 2 : 0) && d < bd) { bd = d; hit = p.card; }
-    }
+    const hit = handHit(x, y);
     if (!hit) { if (sel) { sel = null; render(); onLocal && onLocal(); } return; }
     if (!ok.has(hit)) { sel = null; render(); setHint(`${cardName(hit)} passt gerade nicht.`); onLocal && onLocal(); return; }
     if (sel === hit && !needsWish(hit)) return playMove(hit);
@@ -158,7 +164,20 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
     onLocal && onLocal();
   }
 
-  onTap(svg, (cx, cy) => { const p = toBoard(svg, cx, cy); if (p) tap(p[0], p[1]); });
+  onTap(svg, (cx, cy) => { const p = toBoard(svg, cx, cy); if (p) tap(p[0], p[1]); }, {
+    // n10: passende Karte auf die Ablage ziehen = legen (Unter mit Wunsch: Karte bleibt angehoben, Wunsch wählen)
+    pick: (x, y) => {
+      if (!legal || !gs || gs.phase !== 'play') return null;
+      const card = handHit(x, y);
+      return card && okCards().has(card) ? { el: gHand.querySelector(`[data-hand="${card}"]`), selected: sel === card } : null;
+    },
+    drop: (x, y) => {
+      if (sel && y < HAND_Y - (HAND_W * RATIO) / 2 - 30) {
+        if (needsWish(sel)) { render(); onLocal && onLocal(); } else playMove(sel);
+      } else render();
+    },
+    land: () => PILE
+  });
 
   const api = {
     svg,

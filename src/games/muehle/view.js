@@ -199,6 +199,14 @@ export function createBoard(host, { onMove, onHint }) {
   onTap(svg, (cx, cy) => {
     const p = toBoard(svg, cx, cy);
     if (p) tapPoint(nearest(p[0], p[1]));
+  }, {
+    // n10: eigenen Stein ziehen (Setzen bleibt Tippen)
+    pick: (x, y) => {
+      if (!legal || partial) return null;
+      const i = nearest(x, y);
+      return i !== null && legal.some((m) => m.from === i) ? { el: pieceAt(i), selected: sel === i } : null;
+    },
+    land: (x, y) => { const i = nearest(x, y); return i === null ? null : xy(i); }
   });
 
   return {

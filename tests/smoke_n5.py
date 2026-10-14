@@ -224,7 +224,13 @@ def busted_new(P, form):
     check_screen(P, f'{form} ausgeschieden')
     P.shot(f'ausgeschieden_{form}', SUB)
     old = tbl(P)['id'] if 'id' in tbl(P) else None
-    P.tap('[data-act=new-tournament]')
+    # die Computer spielen weiter, die Aktionsleiste wird bei jedem ihrer Züge neu gezeichnet → Tipp ggf. wiederholen
+    for _ in range(4):
+        try:
+            P.tap('[data-act=new-tournament]', timeout=3000)
+            break
+        except Exception:
+            time.sleep(0.1)
     wait(lambda: P.ev("__box.table().gs.out[%d] === null && __box.table().gs.hand <= 1" % me), 10, 'neues Turnier')
     st = P.ev("__box.table().gs.stacks.concat(__box.table().gs.contrib)")
     c.ok(P.ev("__box.table().gs.out.every(x => x === null)"), f'{form}: „Neues Turnier“ startet frisch (Hand 1, alle wieder dabei, Stacks {st[:4]})')

@@ -194,7 +194,240 @@ def klang(b, base):
     return out
 
 
-PARTS = {'klang': klang}
+# ---------- E2: Ziehen ----------
+class Finger:
+    """echte Zeiger-Ereignisse: am Handy Touch über CDP (pointerType touch), am Desktop die Maus"""
+    def __init__(self, P):
+        self.P = P
+        self.touch = P.device != 'desktop'
+        self.cdp = P.ctx.new_cdp_session(P.pg) if self.touch else None
+
+    def drag(self, a, b, steps=10, pause=0.012):
+        (x0, y0), (x1, y1) = a, b
+        if self.touch:
+            self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x0, 'y': y0}]})
+            for k in range(1, steps + 1):
+                t = k / steps
+                self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x0 + (x1 - x0) * t, 'y': y0 + (y1 - y0) * t}]})
+                time.sleep(pause)
+            self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+        else:
+            m = self.P.pg.mouse
+            m.move(x0, y0); m.down()
+            for k in range(1, steps + 1):
+                t = k / steps
+                m.move(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)
+                time.sleep(pause)
+            m.up()
+        time.sleep(0.05)
+
+    def hold_mid(self, a, b):
+        """Finger bleibt auf halbem Weg liegen (für das Bild mitten im Ziehen); release() lässt los"""
+        (x0, y0), (x1, y1) = a, b
+        if self.touch:
+            self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x0, 'y': y0}]})
+            for k in range(1, 7):
+                self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x0 + (x1 - x0) * k / 12, 'y': y0 + (y1 - y0) * k / 12}]})
+                time.sleep(0.016)
+        else:
+            m = self.P.pg.mouse
+            m.move(x0, y0); m.down()
+            for k in range(1, 7):
+                m.move(x0 + (x1 - x0) * k / 12, y0 + (y1 - y0) * k / 12); time.sleep(0.016)
+        self.mid = ((x0 + x1) / 2, (y0 + y1) / 2, b)
+
+    def release(self):
+        x1, y1 = self.mid[2]
+        if self.touch:
+            self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x1, 'y': y1}]})
+            self.cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []})
+        else:
+            self.P.pg.mouse.move(x1, y1); self.P.pg.mouse.up()
+        time.sleep(0.05)
+
+
+FLY_WATCH = """(() => { window.__flyEver = 0; new MutationObserver((l) => { for (const m of l) for (const n of m.addedNodes)
+  if (n.classList && n.classList.contains('drag-fly')) window.__flyEver++; }).observe(document.body, { subtree: true, childList: true }); })()"""
+
+
+def ziehen(b, base):
+    import random
+    rnd = random.Random(10)
+    out = {}
+    for form in ['hoch', 'quer', 'desktop']:
+        P = Page(b, base, form).open()
+        F = Finger(P)
+        P.ev(FLY_WATCH)
+        # Schach: viele Züge per Ziehen mit etwas Streuung um die Feldmitte → Trefferquote
+        P.ev("__box.local('bot', 'schach', {}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'schach' and my_turn(P), 15)
+        q = P.ev("(() => { const a = __box.target('a1'), b = __box.target('b1'); return Math.abs(b[0] - a[0]); })()")
+        tries = hits = 0
+        for k in range(30):
+            if tbl(P)['status'] != 'play':
+                P.ev("__box.local('bot', 'schach', {}, 'weiss', 1)")
+            wait(lambda: my_turn(P), 15, 'Schach: am Zug')
+            legal = [m for m in P.ev("__box.legal()") if not m.get('promo')]
+            if not legal:
+                break
+            m = rnd.choice(legal)
+            a = P.ev(f"__box.target('{m['from']}')"); bb = P.ev(f"__box.target('{m['to']}')")
+            j = lambda: (rnd.random() - 0.5) * 0.6 * q
+            n0 = tbl(P)['nmoves']
+            F.drag((a[0] + j(), a[1] + j()), (bb[0] + j(), bb[1] + j()))
+            tries += 1
+            time.sleep(0.1)
+            hist = P.ev("__box.table().hist")
+            t = tbl(P)
+            if t['nmoves'] > n0 and P.ev("__box.table().hist").__len__() and P.ev(f"(() => {{ const h = __box.table().hist; const e = h.find((x, i) => i >= h.length - 2 && x.by === 0); return !!e; }})()"):
+                # der eigene Zug ist der vorletzte bzw. letzte Eintrag; Ziel prüfen über die Stellung
+                fen = P.ev("__box.table().gs.fen").split(' ')[0]
+                hits += 1 if piece_on(fen, m['to']) else 0
+        rate = hits / max(1, tries)
+        out[f'schach_{form}'] = {'versuche': tries, 'richtig': hits, 'quote': round(rate, 3)}
+        c.ok(rate >= 0.98, f'{form}: Messgröße 2 – Schach per Ziehen {hits}/{tries} richtig gelandet ({rate * 100:.0f} %, Streuung ±30 % Feld)')
+        c.ok(P.ev("document.querySelectorAll('.drag-fly').length") == 0, f'{form}: nach dem Ziehen kein Abbild übrig')
+        c.ok(P.ev("document.querySelectorAll('.drag-src').length") == 0, f'{form}: kein Geisterbild übrig')
+        # Tippen mit kleinem Wackeln (< Schwelle) ist nie Ziehen: Figur wird gewählt, kein Abbild entsteht
+        P.ev("__box.local('bot', 'schach', {}, 'weiss', 1)")
+        wait(lambda: my_turn(P), 15)
+        P.ev("window.__flyEver = 0")
+        a = P.ev("__box.target('e2')")
+        wob = 2.5 if form == 'desktop' else 5.0
+        F.drag((a[0], a[1]), (a[0] + wob, a[1]), steps=3)
+        time.sleep(0.15)
+        c.ok(P.ev("window.__flyEver") == 0, f'{form}: Wackeln {wob} px bleibt ein Tipp (kein Ziehen)')
+        c.ok(P.ev("document.querySelectorAll('.hint-selsq').length") == 1, f'{form}: … und wählt die Figur wie ein Tipp')
+        # Bild mitten im Ziehen (Geisterbild am Start, Figur am Finger)
+        e4 = P.ev("__box.target('e4')")
+        F.hold_mid(a, e4)
+        time.sleep(0.05)
+        P.shot(f'e2_schach_ziehen_{form}', SHOTS)
+        c.ok(P.ev("document.querySelectorAll('.drag-src').length") == 1 and P.ev("document.querySelectorAll('.drag-fly').length") == 1, f'{form}: beim Ziehen Geisterbild + Abbild')
+        F.release()
+        time.sleep(0.3)
+        c.ok(piece_on(P.ev("__box.table().gs.fen").split(' ')[0], 'e4') or tbl(P)['nmoves'] >= 1, f'{form}: e2–e4 per Ziehen gespielt')
+        # Dame: Stein ziehen
+        P.ev("__box.local('bot', 'dame', {}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'dame' and my_turn(P), 15)
+        m = P.ev("__box.legal()[0]")
+        n0 = tbl(P)['nmoves']
+        F.drag(P.ev(f"__box.target({m['from']})"), P.ev(f"__box.target({m['path'][-1]})"))
+        time.sleep(0.2)
+        c.ok(tbl(P)['nmoves'] > n0, f'{form}: Dame – Stein per Ziehen gezogen')
+        # Mühle: erst setzen (Tippen), dann im Ziehen-Abschnitt einen Stein ziehen
+        P.ev("__box.local('bot', 'muehle', {}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'muehle', 15)
+        t0 = time.time()
+        while time.time() - t0 < 30:
+            if tbl(P)['status'] != 'play':
+                P.ev("__box.local('bot', 'muehle', {}, 'weiss', 1)")
+            if my_turn(P):
+                l = P.ev("__box.legal()")
+                if any('from' in x and x.get('remove') is None for x in l):
+                    break
+                P.ev("__box.botMove(1)")
+            time.sleep(0.08)
+        l = [x for x in P.ev("__box.legal()") if 'from' in x and x.get('remove') is None]
+        if l:
+            n0 = tbl(P)['nmoves']
+            F.drag(P.ev(f"__box.target({l[0]['from']})"), P.ev(f"__box.target({l[0]['to']})"))
+            time.sleep(0.2)
+            c.ok(tbl(P)['nmoves'] > n0, f'{form}: Mühle – Stein per Ziehen verschoben')
+        else:
+            c.ok(False, f'{form}: Mühle – Ziehphase nicht erreicht')
+        # Schnapsen: Karte nach oben in die Mitte ziehen = ausspielen; seitlich in der Hand = nur anheben
+        P.ev("__box.local('bot', 'schnapsen', {}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'schnapsen', 15)
+        wait(lambda: my_turn(P) and any(x['type'] == 'play' for x in P.ev("__box.legal()")), 20, 'Schnapsen: ausspielen')
+        card = [x for x in P.ev("__box.legal()") if x['type'] == 'play'][0]['card']
+        a = P.ev(f"__box.target('{card}')"); tr = P.ev("__box.target('trick')")
+        n0 = tbl(P)['nmoves']
+        F.drag(a, (a[0] + 40, a[1] - 8))
+        time.sleep(0.15)
+        c.ok(tbl(P)['nmoves'] == n0, f'{form}: Schnapsen – Karte in der Hand verschoben: nicht ausgespielt')
+        a = P.ev(f"__box.target('{card}')")
+        F.hold_mid(a, tr)
+        time.sleep(0.05)
+        P.shot(f'e2_schnapsen_ziehen_{form}', SHOTS)
+        F.release()
+        time.sleep(0.25)
+        c.ok(tbl(P)['nmoves'] > n0, f'{form}: Schnapsen – Karte in die Mitte gezogen = ausgespielt')
+        # Mau-Mau: passende Karte auf die Ablage ziehen
+        P.ev("__box.local('bot', 'maumau', {players: 2}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'maumau', 15)
+        t0 = time.time(); played = None
+        while time.time() - t0 < 25 and played is None:
+            if my_turn(P):
+                pl = [x for x in P.ev("__box.legal()") if x['type'] == 'play' and not x.get('wish') and x['card'][1] != 'U']
+                if pl:
+                    played = pl[0]['card']; break
+                P.ev("__box.botMove(1)")
+            time.sleep(0.1)
+        if played:
+            n0 = tbl(P)['nmoves']
+            F.drag(P.ev(f"__box.target('{played}')"), P.ev("__box.target('pile')"))
+            time.sleep(0.25)
+            c.ok(tbl(P)['nmoves'] > n0, f'{form}: Mau-Mau – Karte auf die Ablage gezogen = gelegt')
+        # Hold'em: eigene Karte anfassen und ziehen → springt zurück, kein Zug
+        P.ev("__box.local('bot', 'holdem', {players: 2}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'holdem' and my_turn(P), 20)
+        time.sleep(0.3)
+        el = P.ev("""(() => { const e = document.querySelector('svg.board [data-hole]:not([data-hole="x"])'); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()""")
+        if el:
+            n0 = tbl(P)['seq']; P.ev("window.__flyEver = 0")
+            F.drag(el, (el[0] + 30, el[1] - 90))
+            time.sleep(0.3)
+            c.ok(P.ev("window.__flyEver") >= 1 and tbl(P)['seq'] == n0 and P.ev("document.querySelectorAll('.drag-fly').length") == 0, f'{form}: Hold\'em – eigene Karte angehoben und zurückgesprungen, kein Zug')
+        c.ok(P.app_errors() == [], f'{form}: 0 Fehler {P.app_errors()[:3]}')
+        P.close()
+    # Eingabe-Puffer: Tipp während der Computer-Zug noch gleitet → wird danach ausgeführt
+    P = Page(b, base, 'hoch').open('?nosw&tempo=normal&botms=50')
+    P.ev("__box.local('bot', 'muehle', {}, 'weiss', 1)")
+    wait(lambda: tbl(P) and my_turn(P), 15)
+    P.ev("__box.move({ to: 0 })")
+    # warten, bis der Computer gesetzt hat und sein Stein noch gleitet (ich bin laut Stand schon dran)
+    wait(lambda: tbl(P)['turn'] == 0 and P.ev("__box.busy()"), 10, 'Computer-Zug läuft')
+    free = [i for i in range(24) if P.ev(f"__box.table().gs.board[{i}]") < 0 and i not in (0,)]
+    tgt = free[-1]
+    xy = P.ev(f"__box.target({tgt})")
+    P.tap_xy(*xy)
+    buffered = P.ev("__box.busy()")
+    wait(lambda: not P.ev("__box.busy()"), 5)
+    time.sleep(0.3)
+    placed = P.ev(f"__box.table().gs.board[{tgt}]") == 0
+    out['puffer'] = {'tipp_waehrend_animation': bool(buffered), 'ausgefuehrt': bool(placed)}
+    c.ok(buffered and placed, f'Eingabe-Puffer: Tipp während der Animation (busy={buffered}) wird danach ausgeführt (Stein auf {tgt}: {placed})')
+    P.close()
+    # ?ziehen=0: nur Tippen wie bisher
+    P = Page(b, base, 'hoch').open('?nosw&ziehen=0')
+    F = Finger(P)
+    P.ev("__box.local('bot', 'schach', {}, 'weiss', 1)")
+    wait(lambda: my_turn(P), 15)
+    F.drag(P.ev("__box.target('e2')"), P.ev("__box.target('e4')"))
+    time.sleep(0.2)
+    c.ok(tbl(P)['nmoves'] == 0 and not P.ev("document.querySelector('svg.board').classList.contains('drag-on')"), '?ziehen=0: Ziehen aus, kein Zug')
+    P.close()
+    return out
+
+
+def piece_on(fen_board, sq):
+    rows = fen_board.split('/')
+    r = 8 - int(sq[1]); col = 'abcdefgh'.index(sq[0])
+    k = 0
+    for ch in rows[r]:
+        if ch.isdigit():
+            k += int(ch)
+        else:
+            if k == col:
+                return True
+            k += 1
+        if k > col:
+            return False
+    return False
+
+
+PARTS = {'klang': klang, 'ziehen': ziehen}
 
 if __name__ == '__main__':
     want = [a for a in sys.argv[1:] if a in PARTS] or list(PARTS)

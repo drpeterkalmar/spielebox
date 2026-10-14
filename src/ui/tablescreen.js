@@ -23,6 +23,7 @@ import { moveCues, hapticCue, HAPTIK } from '../movesound.js';
 import { play as playSound } from './sound.js';
 import { buzz } from './haptik.js';
 import { boardToy } from './spielzeug.js';
+import { noteCommit, recentDrop, gate } from './drag.js';
 
 export function shareUrl(words) {
   return location.origin + location.pathname + '#' + formatWords(words);
@@ -163,6 +164,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     viewGame = t.game;
     view = gu.board(boardWrap, {
       onMove: (m) => {
+        noteCommit();
         const r = session.submitMove(m);
         if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); } else movedByMe();
       },
@@ -441,6 +443,8 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     if (hidden() && info.prevGs) info = { ...info, prevGs: eng().viewFor(info.prevGs, locked(t) ? null : viewer() ?? null) };
     if (info.kind === 'move' && info.move) {
       anim = tempoParams(lv, ownMove(info.by));
+      // n10: eigener Zug kam per Ziehen – das Stück liegt schon am Ziel, also nicht noch einmal hingleiten
+      if (anim.own && recentDrop()) anim = { ...anim, slide: 0, hop: 0, pause: 0 };
       dur = animMs(t.game, info.move, info.prevGs, t.gs, anim);
       // Hold'em: Ergebnis der Hand melden, sobald die Karten aufgedeckt sind (nicht erst nach dem neuen Austeilen)
       const ht = t.game === 'holdem' ? holdemTimes(anim, t.gs) : null;
@@ -448,11 +452,14 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
       cueMove(t, info, anim);
     }
     animating = dur > 0 || queue.length > 0;
+    // n10: Eingabe-Puffer – während ein Zug ausgespielt wird und danach ich dran bin, merkt sich das Brett einen Tipp
+    gate.busy = animating && t.status === 'play' && session.mySeat !== null && turnOf(t) === session.mySeat;
     animBy = dur > 0 && !anim.own ? info.by : null;
     animVerb = info.move && info.move.type === 'roll' ? 'würfelt' : t.game === 'schnapsen' || t.game === 'blackjack' ? 'spielt' : 'zieht';
     const legal = legalFor(t);
     if (stichSheet && (locked(t) || t.game !== 'schnapsen')) { stichSheet.close(); stichSheet = null; }
     view.update(shownOf(t), info, { legal, flip: !!gameUi(t.game).flip && bs === 1, viewer: viewer() ?? bs, seated: viewer() !== null && viewer() !== undefined, anim, tempo: tempoParams(lv), mode, help: helpOn(t) });
+    if (!animating) { if (legal && gate.held) setTimeout(() => gate.flush(), 0); else if (!legal) gate.drop(); }
     // solange der Zug eines anderen ausgespielt wird: „Computer zieht …“ statt schon „Du bist am Zug“
     const st = animBy !== null && animBy !== undefined && t.status === 'play' ? `${nameOf(t, animBy)} ${animVerb} …` : statusText(t);
     statusTextEl.textContent = st;
@@ -740,7 +747,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     events: () => events.slice(),
     banner: () => (banner ? banner.text : null),
     destroy() {
-      clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); cueTimers.forEach(clearTimeout); offToy(); removeEventListener('resize', onResize);
+      clearTimeout(reconnectTimer); clearTimeout(qTimer); clearTimeout(bannerTimer); noteTimers.forEach(clearTimeout); cueTimers.forEach(clearTimeout); offToy(); gate.busy = false; gate.drop(); removeEventListener('resize', onResize);
       offChange(); offNet(); offToast(); offToastLog(); offDeko(); clearFx(); if (stichSheet) stichSheet.close(); bannerEl.remove(); if (view) view.destroy();
     }
   };

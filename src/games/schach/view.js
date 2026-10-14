@@ -204,6 +204,14 @@ export function createBoard(host, { onMove, onHint }) {
   onTap(svg, (cx, cy) => {
     const p = toBoard(svg, cx, cy);
     if (p) tapSquare(sqAt(p[0], p[1]), p[0], p[1]);
+  }, {
+    // n10: Figur ziehen; landet sie auf der Grundreihe, kommt die Umwandlungs-Auswahl wie beim Tippen
+    pick: (x, y) => {
+      if (!legal || promo) return null;
+      const sq = sqAt(x, y);
+      return sq && legal.some((m) => m.from === sq) ? { el: pieceAt(sq), selected: sel === sq } : null;
+    },
+    land: (x, y) => { const sq = sqAt(x, y); return sq ? center(sq) : null; }
   });
 
   return {

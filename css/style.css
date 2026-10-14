@@ -398,6 +398,11 @@ table.bummerl .bt-head td { font-weight: 800; background: var(--card-2); }
 .board .hint-dot.far { fill: rgba(40, 175, 105, .75); }
 .board-wrap.zoom { overflow: auto; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
 .board-wrap.zoom > svg.board { width: 190%; height: 190%; }
+/* n10 E2: Ziehen – das Brett gehört dem Finger (kein Scrollen über dem Brett), in der Lupe darf weiter geschoben werden */
+.board-wrap > svg.board.drag-on { touch-action: none; }
+.board-wrap.zoom > svg.board.drag-on { touch-action: pan-x pan-y; }
+.board .drag-src { opacity: .35; }
+.board .drag-fly { pointer-events: none; will-change: transform; filter: drop-shadow(0 14px 10px rgba(0, 0, 0, .35)); }
 
 /* Wer gewinnt? */
 .evalbar { position: absolute; left: 0; top: 6%; bottom: 6%; width: 7px; border-radius: 4px; background: #2b2320; overflow: hidden; z-index: 3; pointer-events: none; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
