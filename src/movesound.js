@@ -7,7 +7,7 @@ import { applySteps } from './games/backgammon/engine.js';
 import { bankReveal, vierFall, ludoStep, reversiTimes } from './tempo.js';
 
 export const MIN_GAP = 120;
-export const KINDS = ['klack', 'schlag', 'karte', 'wuerfel', 'platsch', 'kipp', 'tock', 'sieg'];
+export const KINDS = ['klack', 'schlag', 'karte', 'wuerfel', 'platsch', 'kipp', 'tock', 'sieg', 'sechs'];
 
 // Kettenzug (Dame, Halma): Landung des k-ten Sprungs (k ab 0)
 const hopAt = (a, k, n) => (n > 1 ? (k + 1) * a.hop + k * a.pause : a.slide);

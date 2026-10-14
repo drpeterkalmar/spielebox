@@ -3,7 +3,8 @@
 // Remis = ½. Rechenzeit je Zug verkürzt (Standard 1/10 der App-Zeit: 15/40/120 ms), damit eine Tabelle in Minuten läuft;
 // vorher/nachher daher nur mit denselben Einstellungen vergleichen.
 // Aufruf: node tools/selfplay.mjs [--games=muehle,dame] [--pairs=2:1,3:2] [--n=40] [--ms=15,40,120] [--seed=1]
-//         [--workers=6] [--aopt='{"fehler":0.15}'] [--bopt='{…}'] [--json=docs/n10/selfplay_vorher.json]
+//         [--workers=6] [--fehler=0.15] [--aopt='{…}'] [--bopt='{…}'] [--json=docs/n10/selfplay_vorher.json]
+//   --fehler      Fehlerquote der Stufe 1 (n10, wie in der App; 0 = Stand vor n10)
 //   --pairs=a:b   Stufe a (gezählt) gegen Stufe b; --n = Partien je Paar (gerade Zahl, je Hälfte mit Platztausch)
 //   --aopt/--bopt zusätzliche Bot-Optionen für Seite a bzw. b (z. B. Schnapsen {"exakt":false} = bisherige Stufe 3)
 // Hold'em hat ein eigenes Werkzeug (tools/holdem_selfplay.mjs), Blackjack spielt gegen die Bank (kein Duell).
@@ -13,6 +14,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mulberry32 } from '../src/rng.js';
+import { overlook, FEHLER } from '../src/games/fehler.js';
 
 export const GAMES = ['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'halma', 'ludo', 'schiffe', 'vier', 'maumau', 'wuerfel', 'reversi', 'paare'];
 // Optionen für ein Duell zu zweit
@@ -47,7 +49,8 @@ export async function playGame(game, sides, seed, ms) {
     if (seat === null || seat === undefined) throw new Error(`${game}: niemand am Zug, aber kein Ende`);
     const view = E.HIDDEN ? E.viewFor(s, seat) : s;
     const side = sides[seat];
-    const m = chooseMove(view, { level: side.level, rng: botRng[seat], timeMs: ms[side.level], ...(side.opt || {}) });
+    const o = { level: side.level, rng: botRng[seat], timeMs: ms[side.level], fehler: ms.fehler ?? FEHLER, ...(side.opt || {}) };
+    const m = overlook(game, E, view, chooseMove(view, o), o);   // wie in der App: Stufe 1 übersieht manchmal einen Schlag
     if (!E.isLegal(s, m)) throw new Error(`${game}: ungültiger Zug Stufe ${side.level}: ${JSON.stringify(m)}`);
     s = E.applyMove(s, m);
   }
@@ -70,7 +73,7 @@ function parse(argv) {
     games: arg('games', GAMES.join(',')).split(',').filter(Boolean),
     pairs: arg('pairs', '2:1,3:2').split(',').map((p) => p.split(':').map(Number)),
     n: Math.max(2, Number(arg('n', '40')) & ~1),
-    ms: { 1: ms[0], 2: ms[1], 3: ms[2] },
+    ms: { 1: ms[0], 2: ms[1], 3: ms[2], fehler: Number(arg('fehler', String(FEHLER))) },
     seed: Number(arg('seed', '1')),
     workers: Number(arg('workers', String(Math.max(1, Math.min(6, cpus().length - 2))))),
     aopt: JSON.parse(arg('aopt', '{}')),

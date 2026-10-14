@@ -7,7 +7,7 @@ import { s, die3d } from '../../ui/svg.js';
 import { DEKO } from '../../ui/deko.js';
 import { fx } from '../../ui/fx.js';
 import { CATS, CAT_NAME, BONUS_AT, totals, scoreFor, extraFor, allowedCats, suggestions } from './engine.js';
-import { OWN } from '../../tempo.js';
+import { OWN, diceSchedule } from '../../tempo.js';
 
 const PIPS = { 1: [[50, 50]], 2: [[28, 28], [72, 72]], 3: [[28, 28], [50, 50], [72, 72]], 4: [[28, 28], [72, 28], [28, 72], [72, 72]], 5: [[28, 28], [72, 28], [50, 50], [28, 72], [72, 72]], 6: [[28, 26], [72, 26], [28, 50], [72, 50], [28, 74], [72, 74]] };
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -52,11 +52,12 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       // gewürfelte (nicht gehaltene) Würfel rollen sichtbar, die Augen wechseln ein paar Mal
       if (rolled && !held[k] && v && anim.dice > 0 && b.animate && !reduced()) {
         b.animate([{ transform: 'rotate(-40deg) scale(.7)', opacity: 0.3 }, { transform: 'rotate(15deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'none' }], { duration: anim.dice, easing: 'ease-out' });
-        const flicker = Math.max(0, Math.floor(anim.dice / 200) - 1);
-        for (let i = 1; i <= flicker; i++) timers.push(setTimeout(() => {
+        // n10: erst schnell, dann rollt der Würfel aus (tempo.js diceSchedule)
+        const sched = diceSchedule(anim.dice);
+        sched.forEach((at, j) => timers.push(setTimeout(() => {
           const f = b.querySelector('.wg-face');
-          if (f && b.isConnected) f.replaceWith(face(i === flicker ? v : 1 + ((v + i * (k + 2)) % 6)));
-        }, (i * anim.dice * 0.6) / flicker));
+          if (f && b.isConnected) f.replaceWith(face(j === sched.length - 1 ? v : 1 + ((v + (j + 1) * (k + 2)) % 6)));
+        }, at)));
       }
     });
     const left = 3 - gs.rolls;

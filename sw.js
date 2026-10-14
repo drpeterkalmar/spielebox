@@ -5,7 +5,7 @@
 //   (?h=…), so lädt ein Update nur fehlende oder geänderte Bilder nach; alte Fassungen werden beim Aktivieren entfernt.
 // Kartenpakete (n9): die @2x-Einzelkarten liegen bitgleich in 2 Paketen (tools/cardpack.py). Vorab geladen werden nur
 // die Pakete; eine Karten-Anfrage beantwortet der Worker mit dem Ausschnitt aus dem Paket (Blob.slice, ohne Kopie).
-const VERSION = 'e977f1e36a';
+const VERSION = 'b35574f8ac';
 const CORE = 'spielebox-core-' + VERSION;
 const ASSETS = 'spielebox-assets';
 const CORE_FILES = [
@@ -23,6 +23,7 @@ const CORE_FILES = [
   'src/botclient.js',
   'src/botworker.js',
   'src/build.js',
+  'src/ehrung.js',
   'src/evalpos.js',
   'src/events.js',
   'src/games/backgammon/bot.js',
@@ -38,6 +39,7 @@ const CORE_FILES = [
   'src/games/dame/engine.js',
   'src/games/dame/ui.js',
   'src/games/dame/view.js',
+  'src/games/fehler.js',
   'src/games/halma/bot.js',
   'src/games/halma/engine.js',
   'src/games/halma/ui.js',

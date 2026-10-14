@@ -4,6 +4,12 @@
 //           kleinem Atout, holt bei Farbzwang Atouts und sichere Stiche
 // level 3 = stark: Stichproben über die unbekannten Karten (Gegnerhand, Talon, Gegnerstiche) und Ausspielen
 //           jeder Stichprobe mit Stufe 2 bis Spielende, so lange timeMs erlaubt
+//           n10 E4: in Phase 2 (Talon aufgebraucht oder zugedreht – es wird nichts mehr nachgezogen) wird jede
+//           Stichprobe exakt durchgerechnet (Alpha-Beta über die ≤ 10 Restkarten) statt mit Stufe 2 ausgespielt.
+//           Dazu merkt sich Stufe 3 die gespielten Stiche (wie ein aufmerksamer Spieler): Sie sieht bei jedem eigenen
+//           Zug den letzten Stich; so kennt sie in Phase 2 alle Karten. Das Gedächtnis liegt nur im Bot (die Sicht der
+//           Mitspieler bleibt, wie sie ist); passt es nicht zur Sicht (anderes Spiel, Neuladen), beginnt es neu.
+//           Option exakt: false = bisherige Stufe 3 ohne Gedächtnis (Selbstspiel-Vergleich)
 import * as E from './engine.js';
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -11,14 +17,14 @@ const val = c => E.VALUE[c[1]];
 const isCard = c => typeof c === 'string' && E.DECK.includes(c);
 const byVal = (a, b) => val(a) - val(b);
 
-export function chooseMove(view, { level = 2, rng = Math.random, timeMs = 400 } = {}) {
+export function chooseMove(view, { level = 2, rng = Math.random, timeMs = 400, exakt = true } = {}) {
   const moves = E.legalMoves(view);
   if (moves.length <= 1) return moves.length ? moves[0] : null;
   const r = typeof rng === 'function' ? rng : Math.random;
   if (level <= 1) return easy(view, moves, r);
   if (level === 2) return heuristic(view, moves);
   const ms = Number.isFinite(timeMs) && timeMs > 0 ? timeMs : 400;
-  return sampling(view, moves, r, ms);
+  return sampling(view, moves, r, ms, exakt);
 }
 
 const find = (moves, type) => moves.find(m => m.type === type);
@@ -158,13 +164,46 @@ function shuffle(list, rng) {
   return a;
 }
 
-// Vollständiger Zustand, der zur Sicht passt (unbekannte Karten zufällig verteilt)
-function sampleWorld(view, seat, rng) {
+// ---------- Gedächtnis (Stufe 3) ----------
+// Schlüssel eines Spiels (Austeilen); je Spiel die gemerkten Stiche { Karten → Gewinner }
+const memory = new Map();
+const dealKey = (v, seat) => `${seat}|${v.bummerlNr}|${v.spielNr}|${v.dealer}|${v.atout}`;
+
+export function remember(view, seat) {
+  const key = dealKey(view, seat);
+  let m = memory.get(key);
+  if (!m) {
+    m = new Map();
+    memory.set(key, m);
+    while (memory.size > 12) memory.delete(memory.keys().next().value);
+  }
+  if (view.lastTrick) m.set(view.lastTrick.cards.map(t => t.card).join(','), view.lastTrick.winner);
+  // passt das Gedächtnis zur Sicht? (Karten, die ich gerade sehe, können nicht schon gespielt sein; nicht mehr Stiche
+  // als gespielt wurden)
+  const visible = new Set([...view.hands[seat].filter(Boolean), ...view.trick.map(t => t.card), view.atoutCard].filter(Boolean));
+  const per = [0, 0];
+  let bad = false;
+  for (const [cards, w] of m) {
+    per[w]++;
+    if (cards.split(',').some(c => visible.has(c))) bad = true;
+  }
+  if (bad || per[0] > view.tricks[0] || per[1] > view.tricks[1]) {
+    m.clear();
+    if (view.lastTrick) m.set(view.lastTrick.cards.map(t => t.card).join(','), view.lastTrick.winner);
+  }
+  return m;
+}
+
+// Vollständiger Zustand, der zur Sicht passt (unbekannte Karten zufällig verteilt); mem = gemerkte Stiche
+function sampleWorld(view, seat, rng, mem = null) {
   const o = 1 - seat, s = structuredClone(view);
-  const pool = shuffle(unknownCards(view, seat), rng);
+  const seen = new Set(), oppWon = [];
+  if (mem) for (const [cards, w] of mem) for (const c of cards.split(',')) { seen.add(c); if (w === o) oppWon.push(c); }
+  const pool = shuffle(unknownCards(view, seat).filter(c => !seen.has(c)), rng);
   s.hands[o] = pool.splice(0, view.hands[o].length);
   s.talon = pool.splice(0, view.talon.length);
-  const knownWon = view.lastTrick && view.lastTrick.winner === o ? view.lastTrick.cards.map(t => t.card) : [];
+  const lastO = view.lastTrick && view.lastTrick.winner === o ? view.lastTrick.cards.map(t => t.card) : [];
+  const knownWon = mem ? oppWon.slice(0, view.won[o].length) : lastO;
   s.won[o] = [...knownWon, ...pool.splice(0, view.won[o].length - knownWon.length)];
   s.augen[o] = s.won[o].reduce((a, c) => a + val(c), 0);
   if (s.closed && s.closed.oppAugen === null) s.closed = { ...s.closed, oppAugen: E.cardPoints(s, o) };
@@ -179,7 +218,49 @@ function rollout(s, seat) {
   return s.spiel.winner === seat ? s.spiel.points : -s.spiel.points;
 }
 
-function sampling(view, moves, rng, timeMs) {
+// ---------- Phase 2 exakt ----------
+
+// Phase 2: kein Nachziehen mehr (Talon leer oder zugedreht) → jede Stichprobe ist ein Spiel mit offenen Karten
+export const phase2 = (s) => s.phase === 'play' && !E.talonOpen(s);
+
+// Wert des Spiels für seat bei bestem Spiel beider Seiten: ±Spielpunkte, dazu ein Hauch Augen-Abstand als Entscheidung
+function finalValue(s, seat) {
+  if (!s.spiel) return 0;
+  const sign = s.spiel.winner === seat ? 1 : -1;
+  return sign * s.spiel.points + (E.cardPoints(s, seat) - E.cardPoints(s, 1 - seat)) / 1000;
+}
+
+function solveMoves(s) {
+  const ms = E.legalMoves(s).filter((m) => m.type !== 'ausmelden' || E.canDeclare(s));
+  // Ordnung: Ausmelden, Ansagen, hohe Karten zuerst (bessere Schnitte)
+  const rank = (m) => (m.type === 'ausmelden' ? 100 : m.type === 'ansagen' ? 50 : m.type === 'play' ? val(m.card) : 0);
+  return ms.sort((a, b) => rank(b) - rank(a));
+}
+
+// Alpha-Beta (Fail-soft) mit Gedächtnis je Lösung; seat = für wen gerechnet wird
+export function solve(s, seat, alpha = -Infinity, beta = Infinity, memo = new Map(), stats = { n: 0 }) {
+  stats.n++;
+  if (s.phase !== 'play') return finalValue(s, seat);
+  const key = E.positionKey(s) + '|' + s.augen + '|' + s.trick.map((t) => t.card).join('');
+  const hit = memo.get(key);
+  if (hit && hit.lo >= beta) return hit.lo;
+  if (hit && hit.hi <= alpha) return hit.hi;
+  if (hit && hit.lo === hit.hi) return hit.lo;
+  const max = E.currentPlayer(s) === seat;
+  const a0 = alpha, b0 = beta;
+  let best = max ? -Infinity : Infinity;
+  for (const m of solveMoves(s)) {
+    const v = solve(E.applyMove(s, m), seat, alpha, beta, memo, stats);
+    if (max) { if (v > best) best = v; if (best > alpha) alpha = best; } else { if (v < best) best = v; if (best < beta) beta = best; }
+    if (alpha >= beta) break;
+  }
+  const e = memo.get(key) || { lo: -Infinity, hi: Infinity };
+  if (best <= a0) e.hi = best; else if (best >= b0) e.lo = best; else { e.lo = best; e.hi = best; }
+  memo.set(key, e);
+  return best;
+}
+
+function sampling(view, moves, rng, timeMs, exakt = true) {
   const seat = E.currentPlayer(view);
   if (view.phase !== 'play') return heuristic(view, moves);
   if (E.canDeclare(view)) return { type: 'ausmelden' };
@@ -188,10 +269,13 @@ function sampling(view, moves, rng, timeMs) {
   if (cand.length === 1) return cand[0];
   const base = heuristic(view, moves);
   const t0 = now(), sum = new Array(cand.length).fill(0);
+  const exact = exakt && phase2(view);
+  const mem = exakt ? remember(view, seat) : null;
   let n = 0;
   while (n < 3000 && (n < 8 || now() - t0 < timeMs)) {
-    const world = sampleWorld(view, seat, rng);
-    for (let i = 0; i < cand.length; i++) sum[i] += rollout(E.applyMove(world, cand[i]), seat);
+    const world = sampleWorld(view, seat, rng, mem);
+    const memo = exact ? new Map() : null;
+    for (let i = 0; i < cand.length; i++) sum[i] += exact ? solve(E.applyMove(world, cand[i]), seat, -Infinity, Infinity, memo) : rollout(E.applyMove(world, cand[i]), seat);
     n++;
   }
   let best = cand.findIndex(m => E.moveKey(m) === E.moveKey(base));

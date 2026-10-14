@@ -5,7 +5,7 @@
 import { play } from '../../ui/sound.js';
 import { partialSteps, applySteps, isComplete } from './engine.js';
 import { s, ensureDefs, piece, place, animatePath, animateSteps, toBoard, toScreen, onTap, die3d } from '../../ui/svg.js';
-import { OWN } from '../../tempo.js';
+import { OWN, diceSchedule } from '../../tempo.js';
 import { boardLayers } from '../../ui/deko.js';
 import { woodFrame, inset } from '../../ui/material.js';
 import * as FXS from '../../ui/fxsvg.js';
@@ -174,18 +174,20 @@ export function createBoard(host, { onMove, onHint, onLocal }) {
       const dur = anim.dice;
       if (grp.animate && dur > 0) {
         grp.animate([{ transform: 'rotate(-25deg) scale(.6)', opacity: 0.2 }, { transform: 'rotate(10deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'rotate(0) scale(1)' }], { duration: dur, easing: 'ease-out' });
-        const flicker = Math.max(0, Math.floor(dur / 220) - 1);
-        for (let k = 1; k <= flicker; k++) {
+        // n10: erst schnell, dann rollen die Würfel aus (tempo.js diceSchedule)
+        const sched = diceSchedule(dur);
+        sched.forEach((at, j) => {
+          const k = j + 1, last = k === sched.length;
           timers.push(setTimeout(() => {
             if (!grp.isConnected) return;
             [...grp.children].forEach((d, i) => {
               const tr = d.getAttribute('transform');
-              const nd = die(0, 0, k === flicker ? dice[i] : 1 + ((dice[i] + k * (i + 2)) % 6), false);
+              const nd = die(0, 0, last ? dice[i] : 1 + ((dice[i] + k * (i + 2)) % 6), false);
               nd.setAttribute('transform', tr);
               d.replaceWith(nd);
             });
-          }, (k * dur * 0.6) / flicker));
-        }
+          }, at));
+        });
       }
       grp.style.transformBox = 'fill-box';
       grp.style.transformOrigin = 'center';

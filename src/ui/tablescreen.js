@@ -25,6 +25,7 @@ import { buzz } from './haptik.js';
 import { boardToy } from './spielzeug.js';
 import { noteCommit, recentDrop, gate } from './drag.js';
 import { EMOTES, EMOTE_NAMES, clockLeft } from '../net/extras.js';
+import { awards } from '../ehrung.js';
 import { urlFlag } from './flags.js';
 
 export function shareUrl(words) {
@@ -111,6 +112,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   } } });
   let evalRes = null, evalKey = '';
   const hintEl = h('div', { class: 'hint' });
+  const awardsEl = h('div', { class: 'awards hidden', data: { awards: '' } });
   const offerEl = h('div', { class: 'offer' });
   // Wiederverbinden: erst weich (Trystero + Relays neu), hilft das nach 12 s nicht, Seite neu laden –
   // Wörter stehen im #-Teil, der Stand in localStorage → die Partie geht danach einfach weiter
@@ -135,7 +137,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const screen = h('div', { class: 'screen table-screen', data: { mode, game: '' } },
     bar,
     h('div', { class: 'tmain' }, pTop, boardWrap, pBot),
-    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), h('div', { class: 'status-row' }, statusEl, evalBtn), fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
+    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), h('div', { class: 'status-row' }, statusEl, evalBtn), awardsEl, fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
   screen.appendChild(bannerEl);
   clear(root).appendChild(screen);
 
@@ -216,7 +218,6 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     el.className = `pbar ${el.classList.contains('top') ? 'top' : 'bottom'}${active ? ' active' : ''}`;
     el.dataset.seat = seat;
     const sub2 = t.subs && t.subs[seat];
-    // (el.append schreibt null als Text „null“ – darum leere Teile herausfiltern)
     el.append(...[
       gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
@@ -492,6 +493,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const st = animBy !== null && animBy !== undefined && t.status === 'play' ? `${nameOf(t, animBy)} ${animVerb} …` : statusText(t);
     statusTextEl.textContent = st;
     if (t.status === 'over' && shownStatus !== 'over') addEvent(st);
+    // n10: Partie gerade hier zu Ende gegangen (nicht nach dem Neuladen) → Statistik dieses Geräts
+    if (t.status === 'over' && shownStatus === 'play') noteStats(t);
+    renderAwards(t);
     // Deko: Sieg-Animation, wenn die Partie gerade hier zu Ende gespielt wurde (nicht nach dem Neuladen)
     if (t.status === 'over' && shownStatus === 'play' && info.kind === 'move' && dur > 0) {
       const w = t.result && t.result.winner;
@@ -516,6 +520,28 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     screen.dataset.game = t.game;
     lastTable = t;
     return dur;
+  }
+
+  // ---------- Auszeichnungen und Statistik (n10 E4) ----------
+  function renderAwards(t) {
+    const list = t.status === 'over' && urlFlag('ehrung', true) ? awards(t.game, t.tally, t.seats.length) : [];
+    clear(awardsEl);
+    awardsEl.classList.toggle('hidden', !list.length);
+    for (const a of list) {
+      const who = a.seats.map((x) => (mode !== 'hotseat' && x === session.mySeat ? 'du' : nameOf(t, x))).join(', ');
+      awardsEl.append(h('div', { class: 'award', data: { award: a.title } }, h('span', { class: 'award-i', text: a.icon }), h('span', { class: 'award-t', text: `${a.title}: ` }), h('strong', { text: `${who} (${a.value})` })));
+    }
+  }
+
+  function noteStats(t) {
+    const me = session.mySeat;
+    if (mode === 'hotseat' || me === null || me === undefined || !t.result) return;
+    const others = t.seats.filter((x, i) => x && i !== me);
+    const human = mode === 'online' && others.some((x) => !x.bot);
+    const lv = Math.max(1, ...others.map((x) => x.bot || 0));
+    if (!others.length) { try { store.recordResult(t.game, 'allein', 'w'); } catch { /* egal */ } return; }
+    const w = t.result.winner;
+    try { store.recordResult(t.game, human ? 'mensch' : `computer${Math.min(3, lv)}`, w === null || w === undefined ? 'd' : w === me ? 'w' : 'l'); } catch { /* Statistik ist Zugabe */ }
   }
 
   // ---------- Online-Paket (n10 E3): Reaktionen, Vertretung, Uhr ----------
@@ -741,7 +767,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
 
   function showEval() {
     const t = session.table;
-    const supported = !!(t && EVAL[t.game]) && evalOn() && t.status !== 'wait';
+    const supported = !!(t && EVAL[t.game]) && evalOn() && t.status !== 'wait' && t.status !== 'over';   // n10: nach dem Ende nicht mehr
     const on = supported && !!evalRes && evalRes.game === t.game;
     evalBar.classList.toggle('hidden', !on);
     // Platz bleibt reserviert, solange gerechnet wird (sonst springt das Brett)

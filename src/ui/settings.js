@@ -6,6 +6,7 @@ import * as store from '../store.js';
 import { DEKO, setDekoLevel } from './deko.js';
 import { ensureDekoDefs } from './svg.js';
 import { prepareCardArt } from './cards.js';
+import { GAMES } from '../games/registry.js';
 
 const OPTIK = [
   { v: 2, t: 'Verziert', sub: 'Licht, Holz, Glanz, kleine Effekte' },
@@ -47,7 +48,35 @@ export function openSettings() {
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Reaktionen (online)' }), emo),
     h('p', { class: 'muted small', text: 'Steht das Handy auf lautlos, bleibt die Spielebox still. Vibriert wird nur bei großen Momenten, höchstens alle 1,5 Sekunden (am iPhone gar nicht).' }),
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Optik' }), optik),
+    statsBlock(),
     h('p', { class: 'muted small', text: DEKO.url !== null
       ? `Gerade per Link festgelegt (deko=${DEKO.url}) – ohne den Zusatz im Link gilt die Auswahl hier.`
       : 'Funken und Konfetti gibt es nur bei „Verziert“. Wird das Handy dabei zu langsam, nimmt die Spielebox die Effekte von selbst zurück. Bei „Bewegung reduzieren“ im Handy gibt es keine Funken.' }));
+}
+
+// n10 E4: Statistik dieses Geräts (Siege/Niederlagen/Remis je Spiel, längste Serie) + Zurücksetzen
+const KIND_NAMES = { computer1: 'Computer leicht', computer2: 'Computer mittel', computer3: 'Computer stark', mensch: 'Menschen online', allein: 'allein' };
+function statsBlock() {
+  const box = h('div', { class: 'field', data: { stats: '' } });
+  const draw = () => {
+    clear(box);
+    box.append(h('div', { class: 'field-label', text: 'Statistik (nur auf diesem Gerät)' }));
+    const st = store.stats();
+    const games = Object.keys(st.g).filter((g) => GAMES[g]);
+    if (!games.length) { box.append(h('p', { class: 'muted small', text: 'Noch keine Partie zu Ende gespielt.' })); return; }
+    const rows = [];
+    for (const g of games) {
+      for (const [kind, e] of Object.entries(st.g[g])) {
+        rows.push(h('tr', {}, h('td', { text: GAMES[g].title }), h('td', { class: 'muted', text: KIND_NAMES[kind] || kind }),
+          h('td', { class: 'num', text: String(e.w) }), h('td', { class: 'num', text: String(e.l) }), h('td', { class: 'num', text: String(e.d) }), h('td', { class: 'num', text: String(e.best) })));
+      }
+    }
+    box.append(h('table', { class: 'stats-table' },
+      h('thead', {}, h('tr', {}, h('th', { text: 'Spiel' }), h('th', { text: 'gegen' }), h('th', { class: 'num', text: 'S' }), h('th', { class: 'num', text: 'N' }), h('th', { class: 'num', text: 'R' }), h('th', { class: 'num', text: 'Serie' }))),
+      h('tbody', {}, ...rows)),
+      h('p', { class: 'muted small', text: 'S = Siege, N = Niederlagen, R = Remis, Serie = längste Siegesserie.' }),
+      h('button', { class: 'btn small', data: { act: 'stats-reset' }, on: { click: () => { if (confirm('Statistik wirklich zurücksetzen?')) { store.resetStats(); draw(); } } } }, 'Statistik zurücksetzen'));
+  };
+  draw();
+  return box;
 }

@@ -110,6 +110,16 @@ export function synth(a, kind, at = a.currentTime, { out = a.destination, rnd = 
       for (let i = 0; i < k; i++) click(a, out, at + i * 0.045, 520 + ((i * 37) % 120), 0.05);
       return k * 0.045 + 0.07;
     }
+    case 'sechs':   // Sechs bei Ludo: kurzes helles Doppel-Blinken (587 → 698 Hz)
+      [587, 698].forEach((f, i) => {
+        const o = a.createOscillator(), g = env(a, at + i * 0.07, 0.05, 0.006, 0.08);
+        o.type = 'sine';
+        o.frequency.value = f;
+        o.connect(g).connect(out);
+        o.start(at + i * 0.07);
+        o.stop(at + i * 0.07 + 0.09);
+      });
+      return 0.16;
     case 'sieg':
       [440, 660].forEach((f, i) => {
         const o = a.createOscillator(), g = env(a, at + i * 0.16, 0.06, 0.02, 0.35);

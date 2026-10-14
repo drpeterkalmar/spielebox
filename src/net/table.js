@@ -26,6 +26,7 @@ import { TIMING, newer, seatOf } from './tablebase.js';
 import { fairHostMethods, fairChunks, sameFair } from './fairhost.js';
 import { takeoverMethods } from './takeover.js';
 import { extrasMethods, newClock } from './extras.js';
+import { tallyStep } from '../ehrung.js';
 export { TIMING, newer, seatOf } from './tablebase.js';
 export { FAIR_CHUNK, fairChunks, mergeFairLog } from './fairhost.js';
 
@@ -343,6 +344,8 @@ export class TableSession {
     t.fairPriv = null;
     t.rematch = null;
     t.subs = null;
+    t.tally = null;
+    this._tallyGs = t.gs;
     if (t.clock) t.clock = newClock(t.clock.cfg, t.seats.length);
     if (t.status === 'play') this._startRound();
     this._commit({ kind: 'reset' });
@@ -359,6 +362,12 @@ export class TableSession {
 
   _commit(info) {
     const t = this.table;
+    // n10: Zähler für die Auszeichnungen am Ende (nur Anzeige, ehrung.js)
+    if (this.role === 'host') {
+      const tal = tallyStep(t.game, t.tally || null, this._tallyGs, t.gs, info && info.kind === 'move' ? info.move : null, info ? info.by : null);
+      if (tal) t.tally = tal;
+      this._tallyGs = t.gs;
+    }
     t.seq++;
     t.updated = this.now();
     this._save(t);

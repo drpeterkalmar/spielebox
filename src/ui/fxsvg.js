@@ -51,6 +51,18 @@ export function sparks(g, x, y, { n = 10, dist = 60, size = 10, delay = 0, color
   watchFrames(t);
 }
 
+// Funkenring (n10: Sechs bei Ludo): Funken gleichmäßig rundum nach außen
+export function ring(g, x, y, { n = 10, dist = 100, size = 11, delay = 0 } = {}) {
+  if (!on() || !g) return;
+  let t = 0;
+  const k0 = cnt(n);
+  for (let k = 0; k < k0; k++) {
+    const a = (k / k0) * 6.283 + rnd(-0.1, 0.1), d = dist * rnd(0.85, 1);
+    t = Math.max(t, fly(g, glow(size), [[x + Math.cos(a) * dist * 0.35, y + Math.sin(a) * dist * 0.35], [x + Math.cos(a) * d, y + Math.sin(a) * d]], { life: 520, delay, s0: 1, s1: 0.4 }));
+  }
+  watchFrames(t);
+}
+
 // Funken entlang einer Linie (geschlossene Mühle, Gewinnreihe)
 export function sweep(g, x0, y0, x1, y1, { n = 12, size = 12, delay = 0 } = {}) {
   if (!on() || !g) return;

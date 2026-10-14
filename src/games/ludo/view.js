@@ -3,7 +3,8 @@
 // Bedienung: „Würfeln“ (Knopf oder Würfel antippen), dann ziehbare Figur antippen (oder ihr Zielfeld).
 // Felder sind am Handy nur ~35 px groß → ein Tipp trifft immer den nächsten sinnvollen Kandidaten.
 import { s, ensureDefs, place, animateSteps, toBoard, toScreen, onTap, die3d, ball } from '../../ui/svg.js';
-import { OWN, ludoStep } from '../../tempo.js';
+import { OWN, ludoStep, diceSchedule } from '../../tempo.js';
+import { play } from '../../ui/sound.js';
 import { boardLayers } from '../../ui/deko.js';
 import { woodFrame, inset } from '../../ui/material.js';
 import * as FXS from '../../ui/fxsvg.js';
@@ -159,16 +160,25 @@ export function createBoard(host, { onMove, onHint }) {
       grp.style.transformBox = 'fill-box';
       grp.style.transformOrigin = 'center';
       grp.animate([{ transform: 'rotate(-30deg) scale(.6)', opacity: 0.2 }, { transform: 'rotate(12deg) scale(1.1)', opacity: 1, offset: 0.7 }, { transform: 'none' }], { duration: anim.dice, easing: 'ease-out' });
-      const flicker = Math.max(0, Math.floor(anim.dice / 200) - 1);
-      for (let k = 1; k <= flicker; k++) {
+      // n10: Augen wechseln erst schnell, dann rollt der Würfel aus (tempo.js diceSchedule)
+      const sched = diceSchedule(anim.dice);
+      sched.forEach((at, i) => {
+        const k = i + 1, last = k === sched.length;
         timers.push(setTimeout(() => {
           const d = grp.querySelector('.die');
           if (!d || !grp.isConnected) return;
-          d.replaceWith(die(x, y, k === flicker ? value : 1 + ((value + k * 3) % 6), 130));
-        }, (k * anim.dice * 0.6) / flicker));
-      }
+          d.replaceWith(die(x, y, last ? value : 1 + ((value + k * 3) % 6), 130));
+          if (last && value === 6) six(x, y);
+        }, at));
+      });
     }
     lastDieKey = key;
+  }
+
+  // n10: Sechs – kleiner Funkenring um den Würfel und ein heller Ton
+  function six(x, y) {
+    FXS.ring(gFx, x, y, { n: 10, dist: 120, size: 12 });
+    play('sechs');
   }
 
   // ziehbare Figuren und Ziele (aus den legalen Zügen)

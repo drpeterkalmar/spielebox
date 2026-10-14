@@ -900,3 +900,13 @@ html.deko .toast { background: linear-gradient(rgba(52, 36, 18, .97), rgba(30, 2
 .btn.nudge { animation: nudge 1.2s ease-in-out 3; }
 @keyframes nudge { 0%, 100% { transform: scale(1); } 30% { transform: scale(1.08); } 60% { transform: scale(.98); } }
 @media (prefers-reduced-motion: reduce) { .btn.nudge, .emote-bubble { animation: none; } }
+
+/* n10 E4: Auszeichnungen am Ende, Statistik */
+.awards { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-radius: 12px; background: rgba(240,181,76,.14); }
+.awards.hidden { display: none; }
+.award { font-size: 14.5px; }
+@media (orientation: landscape) and (max-height: 500px) { .awards { padding: 2px 8px; gap: 0; } .award { font-size: 12.5px; line-height: 1.25; } }
+.award-i { margin-right: 6px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.stats-table th, .stats-table td { padding: 4px 6px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.08); }
+.stats-table .num { text-align: right; font-variant-numeric: tabular-nums; }

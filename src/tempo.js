@@ -155,6 +155,28 @@ export function holdemTimes(a, gs) {
   return z;
 }
 
+// Würfel-Spannung (n10 E4): Zeitpunkte (ms ab Wurfbeginn), zu denen die Augen wechseln; der letzte zeigt den Wurf.
+// Erst schnell (alle ~64 ms), die letzten drei Wechsel werden langsamer (120 → 180 → 260 ms) – der Würfel rollt aus.
+// Gesamtdauer bleibt dur (gemütlich 1,0 s). Kurze Würfe (eigene 650 ms) bekommen einen gestauchten Auslauf.
+// ?ausrollen=0: bisherige gleichmäßige Wechsel in den ersten 60 %.
+export const AUSROLLEN = [120, 180, 260];
+export function diceSchedule(dur, roll = urlParam('ausrollen') !== '0') {
+  if (!(dur > 0)) return [];
+  if (!roll) {
+    const n = Math.max(0, Math.floor(dur / 200) - 1);
+    return Array.from({ length: n }, (_, k) => Math.round(((k + 1) * dur * 0.6) / n));
+  }
+  const end = Math.round(dur * 0.94);
+  const k = Math.min(1, (end - 60) / 640);
+  const tail = AUSROLLEN.map((x) => Math.round(x * k));
+  const out = [end];
+  for (let i = tail.length - 1; i >= 0; i--) out.unshift(out[0] - tail[i]);
+  const first = out[0];
+  const fast = [];
+  for (let t = 60; t <= first - 50; t += 64) fast.push(t);
+  return [...fast, ...out.slice(0, -1).filter((t) => t > 0), end].filter((t, i, a) => i === 0 || t > a[i - 1]);
+}
+
 // Vier in einer Reihe: Stein fällt dist Reihen tief (immer sichtbar, auch eigene Züge; Test: 0)
 export const vierFall = (a, dist) => (a.slide <= 0 ? 0 : Math.round(Math.max(a.slide, 420) * Math.sqrt(Math.max(1, dist) / 6) + 140));
 

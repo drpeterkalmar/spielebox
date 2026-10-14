@@ -13,7 +13,7 @@ c = Checker()
 SHOTS = 'n10'
 GAMES = ['muehle', 'dame', 'schach', 'schnapsen', 'backgammon', 'blackjack', 'halma', 'ludo', 'schiffe', 'vier', 'maumau',
          'wuerfel', 'reversi', 'paare', 'holdem']
-KINDS = ['klack', 'schlag', 'karte', 'wuerfel', 'platsch', 'kipp', 'tock', 'sieg', 'chip', 'chips']
+KINDS = ['klack', 'schlag', 'karte', 'wuerfel', 'platsch', 'kipp', 'tock', 'sieg', 'sechs', 'chip', 'chips']
 
 
 def wait(fn, timeout=20, what='Bedingung'):
@@ -471,7 +471,96 @@ def online(b, base):
     return out
 
 
-PARTS = {'klang': klang, 'ziehen': ziehen, 'online': online}
+# ---------- E4: Spannung ----------
+# Augen-Wechsel: nur zählen, wenn sich das Bild des Würfels wirklich ändert (Neuzeichnen mit gleichem Bild zählt nicht)
+DIE_WATCH = """(() => { window.__faces = []; const g = document.querySelector('svg.board g.dice'); let last = '';
+  new MutationObserver(() => { const d = g.querySelector('.die'); const k = d ? d.innerHTML : '';
+    if (k !== last) { last = k; window.__faces.push(performance.now()); } }).observe(g, { subtree: true, childList: true }); })()"""
+
+
+def spannung(b, base):
+    out = {}
+    # Würfel rollen aus (Ludo, gemütlich): alle Augen-Wechsel mitschreiben, in Würfe zerlegen (Pause > 400 ms).
+    # Würfe des Computers dauern gemütlich 1,0 s, eigene 0,65 s (unverändert kurz).
+    P = Page(b, base, 'hoch').open('?nosw&tempo=gemuetlich&botms=0')
+    P.ev("__box.local('bot', 'ludo', {players: 2}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'ludo', 15)
+    P.ev(DIE_WATCH)
+    shot_done = False
+    t0 = time.time()
+    while time.time() - t0 < 45:
+        if my_turn(P):
+            P.ev("__box.botMove(1)")
+        elif not shot_done and P.ev("__box.busy() && __box.table().gs.lastRoll && __box.table().gs.lastRoll.seat === 1 && __box.table().gs.phase !== 'rolling'"):
+            for j in range(4):
+                P.shot(f'e4_wuerfel_{j}', SHOTS); time.sleep(0.12)
+            shot_done = True
+        time.sleep(0.15)
+    ts = P.ev("window.__faces")
+    bursts, cur = [], []
+    for x in ts:
+        if cur and x - cur[-1] > 400:
+            bursts.append(cur); cur = []
+        cur.append(x)
+    if cur: bursts.append(cur)
+    res = []
+    for bu in bursts:
+        gaps = [round(bu[i + 1] - bu[i]) for i in range(len(bu) - 1)]
+        gaps = [g for g in gaps if g >= 25]          # gleichzeitige Neuzeichnungen zusammenfassen
+        res.append({'dauer': round(bu[-1] - bu[0]), 'abstaende': gaps})
+    comp = [r for r in res if r['dauer'] >= 780]
+    # Zeitgeber im Test-Browser sind grob (gesperrter Bildschirm drosselt), darum Summen: die letzten 3 Wechsel zusammen
+    # länger als die ersten 3; die genauen Zeiten prüft tests/node/spannung.test.mjs
+    comp = [r for r in comp if r['dauer'] < 1500]   # zwei Würfe ohne Pause dazwischen nicht mitzählen
+    good = [r for r in comp if len(r['abstaende']) >= 6 and sum(r['abstaende'][-3:]) > sum(r['abstaende'][:3]) and 780 <= r['dauer'] <= 1100]
+    out['ludo_wuerfe'] = res
+    c.ok(len(comp) >= 3 and len(good) == len(comp), f'Messgröße 9: Computer-Würfe rollen aus – {len(good)}/{len(comp)} (Dauer {[r["dauer"] for r in comp]} ms, Abstände z. B. {comp[0]["abstaende"] if comp else None})')
+    c.ok(P.app_errors() == [], f'0 Fehler {P.app_errors()[:3]}')
+    P.close()
+    # Auszeichnungen + Statistik: Würfelglück zu zweit gegen den Computer bis zum Ende
+    for form in ['hoch', 'quer']:
+        P = Page(b, base, form).open()
+        P.pg.on('dialog', lambda d: d.accept())
+        P.ev("localStorage.removeItem('sb.stats')")
+        P.ev("__box.local('bot', 'wuerfel', {players: 2}, 'weiss', 1)")
+        wait(lambda: tbl(P) and tbl(P)['game'] == 'wuerfel', 15)
+        t0 = time.time()
+        while time.time() - t0 < 90 and tbl(P)['status'] != 'over':
+            if my_turn(P): P.ev("__box.botMove(2)")
+            time.sleep(0.05)
+        wait(lambda: P.ev("!!document.querySelector('.award')"), 10, 'Auszeichnung')
+        aw = P.ev("[...document.querySelectorAll('.award')].map(e => e.textContent)")
+        c.ok(any('Höchster Wurf' in x for x in aw), f'{form}: Auszeichnung am Ende {aw}')
+        P.shot(f'e4_ehrung_{form}', SHOTS)
+        st = P.ev("JSON.parse(localStorage.getItem('sb.stats'))")
+        e = st and st['g'].get('wuerfel', {}).get('computer1')
+        c.ok(e and e['w'] + e['l'] + e['d'] == 1, f'{form}: Statistik zählt die Partie {e}')
+        P.tap('[data-act="menu"]'); P.tap('[data-act="tempo"]')
+        P.pg.wait_for_selector('[data-stats] .stats-table')
+        P.pg.locator('[data-stats]').scroll_into_view_if_needed()
+        P.shot(f'e4_statistik_{form}', SHOTS)
+        sb = P.small_buttons()
+        c.ok(sb == [], f'{form}: Knöpfe ≥ 48 px {sb[:3]}')
+        P.tap('[data-act="stats-reset"]')
+        time.sleep(0.2)
+        c.ok(P.ev("localStorage.getItem('sb.stats')") is None, f'{form}: Statistik zurückgesetzt')
+        c.ok(P.app_errors() == [], f'{form}: 0 Fehler {P.app_errors()[:3]}')
+        P.close()
+    # ?ehrung=0: keine Auszeichnung
+    P = Page(b, base, 'hoch').open('?nosw&ehrung=0')
+    P.ev("__box.local('bot', 'wuerfel', {players: 1}, 'weiss', 1)")
+    wait(lambda: tbl(P) and tbl(P)['game'] == 'wuerfel', 15)
+    t0 = time.time()
+    while time.time() - t0 < 60 and tbl(P)['status'] != 'over':
+        if my_turn(P): P.ev("__box.botMove(2)")
+        time.sleep(0.05)
+    time.sleep(0.5)
+    c.ok(tbl(P)['status'] == 'over' and not P.ev("!!document.querySelector('.award')"), '?ehrung=0: keine Auszeichnung')
+    P.close()
+    return out
+
+
+PARTS = {'klang': klang, 'ziehen': ziehen, 'online': online, 'spannung': spannung}
 
 if __name__ == '__main__':
     want = [a for a in sys.argv[1:] if a in PARTS] or list(PARTS)

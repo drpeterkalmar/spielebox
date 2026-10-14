@@ -1,6 +1,7 @@
 // Bot-Anbindung: rechnet im Web Worker, sonst (kein Worker möglich) direkt im Hauptthread.
 import { loadBot, TIME } from './games/bots.js';
 import { evalPosition } from './evalpos.js';
+import { FEHLER } from './games/fehler.js';
 
 // Antwortet der Worker so lange nicht (Endlosschleife, tot ohne onerror), wird er beendet und der Zug im Hauptthread
 // gerechnet; der nächste Aufruf legt einen neuen Worker an. Tests: kleiner.
@@ -71,10 +72,13 @@ function request(msg, fallback) {
   });
 }
 
+// n10: Fehlerquote der Kinder-Stufe (Link ?fehler=0.15, 0 = aus)
+const fehler = (() => { try { const v = parseFloat(new URLSearchParams(globalThis.location?.search || '').get('fehler')); return v >= 0 && v <= 1 ? v : FEHLER; } catch { return FEHLER; } })();
+
 // Computer-Zug; ctx.note(text) schreibt ins Tisch-Protokoll (Zeitlimit)
 export function chooseBotMove(game, gs, level = 2, ctx = {}) {
-  return request({ game, gs, level }, async (reason) => {
-    if (!reason) return (await loadBot(game))(gs, { level, timeMs: TIME[level] || 400 });
+  return request({ game, gs, level, fehler }, async (reason) => {
+    if (!reason) return (await loadBot(game))(gs, { level, timeMs: TIME[level] || 400, fehler });
     if (ctx.note) ctx.note(`Computer-Worker antwortet nicht (${reason}) – Zug im Hauptthread`);
     return quickMove(game, gs, level);
   });
@@ -82,7 +86,7 @@ export function chooseBotMove(game, gs, level = 2, ctx = {}) {
 
 // schneller Vorschlag im Hauptthread (Debug/Tests: __box.botMove, Rückfall nach Zeitlimit); Bot wird bei Bedarf geladen
 export async function quickMove(game, gs, level = 1) {
-  return (await loadBot(game))(gs, { level, timeMs: 60 });
+  return (await loadBot(game))(gs, { level, timeMs: 60, fehler });
 }
 
 // Einschätzung „Wer gewinnt?“ (im Worker, sonst direkt). Höchstens eine Bewertung in Arbeit; kommt währenddessen

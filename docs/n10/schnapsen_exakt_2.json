@@ -1,0 +1,47 @@
+{
+ "when": "2026-10-14T07:18:09.714Z",
+ "cfg": {
+  "games": [
+   "schnapsen"
+  ],
+  "pairs": [
+   [
+    3,
+    3
+   ]
+  ],
+  "n": 400,
+  "ms": {
+   "1": 15,
+   "2": 40,
+   "3": 20,
+   "fehler": 0.15
+  },
+  "seed": 2,
+  "workers": 6,
+  "aopt": {
+   "exakt": true
+  },
+  "bopt": {
+   "exakt": false
+  }
+ },
+ "sekunden": 282,
+ "rows": [
+  {
+   "game": "schnapsen",
+   "a": 3,
+   "b": 3,
+   "n": 400,
+   "pts": 247,
+   "steps": 102164,
+   "hang": 0,
+   "ms": 1667057,
+   "p": 0.618,
+   "lo": 0.57,
+   "hi": 0.665,
+   "zuege": 255,
+   "msJePartie": 4168
+  }
+ ]
+}

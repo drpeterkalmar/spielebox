@@ -183,3 +183,29 @@ export function saveTrainer(t) {
 export function resetTrainer() {
   del('trainer');
 }
+
+// n10 E4: Statistik je Gerät (ohne Konto): je Spiel und Gegner-Art (computer1…3, mensch) Siege/Niederlagen/Remis,
+// laufende und längste Siegesserie. Schlüssel sb.stats.
+export const emptyStats = () => ({ v: 1, g: {} });
+
+export function addResult(st, game, kind, outcome) {
+  const g = (st.g[game] ||= {});
+  const e = (g[kind] ||= { w: 0, l: 0, d: 0, serie: 0, best: 0 });
+  if (outcome === 'w') { e.w++; e.serie++; e.best = Math.max(e.best, e.serie); }
+  else if (outcome === 'l') { e.l++; e.serie = 0; }
+  else { e.d++; e.serie = 0; }
+  return st;
+}
+
+export function stats() {
+  const st = get('stats', null);
+  return st && st.v === 1 && st.g ? st : emptyStats();
+}
+
+export function recordResult(game, kind, outcome) {
+  set('stats', addResult(stats(), game, kind, outcome));
+}
+
+export function resetStats() {
+  del('stats');
+}
