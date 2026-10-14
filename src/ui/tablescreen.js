@@ -216,13 +216,14 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     el.className = `pbar ${el.classList.contains('top') ? 'top' : 'bottom'}${active ? ' active' : ''}`;
     el.dataset.seat = seat;
     const sub2 = t.subs && t.subs[seat];
-    el.append(
+    // (el.append schreibt null als Text „null“ – darum leere Teile herausfiltern)
+    el.append(...[
       gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
         h('div', { class: 'pb-name' }, seatLabel(t, seat), sub2 ? h('span', { class: 'tag sub', text: 'Computer vertritt' }) : !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
         h('div', { class: 'pb-sub', text: sub })),
       t.clock ? h('div', { class: 'pb-clock', data: { clock: seat } }) : null,
-      h('div', { class: 'pb-score', title: 'Punkte an diesem Tisch', text: fmtScore(score) }));
+      h('div', { class: 'pb-score', title: 'Punkte an diesem Tisch', text: fmtScore(score) })].filter(Boolean));
   }
 
   // mehr als zwei Plätze: oben kompakte Liste aller anderen, unten der eigene Platz
