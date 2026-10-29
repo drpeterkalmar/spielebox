@@ -1,6 +1,6 @@
 {
   "name": "spielebox",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "description": "Spielebox – Brettspiele zu zweit übers Netz, Zutritt mit 3 Wörtern (PWA, ohne Server)",
