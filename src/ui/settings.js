@@ -38,6 +38,8 @@ export function openSettings() {
   const ton = onOff('sound', 'Ton', 'leise Klack- und Kartengeräusche', 'ganz still');
   const vib = onOff('vibration', 'Vibration', 'kurz bei Sieg, Schach, Mühle, Rauswurf', 'nie');
   const emo = onOff('emotes', 'Reaktionen', 'Emoji der Mitspieler zeigen, selbst senden', 'keine Emoji');
+  // n11: „💡 Tipp“ am Tisch (zeigt den Zug des starken Computers, zieht nie selbst)
+  const tipp = onOff('tipOn', 'Tipp-Knopf zeigen', 'empfohlener Zug auf Knopfdruck', 'kein Tipp-Knopf');
   const optik = seg('Optik', OPTIK, DEKO.level, (v) => { setDekoLevel(v); ensureDekoDefs(); prepareCardArt(); }, { setting: 'deko' });
   return sheet('Einstellungen',
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Computer-Tempo' }), tempo),
@@ -46,12 +48,21 @@ export function openSettings() {
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Ton' }), ton),
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Vibration' }), vib),
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Reaktionen (online)' }), emo),
+    h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Tipp-Knopf' }), tipp),
+    h('p', { class: 'muted small', text: '„💡 Tipp“ zeigt, welchen Zug der starke Computer an deiner Stelle machen würde – ziehen musst du selbst. Er sieht nur, was du siehst (keine fremden Karten). Online gibt es Tipps nur, wenn der Gastgeber sie erlaubt; genutzte Tipps sehen dann alle („💡 3“).' }),
     h('p', { class: 'muted small', text: 'Steht das Handy auf lautlos, bleibt die Spielebox still. Vibriert wird nur bei großen Momenten, höchstens alle 1,5 Sekunden (am iPhone gar nicht).' }),
     h('div', { class: 'field' }, h('div', { class: 'field-label', text: 'Optik' }), optik),
     statsBlock(),
     h('p', { class: 'muted small', text: DEKO.url !== null
       ? `Gerade per Link festgelegt (deko=${DEKO.url}) – ohne den Zusatz im Link gilt die Auswahl hier.`
       : 'Funken und Konfetti gibt es nur bei „Verziert“. Wird das Handy dabei zu langsam, nimmt die Spielebox die Effekte von selbst zurück. Bei „Bewegung reduzieren“ im Handy gibt es keine Funken.' }));
+}
+
+// n11: genutzte Tipps je Spiel
+function tipsLine(st) {
+  const list = Object.entries(st.tips || {}).filter(([g, n]) => GAMES[g] && n > 0);
+  if (!list.length) return null;
+  return h('p', { class: 'small', data: { statsTips: '' }, text: `💡 Tipps genutzt: ${list.map(([g, n]) => `${GAMES[g].title} ${n}`).join(', ')}` });
 }
 
 // n10 E4: Statistik dieses Geräts (Siege/Niederlagen/Remis je Spiel, längste Serie) + Zurücksetzen
@@ -75,6 +86,7 @@ function statsBlock() {
       h('thead', {}, h('tr', {}, h('th', { text: 'Spiel' }), h('th', { text: 'gegen' }), h('th', { class: 'num', text: 'S' }), h('th', { class: 'num', text: 'N' }), h('th', { class: 'num', text: 'R' }), h('th', { class: 'num', text: 'Serie' }))),
       h('tbody', {}, ...rows)),
       h('p', { class: 'muted small', text: 'S = Siege, N = Niederlagen, R = Remis, Serie = längste Siegesserie.' }),
+      tipsLine(st),
       h('button', { class: 'btn small', data: { act: 'stats-reset' }, on: { click: () => { if (confirm('Statistik wirklich zurücksetzen?')) { store.resetStats(); draw(); } } } }, 'Statistik zurücksetzen'));
   };
   draw();

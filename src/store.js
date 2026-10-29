@@ -206,6 +206,17 @@ export function recordResult(game, kind, outcome) {
   set('stats', addResult(stats(), game, kind, outcome));
 }
 
+// n11: genutzte Tipps je Spiel (in derselben Statistik, Zurücksetzen löscht sie mit)
+export function addTip(st, game) {
+  st.tips = st.tips || {};
+  st.tips[game] = (st.tips[game] || 0) + 1;
+  return st;
+}
+
+export function recordTip(game) {
+  set('stats', addTip(stats(), game));
+}
+
 export function resetStats() {
   del('stats');
 }

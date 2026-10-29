@@ -910,3 +910,31 @@ html.deko .toast { background: linear-gradient(rgba(52, 36, 18, .97), rgba(30, 2
 .stats-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .stats-table th, .stats-table td { padding: 4px 6px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.08); }
 .stats-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* n11: „💡 Tipp“ – Knopf neben „Wer gewinnt?“, Ringe über dem Brett, leuchtende Knöpfe/Felder; eigene Farbe (hellblau),
+   damit der Tipp nicht mit der Gold-Markierung des letzten Zugs verwechselt wird; nur transform/opacity animiert
+   (Compositor). Platz des Knopfs bleibt reserviert (.idle). */
+.tip-btn { white-space: nowrap; align-self: center; border: none; background: rgba(0,0,0,.2); color: #fbf3e4; border-radius: 12px; min-height: 48px; padding: 4px 14px; font: inherit; font-weight: 650; font-size: 14.5px; }
+.tip-btn.hidden { display: none; }
+.tip-btn.idle { visibility: hidden; }
+.tip-btn.on { background: rgba(90, 210, 255, .92); color: #06202c; }
+/* „Wer gewinnt?“ und Tipp nebeneinander; quer bricht stattdessen der Status-Text im eigenen Knopf um (≤ 2 Zeilen,
+   48 px) – so rutscht kein Knopf in eine neue Zeile, wenn ein Text länger wird */
+.status-btns { display: flex; gap: 8px; align-items: center; justify-content: center; }
+@media (orientation: landscape) {
+  .status-row { gap: 6px; }
+  .status-row .status { flex: 1 1 170px; min-width: 0; line-height: 1.15; }
+  .status-btns { flex: 0 1 auto; min-width: 0; max-width: 100%; align-self: flex-start; }
+  .status-btns .eval-btn { flex: 0 1 200px; min-width: 0; }
+  .tip-btn { flex: none; width: 92px; padding: 2px 8px; font-size: 13.5px; }
+}
+.tip-layer { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+.tip-ring { position: absolute; border-radius: 50%; border: 5px solid rgba(110, 220, 255, .97); box-shadow: 0 0 0 3px rgba(0, 30, 50, .55), 0 0 18px rgba(90, 210, 255, .9); animation: tippuls 1.1s ease-in-out infinite; }
+.tip-ring.von { border-style: dashed; border-width: 4px; }
+.tip-ring.weg { border-color: rgba(235, 80, 60, .96); box-shadow: 0 0 0 3px rgba(60, 0, 0, .5), 0 0 14px rgba(235, 80, 60, .75); }
+@keyframes tippuls { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: .72; } }
+.btn.tipp-act, .tipp-el { box-shadow: 0 0 0 4px rgba(110, 220, 255, .97), 0 0 16px rgba(90, 210, 255, .85) !important; animation: tippuls 1.1s ease-in-out infinite; }
+.status.tipp .status-t { font-size: 15.5px; color: #9be6ff; }
+.tag.tips { background: rgba(90, 210, 255, .22); color: #c9f1ff; }
+@media (prefers-reduced-motion: reduce) { .tip-ring, .btn.tipp-act { animation: none; } }
+.tipp-el { position: relative; z-index: 1; }

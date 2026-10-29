@@ -44,7 +44,9 @@ export function newTable({ game, opts, host, hostSeat = 0, now = Date.now() }) {
     last: null, hist: [], nmoves: 0, score: {}, created: now, updated: now,
     id: Math.random().toString(36).slice(2, 12), fair: null, fairNeed: null,
     // n10 E3: Bedenkzeit (nur Spiele mit g.clock, Option „uhr“), Revanche-Angebot, vertretene Plätze
-    clock: g.clock && opts ? newClock(opts.uhr, seats.length) : null, rematch: null, subs: null
+    clock: g.clock && opts ? newClock(opts.uhr, seats.length) : null, rematch: null, subs: null,
+    // n11: Tipps am Online-Tisch nur, wenn der Gastgeber sie erlaubt (Tisch-Option „tipps“); tips = genutzte je Sitz
+    tipps: !!(opts && opts.tipps), tips: null
   };
 }
 
@@ -222,6 +224,7 @@ export class TableSession {
     t.seats = Array(n).fill(null);
     people.slice(0, n).forEach((p, i) => { t.seats[i] = p; });
     t.clock = g.clock && opts ? newClock(opts.uhr, n) : null;
+    t.tipps = !!(opts && opts.tipps);
     this._reset(false);
     return { ok: true };
   }
@@ -251,11 +254,22 @@ export class TableSession {
     return { ok: true };
   }
 
+  // n11: genutzten Tipp zählen – sichtbar für alle („💡 3“ in der Spielerleiste); online nur, wenn erlaubt
+  _noteTip(seat) {
+    const t = this.table;
+    if (seat === null || seat === undefined || t.status !== 'play' || !t.seats[seat]) return { ok: false };
+    if (this.mode === 'online' && !t.tipps) return { ok: false, reason: 'Tipps sind an diesem Tisch aus' };
+    t.tips = { ...(t.tips || {}), [seat]: ((t.tips && t.tips[seat]) || 0) + 1 };
+    this._commit({ kind: 'act', a: 'tipp', by: seat });
+    return { ok: true };
+  }
+
   _applyAct(seat, { a, round }) {
     const t = this.table;
     if (round !== t.round) return { ok: false, reason: 'veraltet' };
     if (a === 'rematch' || a === 'rematch-decline') return this._rematchAct(seat, a);
     if (a === 'moretime') return this._giftTime(seat);
+    if (a === 'tipp') return this._noteTip(seat);
     if (a === 'fill-bots') {
       if (t.status !== 'wait') return { ok: false, reason: 'Partie läuft schon' };
       t.seats = t.seats.map((x, i) => x || { pid: 'bot' + i, name: `Computer ${i + 1}`, bot: 2 });
@@ -345,6 +359,7 @@ export class TableSession {
     t.rematch = null;
     t.subs = null;
     t.tally = null;
+    t.tips = null;
     this._tallyGs = t.gs;
     if (t.clock) t.clock = newClock(t.clock.cfg, t.seats.length);
     if (t.status === 'play') this._startRound();

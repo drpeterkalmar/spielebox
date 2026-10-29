@@ -1,10 +1,10 @@
 // Computer für Paare finden: spielt nur mit dem, was alle gesehen haben (Sicht + memory).
-// Stufe 1 merkt sich die letzten 3 aufgedeckten Karten, Stufe 2 die letzten 12, Stufe 3 alles.
+// Stufe 1 merkt sich die letzten 2 aufgedeckten Karten (n11, vorher 3), Stufe 2 die letzten 12, Stufe 3 alles.
 // Bekanntes Paar → aufdecken; erste Karte: bekannte Partnerin suchen, sonst unbekannte Karte;
 // zweite Karte: passende aus dem Gedächtnis, sonst eine unbekannte (Stufe 3: lieber eine bekannte, siehe unten).
 import { legalMoves } from './engine.js';
 
-const SPAN = { 1: 3, 2: 12, 3: Infinity };
+const SPAN = { 1: 2, 2: 12, 3: Infinity };   // n11: Stufe 1 vorher 3 Karten (Messung N11_BERICHT.md)
 
 export function chooseMove(view, { level = 2, rng = Math.random } = {}) {
   const moves = legalMoves(view);

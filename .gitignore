@@ -19,6 +19,10 @@ tests/shots/technik/*
 !tests/shots/n10/
 tests/shots/n10/*
 !tests/shots/n10/*.jpg
+# n11: Tipp-Collagen (N11_BERICHT.md)
+!tests/shots/n11/
+tests/shots/n11/*
+!tests/shots/n11/n11_*.jpg
 tests/out/*
 !tests/out/.keep
 __pycache__/

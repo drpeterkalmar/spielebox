@@ -1,6 +1,7 @@
 // Bot-Anbindung: rechnet im Web Worker, sonst (kein Worker möglich) direkt im Hauptthread.
 import { loadBot, TIME } from './games/bots.js';
 import { evalPosition } from './evalpos.js';
+import { suggest } from './tipp.js';
 import { FEHLER } from './games/fehler.js';
 
 // Antwortet der Worker so lange nicht (Endlosschleife, tot ohne onerror), wird er beendet und der Zug im Hauptthread
@@ -113,4 +114,10 @@ function pumpEval() {
   request({ game: job.game, gs: job.gs, evalSeat: job.seat, evalOpts }, () => evalPosition(job.game, job.gs, job.seat, evalOpts))
     .then(job.resolve, job.reject)
     .finally(() => { evalBusy = false; pumpEval(); });
+}
+
+// n11: „💡 Tipp“ – empfohlener Zug für seat (Stufe 3, ohne Fehler, nur mit der Sicht des Spielers; siehe tipp.js).
+// Liefert { move, marks, acts, text } oder null; zieht nie selbst.
+export function suggestMove(game, gs, seat) {
+  return request({ game, gs, tipSeat: seat }, () => suggest(game, gs, seat));
 }

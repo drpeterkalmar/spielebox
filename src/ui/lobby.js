@@ -13,7 +13,9 @@ const liveGames = () => GAME_LIST.filter((g) => LIVE.has(g.id) || /[?&]alle/.tes
 // Regeln für die Lobby (je Spiel in src/games/<id>/ui.js)
 const lobbyRules = (id) => { const u = gameOf(id).ui; return (u.lobbyRules || u.rules)(); };
 
-const LEVELS = [{ v: 1, t: 'Leicht' }, { v: 2, t: 'Mittel' }, { v: 3, t: 'Stark' }];
+// n11: ehrliche Untertitel (Messung N11_BERICHT.md: ein schwacher Spieler gewinnt gegen „Leicht“ ≥ 35 %, gegen „Mittel“
+// meist unter 10 %)
+const LEVELS = [{ v: 1, t: 'Leicht', sub: 'macht Fehler' }, { v: 2, t: 'Mittel', sub: 'schwer' }, { v: 3, t: 'Stark', sub: 'sehr stark' }];
 const COLORS = [{ v: 'weiss', t: 'Weiß' }, { v: 'schwarz', t: 'Schwarz' }, { v: 'zufall', t: 'Zufall' }];
 
 export function miniBoard(game) {
@@ -90,6 +92,9 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
     }
   }
   // Farbnamen je Spiel (Vier in einer Reihe: Rot/Gelb, Reversi: Schwarz/Weiß) – Wert bleibt Sitz 0 / Sitz 1
+  // n11: Tipps am Online-Tisch (Gastgeber entscheidet, Standard aus; gegen den Computer und zu zweit immer erlaubt)
+  if (opts.tipps === undefined) opts.tipps = false;
+  body.push(toggle('Tipps am Online-Tisch erlauben', '💡 zeigt den empfohlenen Zug; genutzte Tipps sehen alle', !!opts.tipps, (v) => { opts.tipps = v; }, 'tipps'));
   const colorItems = g.colorNames ? [{ v: 'weiss', t: g.colorNames[0] }, { v: 'schwarz', t: g.colorNames[1] }, COLORS[2]] : COLORS;
   if (g.colors) body.push(segmented('Du spielst', colorItems, color, (v) => { color = v; }));
   const sh = sheet(title || g.title, ...body);
@@ -98,6 +103,7 @@ export function openGameSheet(gameId, { onOnline, onLocal, title, onlyOnline = f
   const norm = () => {
     const o = g.engine.normalizeOptions(opts);
     for (const x of g.options) if (x.table && opts[x.key] !== undefined) o[x.key] = opts[x.key];
+    o.tipps = !!opts.tipps;
     return o;
   };
   sh.body.append(

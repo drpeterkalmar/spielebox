@@ -1,10 +1,12 @@
 // Übungs-Bot für Backgammon (rein, ohne DOM).
-// level 1 = leicht: zufällig aus der besseren Hälfte der Züge, verdoppelt nur mit großem Vorsprung
+// level 1 = leicht: zufällig aus den besten 90 % der Züge (n11, vorher bessere Hälfte), verdoppelt nur mit großem Vorsprung
 // level 2 = mittel: Heuristik (Pips, Blots und ihre Gefährdung, Punkte, Primes, Anker, Bar, Abtragen)
 // level 3 = stark: zusätzlich 1-Ply-Vorausschau über die 21 gegnerischen Würfe (Zeitlimit timeMs)
 import { legalMoves, _pos, _gen, _flip, _genFor } from './engine.js';
 
 const O = 26;
+// Stufe 1 wählt zufällig aus diesem Anteil der besten Züge (n11: Messung N11_BERICHT.md)
+export const LEICHT_ANTEIL = 0.9;   // vor n11: 0,5 (bessere Hälfte)
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 // 21 verschiedene Würfe mit Gewicht (Pasch 1/36, sonst 2/36)
@@ -111,7 +113,7 @@ function wantTake(posDoubler, level) {
   return race ? v <= 12 : v <= 26;
 }
 
-export function chooseMove(state, { level = 2, rng = Math.random, timeMs = 400 } = {}) {
+export function chooseMove(state, { level = 2, rng = Math.random, timeMs = 400, anteil = LEICHT_ANTEIL } = {}) {
   const moves = legalMoves(state);
   if (!moves.length) return null;
   const r = typeof rng === 'function' ? rng : Math.random;
@@ -129,7 +131,7 @@ export function chooseMove(state, { level = 2, rng = Math.random, timeMs = 400 }
   const scored = g.list.map((m, i) => ({ i, v: heur(m.pos) + r() * 1e-6 }));
   scored.sort((a, b) => b.v - a.v);
   if (lv === 1) {
-    const half = scored.slice(0, Math.max(1, Math.ceil(scored.length / 2)));
+    const half = scored.slice(0, Math.max(1, Math.ceil(scored.length * anteil)));
     return moves[half[Math.floor(r() * half.length)].i];
   }
   if (lv === 2) return moves[scored[0].i];

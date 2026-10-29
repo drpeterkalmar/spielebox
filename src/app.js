@@ -335,6 +335,7 @@ window.__box = {
   setName(name) { const p = store.profile(); p.name = name; store.saveProfile(p); },
   me: () => store.profile(),
   target: (i) => cur.screen.view.target(i),
+  tip: () => (cur && cur.screen.tip ? cur.screen.tip() : null),   // n11: angezeigter Tipp { move, marks, acts, text }
   view: () => cur.screen.view,
   busy: () => !!(cur && cur.screen.busy()),
   events: () => (cur ? cur.screen.events() : []),

@@ -7,6 +7,8 @@
 //   --fehler      Fehlerquote der Stufe 1 (n10, wie in der App; 0 = Stand vor n10)
 //   --pairs=a:b   Stufe a (gezählt) gegen Stufe b; --n = Partien je Paar (gerade Zahl, je Hälfte mit Platztausch)
 //   --aopt/--bopt zusätzliche Bot-Optionen für Seite a bzw. b (z. B. Schnapsen {"exakt":false} = bisherige Stufe 3)
+//   n11: Stufe 0 = „gieriger 1-Zug-Spieler“ (nimmt den Zug mit der besten Stellungsbewertung der Engine danach, aus
+//        seiner Sicht), Stufe −1 = Zufallszug – Ersatz für einen schwachen Menschen, z. B. --pairs=0:1,0:2,-1:1
 // Hold'em hat ein eigenes Werkzeug (tools/holdem_selfplay.mjs), Blackjack spielt gegen die Bank (kein Duell).
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { cpus } from 'node:os';
@@ -50,7 +52,8 @@ export async function playGame(game, sides, seed, ms) {
     const view = E.HIDDEN ? E.viewFor(s, seat) : s;
     const side = sides[seat];
     const o = { level: side.level, rng: botRng[seat], timeMs: ms[side.level], fehler: ms.fehler ?? FEHLER, ...(side.opt || {}) };
-    const m = overlook(game, E, view, chooseMove(view, o), o);   // wie in der App: Stufe 1 übersieht manchmal einen Schlag
+    const m = side.level === 0 ? (HUMAN[game] ? HUMAN[game](E, view, seat, botRng[seat], chooseMove) : greedy(E, view, seat, botRng[seat])) : side.level < 0 ? pickAny(E.legalMoves(view), botRng[seat])
+      : overlook(game, E, view, chooseMove(view, o), o);   // wie in der App: Stufe 1 übersieht manchmal einen Schlag
     if (!E.isLegal(s, m)) throw new Error(`${game}: ungültiger Zug Stufe ${side.level}: ${JSON.stringify(m)}`);
     s = E.applyMove(s, m);
   }
@@ -58,6 +61,59 @@ export async function playGame(game, sides, seed, ms) {
   const score = r.winner === null || r.winner === undefined ? 0.5 : r.winner === 0 ? 1 : 0;
   return { score, steps };
 }
+
+const pickAny = (l, rng) => l[Math.floor(rng() * l.length)];
+
+// n11: gieriger 1-Zug-Spieler – bester Zug nach evaluate() der Engine eine Halbzug-Tiefe weit (Gleichstand: Zufall),
+// ohne Vorausrechnen in der Bewertung (Reversi ohne Endspiel-Löser, Vier ohne Gewinnbeweis)
+export function greedy(E, view, seat, rng) {
+  const legal = E.legalMoves(view);
+  let best = [], bv = -Infinity;
+  for (const m of legal) {
+    let v;
+    try { v = E.evaluate(E.applyMove(view, m), seat, { solve: 0, beweis: false }); } catch { v = -1e9; }
+    if (!Number.isFinite(v)) v = -1e9;
+    if (v > bv + 1e-9) { bv = v; best = [m]; } else if (Math.abs(v - bv) <= 1e-9) best.push(m);
+  }
+  return pickAny(best.length ? best : legal, rng);
+}
+
+// Spiele, in denen „gierig“ nichts Menschliches misst (Gedächtnis- bzw. Suchspiel): eigener schwacher Mensch
+const SN_VAL = { A: 11, Z: 10, K: 4, O: 3, U: 2 };
+const HUMAN = {
+  // Schnapsen: Anfänger – sagt immer 20/40 an, meldet sich mit 66 aus; nimmt einen Stich mit der billigsten Karte, die
+  // ihn holt, sonst gibt er die kleinste zu; spielt selbst die kleinste Nicht-Atout-Karte aus
+  schnapsen: (E, view, seat, rng) => {
+    const legal = E.legalMoves(view);
+    const take = (t) => legal.find((m) => m.type === t);
+    const ans = legal.filter((m) => m.type === 'ansagen').sort((a, b) => (b.suit === view.atout) - (a.suit === view.atout))[0];
+    if (take('ausmelden') && E.canDeclare(view)) return take('ausmelden');
+    if (ans) return ans;
+    if (take('weiter')) return take('weiter');
+    const plays = legal.filter((m) => m.type === 'play');
+    if (!plays.length) return legal[Math.floor(rng() * legal.length)];
+    const cost = (c) => SN_VAL[c[1]] + (c[0] === view.atout ? 20 : 0);
+    const cheap = plays.slice().sort((a, b) => cost(a.card) - cost(b.card));
+    if (view.trick.length === 1) {
+      const win = cheap.filter((m) => E.trickWinner([view.trick[0], { seat, card: m.card }], view.atout) === seat);
+      return win.length && SN_VAL[view.trick[0].card[1]] >= 10 ? win[0] : win.length && rng() < 0.5 ? win[0] : cheap[0];
+    }
+    return cheap[0];
+  },
+  // Paare: merkt sich nur die letzten 2 aufgedeckten Karten (Stufe 1 des Computers: 3)
+  paare: (E, view, seat, rng, bot) => bot({ ...view, memory: (view.memory || []).slice(-2) }, { level: 1, rng }),
+  // Schiffe: schießt zufällig, nach einem Treffer immer auf ein freies Nachbarfeld (ohne Schachbrettmuster)
+  schiffe: (E, view, seat, rng, bot) => {
+    const legal = E.legalMoves(view);
+    if (view.phase === 'place') return bot(view, { level: 1, rng });
+    const g = E.grid(view, 1 - seat, seat);
+    const free = new Set(legal.filter((m) => m.type === 'shot').map((m) => m.i));
+    const near = [];
+    g.forEach((c, i) => { if (c.shot === 'hit' && !c.sunk) for (const j of E.neighbors(i, false)) if (free.has(j)) near.push(j); });
+    const pool = near.length ? near : [...free];
+    return { type: 'shot', i: pool[Math.floor(rng() * pool.length)] };
+  }
+};
 
 // 95-%-Intervall (Normalnäherung) für einen Anteil p aus n Partien
 export function ci95(p, n) {

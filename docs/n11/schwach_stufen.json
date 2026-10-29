@@ -1,0 +1,80 @@
+{
+ "muehle": {
+  "vorher": 0.42,
+  "nachher": 0.42,
+  "mittel": 0,
+  "zufall": 0.035
+ },
+ "dame": {
+  "vorher": 0.595,
+  "nachher": 0.595,
+  "mittel": 0,
+  "zufall": 0.57
+ },
+ "schach": {
+  "vorher": 0.365,
+  "nachher": 0.365,
+  "mittel": 0.005,
+  "zufall": 0.003
+ },
+ "schnapsen": {
+  "vorher": 0,
+  "nachher": 0.965,
+  "mittel": 0.005,
+  "zufall": 0
+ },
+ "backgammon": {
+  "vorher": 0.175,
+  "nachher": 0.425,
+  "mittel": 0.015,
+  "zufall": 0.215
+ },
+ "halma": {
+  "vorher": 1,
+  "nachher": 1,
+  "mittel": 0.035,
+  "zufall": 0
+ },
+ "ludo": {
+  "vorher": 0.695,
+  "nachher": 0.695,
+  "mittel": 0.265,
+  "zufall": 0.54
+ },
+ "schiffe": {
+  "vorher": 0.015,
+  "nachher": 0.565,
+  "mittel": 0.07,
+  "zufall": 0.015
+ },
+ "vier": {
+  "vorher": 0.56,
+  "nachher": 0.56,
+  "mittel": 0,
+  "zufall": 0
+ },
+ "maumau": {
+  "vorher": 0.525,
+  "nachher": 0.525,
+  "mittel": 0.37,
+  "zufall": 0.045
+ },
+ "wuerfel": {
+  "vorher": 0.588,
+  "nachher": 0.588,
+  "mittel": 0.075,
+  "zufall": 0.085
+ },
+ "reversi": {
+  "vorher": 0.932,
+  "nachher": 0.932,
+  "mittel": 0,
+  "zufall": 0.175
+ },
+ "paare": {
+  "vorher": 0.005,
+  "nachher": 0.5,
+  "mittel": 0.007,
+  "zufall": 0.07
+ }
+}

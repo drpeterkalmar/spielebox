@@ -106,6 +106,35 @@ await ok('Messgröße 4: Revanche online nur nach Annahme; „Nein danke“ und 
   h.close(); g.close(); w.close();
 });
 
+await ok('n11: Tipps online nur, wenn der Gastgeber sie erlaubt; genutzte Tipps sehen alle, neue Partie setzt zurück', async () => {
+  const a = await duo();
+  assert.equal(a.h.table.tipps, false);
+  a.g.act('tipp');
+  await sleep(40);
+  assert.ok(!a.h.table.tips && !a.g.table.tips, 'ohne Erlaubnis kein Tipp');
+  a.h.close(); a.g.close();
+  const b = await duo({ tipps: true });
+  assert.equal(b.g.table.tipps, true);
+  b.g.act('tipp'); b.g.act('tipp'); b.h.act('tipp');
+  await until(() => b.g.table.tips && b.g.table.tips[1] === 2 && b.g.table.tips[0] === 1, 2000, 'Zähler beim Gast');
+  assert.deepEqual(b.h.table.tips, { 0: 1, 1: 2 });
+  b.g.act('resign');
+  await until(() => b.h.table.status === 'over');
+  b.h.act('rematch'); await until(() => b.g.table.rematch); b.g.act('rematch');
+  await until(() => b.h.table.round === 2 && b.g.table.round === 2, 2000, 'Revanche');
+  assert.equal(b.h.table.tips, null);
+  assert.equal(b.h.table.tipps, true, 'Erlaubnis bleibt am Tisch');
+  b.h.close(); b.g.close();
+  // gegen den Computer immer erlaubt
+  const table = newTable({ game: 'muehle', host: { pid: 'me', name: 'Ich' } });
+  table.seats[1] = { pid: 'bot', name: 'Computer', bot: 2 };
+  const s = new TableSession({ mode: 'bot', me: { pid: 'me', name: 'Ich' }, table, save: () => {}, bot: { choose: (g, gs, level) => muehleBot.chooseMove(gs, { level, timeMs: 5 }) } });
+  s.start();
+  assert.ok(s.act('tipp').ok);
+  assert.deepEqual(s.table.tips, { 0: 1 });
+  s.close();
+});
+
 await ok('Revanche gegen den Computer und an einem Gerät: sofort (1 Tipp)', async () => {
   for (const mode of ['bot', 'hotseat']) {
     const table = newTable({ game: 'muehle', host: { pid: 'me', name: 'Ich' } });

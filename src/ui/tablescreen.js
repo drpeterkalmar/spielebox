@@ -12,7 +12,7 @@ import { turnOf } from '../net/table.js';
 import { displayWord, formatWords } from '../words.js';
 import { helpNet } from './texts.js';
 import { gameUi, prepareGame } from './gameui.js';
-import { evaluateBoard } from '../botclient.js';
+import { evaluateBoard, suggestMove } from '../botclient.js';
 import { EVAL, evalText } from '../evalpos.js';
 import * as store from '../store.js';
 import { onDeko } from './deko.js';
@@ -111,6 +111,11 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const st = store.settings(); st.evalMode = st.evalMode === 'pct' ? 'num' : 'pct'; store.saveSettings(st); showEval();
   } } });
   let evalRes = null, evalKey = '';
+  // n11: „💡 Tipp“ – zeigt den Zug des starken Computers (Ringe auf dem Brett, Knopf leuchtet, Grund in der Status-Zeile),
+  // zieht nie selbst; der nächste eigene Zug löscht die Markierung. Platz bleibt reserviert (kein Layout-Sprung).
+  const tipBtn = h('button', { class: 'tip-btn hidden', 'aria-label': 'Tipp: empfohlenen Zug zeigen', data: { act: 'tipp' }, on: { click: () => askTip() } }, '💡 Tipp');
+  const tipLayer = h('div', { class: 'tip-layer', 'aria-hidden': 'true', data: { tipLayer: '' } });
+  let tip = null;   // { key, pending } bzw. { key, res: { move, marks, acts, text } }
   const hintEl = h('div', { class: 'hint' });
   const awardsEl = h('div', { class: 'awards hidden', data: { awards: '' } });
   const offerEl = h('div', { class: 'offer' });
@@ -137,8 +142,9 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
   const screen = h('div', { class: 'screen table-screen', data: { mode, game: '' } },
     bar,
     h('div', { class: 'tmain' }, pTop, boardWrap, pBot),
-    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), h('div', { class: 'status-row' }, statusEl, evalBtn), awardsEl, fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
+    h('aside', { class: 'tside' }, h('div', { class: 'side-players' }, pTop2, pBot2), h('div', { class: 'status-row' }, statusEl, h('div', { class: 'status-btns' }, evalBtn, tipBtn)), awardsEl, fairEl, hintEl, netEl, offerEl, actions, h('div', { class: 'moves-box' }, h('div', { class: 'moves-h', text: 'Züge' }), movesEl)));
   screen.appendChild(bannerEl);
+  screen.appendChild(tipLayer);
   clear(root).appendChild(screen);
 
   const eng = () => gameOf(session.table.game).engine;
@@ -177,7 +183,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
         if (!r.ok) { toast(r.reason || 'Zug nicht möglich'); render({ kind: 'state' }); } else movedByMe();
       },
       onHint: (text) => { hintText = text; hintEl.textContent = text; },
-      onLocal: () => { if (session.table) renderActions(session.table); },
+      onLocal: () => { if (session.table) { renderActions(session.table); showTip(); } },
       onStiche: () => openStiche()
     });
     boardWrap.appendChild(overlay);
@@ -221,7 +227,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     el.append(...[
       gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
-        h('div', { class: 'pb-name' }, seatLabel(t, seat), sub2 ? h('span', { class: 'tag sub', text: 'Computer vertritt' }) : !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
+        h('div', { class: 'pb-name' }, seatLabel(t, seat), sub2 ? h('span', { class: 'tag sub', text: 'Computer vertritt' }) : !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null, tipTag(t, seat)),
         h('div', { class: 'pb-sub', text: sub })),
       t.clock ? h('div', { class: 'pb-clock', data: { clock: seat } }) : null,
       h('div', { class: 'pb-score', title: 'Punkte an diesem Tisch', text: fmtScore(score) })].filter(Boolean));
@@ -235,9 +241,12 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     return h('div', { class: 'pchip' + (active ? ' active' : ''), data: { seat } },
       gameUi(t.game).icon(seat, t),
       h('div', { class: 'pb-text' },
-        h('div', { class: 'pb-name' }, seatLabel(t, seat), t.subs && t.subs[seat] ? h('span', { class: 'tag sub', text: 'Computer vertritt' }) : !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null),
+        h('div', { class: 'pb-name' }, seatLabel(t, seat), t.subs && t.subs[seat] ? h('span', { class: 'tag sub', text: 'Computer vertritt' }) : !here ? h('span', { class: 'tag off', text: 'nicht da' }) : null, tipTag(t, seat)),
         h('div', { class: 'pb-sub', text: s || t.status !== 'wait' ? gameUi(t.game).sub(shownOf(t), seat, viewer()) : 'Platz frei' })));
   }
+
+  // n11: genutzte Tipps dieser Partie („💡 3“), für alle sichtbar
+  const tipTag = (t, seat) => (t.tips && t.tips[seat] ? h('span', { class: 'tag tips', title: 'genutzte Tipps in dieser Partie', data: { tips: String(seat) }, text: `💡 ${t.tips[seat]}` }) : null);
 
   function renderPlayers(t) {
     const bs = bottomSeat();
@@ -516,6 +525,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     renderActions(t);
     renderMoves(t);
     renderOverlay(t);
+    showTip();
     screen.dataset.status = t.status;
     screen.dataset.game = t.game;
     lastTable = t;
@@ -711,7 +721,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const r = anchor ? anchor.getBoundingClientRect() : boardWrap.getBoundingClientRect();
     Object.assign(bannerEl.style, { left: `${Math.round(r.left)}px`, top: `${Math.round(r.top)}px`, width: `${Math.round(r.width)}px`, minHeight: `${Math.round(Math.max(48, anchor ? r.height : 56))}px` });
   }
-  const onResize = () => { if (banner) placeBanner(); };
+  const onResize = () => { if (banner) placeBanner(); showTip(); };
   addEventListener('resize', onResize);
 
   function openEvents() {
@@ -745,6 +755,66 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
         h('button', { class: 'btn primary', on: { click: () => share(words, g.title) } }, 'Teilen'),
         h('button', { class: 'btn', on: { click: () => copy(`${words.map(displayWord).join(' · ')}\n${shareUrl(words)}`) } }, 'Kopieren')),
       h('p', { class: 'muted small', text: 'Mit diesen Wörtern kann auch jemand zuschauen oder nach einem Neustart weiterspielen.' }));
+  }
+
+  // ---------- „💡 Tipp“ (n11) ----------
+  // gegen den Computer und zu zweit am Gerät immer, online nur, wenn der Gastgeber Tipps erlaubt hat; abschaltbar in den
+  // Einstellungen („Tipp-Knopf zeigen“) bzw. per Link ?tipp=0
+  const tipOn = () => store.settings().tipOn !== false && urlFlag('tipp', true);
+  const tipAllowed = (t) => !!t && t.status === 'play' && tipOn() && (mode !== 'online' || !!t.tipps) && (mode === 'hotseat' || (session.mySeat !== null && session.mySeat !== undefined));
+  const tipKey = (t) => `${t.game}|${t.round}|${t.nmoves}|${turnOf(t)}`;
+  const tipSeat = (t) => (mode === 'hotseat' ? turnOf(t) : session.mySeat);
+
+  function askTip() {
+    const t = session.table;
+    if (!t || !tipAllowed(t) || !legalFor(t)) return;
+    const key = tipKey(t);
+    if (tip && tip.key === key) return;            // rechnet schon bzw. steht schon da
+    const seat = tipSeat(t);
+    tip = { key, pending: true };
+    showTip();
+    suggestMove(t.game, shownOf(t).gs, seat).then((r) => {
+      if (!tip || tip.key !== key) return;
+      if (!r || !r.move) { tip = null; showTip(); toast((r && r.none) || 'Kein Tipp möglich'); return; }
+      tip = { key, res: r };
+      const a = session.act('tipp', seat);
+      if (a && a.ok === false && a.reason) toast(a.reason);
+      try { store.recordTip(t.game); } catch { /* Statistik ist Zugabe */ }
+      addEvent(`Tipp: ${r.text || 'Zug markiert'}`);
+      showTip();
+    }, () => { if (tip && tip.key === key) { tip = null; showTip(); toast('Tipp gerade nicht möglich'); } });
+  }
+
+  // Knopf, Ringe auf dem Brett, leuchtende Knöpfe und Grund in der Status-Zeile (nach jedem Zeichnen und bei Größenänderung)
+  function showTip() {
+    const t = session.table;
+    const allowed = tipAllowed(t);
+    if (tip && (!t || tip.key !== tipKey(t) || !allowed)) tip = null;
+    const can = allowed && !!legalFor(t);
+    tipBtn.classList.toggle('hidden', !allowed);
+    tipBtn.classList.toggle('idle', !can);
+    tipBtn.classList.toggle('on', !!(tip && tip.res));
+    tipBtn.disabled = !can;
+    tipBtn.textContent = tip && tip.pending ? '💡 denkt …' : '💡 Tipp';
+    clear(tipLayer);
+    for (const b of screen.querySelectorAll('.tipp-act')) b.classList.remove('tipp-act');
+    for (const b of screen.querySelectorAll('.tipp-el')) b.classList.remove('tipp-el');
+    statusEl.classList.remove('tipp');
+    if (!tip || !tip.res || !can || !view) return;
+    const r = tip.res;
+    let size = 64;
+    try { const mt = view.metrics && view.metrics(); if (mt && mt.minTargetPx) size = mt.minTargetPx; } catch { /* Standard */ }
+    size = Math.max(40, Math.min(120, size * 1.05));
+    for (const mk of r.marks || []) {
+      let p = null;
+      try { p = view.target(mk.at); } catch { p = null; }
+      if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) continue;
+      const d = mk.kind === 'nach' ? size : size * 0.82;
+      tipLayer.append(h('div', { class: `tip-ring ${mk.kind}`, data: { tipAt: String(mk.at) }, style: `left:${Math.round(p[0] - d / 2)}px;top:${Math.round(p[1] - d / 2)}px;width:${Math.round(d)}px;height:${Math.round(d)}px` }));
+    }
+    for (const a of r.acts || []) for (const b of screen.querySelectorAll(`.actions [data-act="${a}"]`)) b.classList.add('tipp-act');
+    for (const sel of r.els || []) { try { const el = boardWrap.querySelector(sel); if (el) el.classList.add('tipp-el'); } catch { /* ungültige Auswahl */ } }
+    if (r.text) { statusTextEl.textContent = `💡 ${r.text}`; statusEl.classList.add('tipp'); }
   }
 
   const evalOn = () => store.settings().evalOn !== false;
@@ -856,6 +926,7 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
 
   return {
     get view() { return view; },
+    tip: () => (tip && tip.res ? tip.res : null),
     render,
     showWords,
     // Tests: läuft gerade eine Zug-Animation bzw. wartet ein Stand?

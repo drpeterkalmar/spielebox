@@ -8,7 +8,8 @@ Handy zuerst (Hoch- und Querformat), als App installierbar (PWA), offline gegen 
 · Ludo (2–4) · Schiffe versenken · Vier in einer Reihe · Mau-Mau (2–5) · Würfelglück (1–6) · Reversi · Paare finden (1–4)
 · Texas Hold'em (2–8, nur Spielchips).
 Dazu der **Schach-Trainer** (allein üben): Eröffnungen, Taktik-Aufgaben, Endspiele.
-Jedes Spiel online über die drei Wörter, gegen den Computer (3 Stufen) oder an einem Gerät. Freie Plätze an Mehr-Personen-Tischen
+Jedes Spiel online über die drei Wörter, gegen den Computer (3 Stufen) oder an einem Gerät. Wer nicht weiterweiß:
+**„💡 Tipp“** zeigt den Zug des starken Computers (zieht nie selbst; online nur, wenn der Gastgeber Tipps erlaubt). Freie Plätze an Mehr-Personen-Tischen
 füllt der Computer. Unter dem Brett steht auf Wunsch „Wer gewinnt?“ (Zahl in der Einheit des Spiels bzw. „Vorteil“ ↔
 Gewinnchance in %, aus Selbstspiel-Partien kalibriert); ist das Ergebnis bewiesen, steht dort „Sieg sicher bei bestem
 Spiel (+N)“, „Niederlage droht“ oder „Remis bei bestem Spiel“ (Reversi: ab 12 leeren Feldern exakt, meist ab 16 bewiesen).
@@ -263,6 +264,10 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
   `?solve=N`), Gewinnchance je Spiel per Brier-Score kalibriert, „Vorteil“ statt falscher Einheit (A, 0.11.0).
   Messungen: `N11_BERICHT.md`; Werkzeuge `tools/n11/` (`rv_solve_bench.mjs`, `kalibrieren.mjs`, `kalib_fit.mjs`,
   `rv_gate.mjs`), Tests `tests/node/n11_eval.test.mjs`, `python3 tests/smoke_n11.py eval`.
+  **„💡 Tipp“** in allen 15 Spielen (B, 0.12.0): zeigt den Zug des starken Computers (nur mit dem, was du siehst), zieht
+  nie selbst, online nur mit Erlaubnis des Gastgebers (genutzte Tipps sichtbar); leichte Stufe bei Backgammon und Paare
+  entschärft, ehrliche Stufen-Texte. Tests `tests/node/n11_tipp.test.mjs`, `python3 tests/smoke_n11.py`;
+  Messwerkzeug schwacher Spieler `node tools/selfplay.mjs --pairs=0:1,0:2,-1:1`.
 - **n10 (14.10.2026) – Feinschliff nach Vorlagen:** Klänge in allen 15 Spielen, Vibration, Brett-Spielzeug (E1);
   Ziehen von Karten und Figuren, Eingabe-Puffer (E2); Revanche als Angebot, Reaktionen, Computer-Vertretung,
   Bedenkzeit (E3); Würfel-Auslauf, Auszeichnungen, Schnapsen-Computer mit Gedächtnis und exakter Endphase, menschliche
