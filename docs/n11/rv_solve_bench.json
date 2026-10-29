@@ -1,0 +1,82 @@
+[
+ {
+  "empties": 8,
+  "n": 200,
+  "medMs": 0.25,
+  "p95Ms": 0.72,
+  "maxMs": 1.2,
+  "medNodes": 753,
+  "p95Nodes": 2176,
+  "maxNodes": 3281
+ },
+ {
+  "empties": 9,
+  "n": 200,
+  "medMs": 0.57,
+  "p95Ms": 1.63,
+  "maxMs": 4.7,
+  "medNodes": 1731,
+  "p95Nodes": 5102,
+  "maxNodes": 8741
+ },
+ {
+  "empties": 10,
+  "n": 200,
+  "medMs": 1.3,
+  "p95Ms": 3.79,
+  "maxMs": 8.7,
+  "medNodes": 4037,
+  "p95Nodes": 11869,
+  "maxNodes": 28341
+ },
+ {
+  "empties": 11,
+  "n": 200,
+  "medMs": 3.09,
+  "p95Ms": 10.94,
+  "maxMs": 19.2,
+  "medNodes": 9436,
+  "p95Nodes": 34893,
+  "maxNodes": 64971
+ },
+ {
+  "empties": 12,
+  "n": 200,
+  "medMs": 8.37,
+  "p95Ms": 30.68,
+  "maxMs": 66.5,
+  "medNodes": 25816,
+  "p95Nodes": 98336,
+  "maxNodes": 213787
+ },
+ {
+  "empties": 13,
+  "n": 200,
+  "medMs": 19.12,
+  "p95Ms": 66.08,
+  "maxMs": 196.7,
+  "medNodes": 57138,
+  "p95Nodes": 208126,
+  "maxNodes": 623931
+ },
+ {
+  "empties": 14,
+  "n": 200,
+  "medMs": 50.34,
+  "p95Ms": 154.73,
+  "maxMs": 296.2,
+  "medNodes": 149682,
+  "p95Nodes": 488981,
+  "maxNodes": 905711
+ },
+ {
+  "empties": 15,
+  "n": 200,
+  "medMs": 136.87,
+  "p95Ms": 545.88,
+  "maxMs": 1483.1,
+  "medNodes": 384428,
+  "p95Nodes": 1579219,
+  "maxNodes": 4642543
+ }
+]

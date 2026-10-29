@@ -1,0 +1,892 @@
+{
+ "reversi": {
+  "game": "reversi",
+  "partien": 600,
+  "stellungen": 36585,
+  "exaktAnteil": 0.286,
+  "kAlt": 0.1111,
+  "kNeu": 0.2091,
+  "kPhase": [
+   {
+    "von": 13,
+    "bis": 16,
+    "k": 0.1183,
+    "n": 240
+   },
+   {
+    "von": 17,
+    "bis": 20,
+    "k": 0.2537,
+    "n": 1872
+   },
+   {
+    "von": 21,
+    "bis": 28,
+    "k": 0.296,
+    "n": 4812
+   },
+   {
+    "von": 29,
+    "bis": 36,
+    "k": 0.2963,
+    "n": 4814
+   },
+   {
+    "von": 37,
+    "bis": 44,
+    "k": 0.238,
+    "n": 4800
+   },
+   {
+    "von": 45,
+    "bis": 60,
+    "k": 0.0641,
+    "n": 9600
+   }
+  ],
+  "brier": {
+   "konstant50": 0.2459,
+   "vorher": 0.1759,
+   "nurExakt": 0.1557,
+   "kalibriert": 0.1526,
+   "jePhase": 0.1491,
+   "app": 0.1491
+  },
+  "jePhaseBrier": [
+   {
+    "von": 13,
+    "bis": 16,
+    "n": 2442,
+    "vorher": 0.1524,
+    "kalibriert": 0.0524,
+    "jePhase": 0.0497,
+    "app": 0.0508
+   },
+   {
+    "von": 17,
+    "bis": 20,
+    "n": 2406,
+    "vorher": 0.1602,
+    "kalibriert": 0.1401,
+    "jePhase": 0.1414,
+    "app": 0.1404
+   },
+   {
+    "von": 21,
+    "bis": 28,
+    "n": 4762,
+    "vorher": 0.1768,
+    "kalibriert": 0.1628,
+    "jePhase": 0.1602,
+    "app": 0.1601
+   },
+   {
+    "von": 29,
+    "bis": 36,
+    "n": 4840,
+    "vorher": 0.1939,
+    "kalibriert": 0.1776,
+    "jePhase": 0.173,
+    "app": 0.1731
+   },
+   {
+    "von": 37,
+    "bis": 44,
+    "n": 4800,
+    "vorher": 0.2173,
+    "kalibriert": 0.2084,
+    "jePhase": 0.2075,
+    "app": 0.2073
+   },
+   {
+    "von": 45,
+    "bis": 60,
+    "n": 9600,
+    "vorher": 0.2464,
+    "kalibriert": 0.2538,
+    "jePhase": 0.2449,
+    "app": 0.2449
+   }
+  ]
+ },
+ "schach": {
+  "game": "schach",
+  "partien": 300,
+  "stellungen": 2755,
+  "exaktAnteil": 0.02,
+  "kAlt": 0.5756,
+  "kNeu": 0.1571,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.1827,
+    "n": 942
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.1908,
+    "n": 892
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.1347,
+    "n": 868
+   }
+  ],
+  "brier": {
+   "konstant50": 0.1026,
+   "vorher": 0.091,
+   "nurExakt": 0.091,
+   "kalibriert": 0.0703,
+   "jePhase": 0.0694,
+   "app": 0.0703
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 888,
+    "vorher": 0.0972,
+    "kalibriert": 0.0881,
+    "jePhase": 0.0881,
+    "app": 0.0881
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 940,
+    "vorher": 0.0934,
+    "kalibriert": 0.0807,
+    "jePhase": 0.0784,
+    "app": 0.0807
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 920,
+    "vorher": 0.0826,
+    "kalibriert": 0.0424,
+    "jePhase": 0.0422,
+    "app": 0.0424
+   }
+  ]
+ },
+ "muehle": {
+  "game": "muehle",
+  "partien": 500,
+  "stellungen": 26628,
+  "exaktAnteil": 0,
+  "kAlt": 0.7,
+  "kNeu": 0.4304,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0003,
+    "n": 8872
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.1452,
+    "n": 8692
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.7068,
+    "n": 8542
+   }
+  ],
+  "brier": {
+   "konstant50": 0.1308,
+   "vorher": 0.1241,
+   "nurExakt": 0.1241,
+   "kalibriert": 0.1176,
+   "jePhase": 0.111,
+   "app": 0.1176
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 9228,
+    "vorher": 0.1495,
+    "kalibriert": 0.1403,
+    "jePhase": 0.132,
+    "app": 0.1403
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 9032,
+    "vorher": 0.1516,
+    "kalibriert": 0.1383,
+    "jePhase": 0.1303,
+    "app": 0.1383
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 8890,
+    "vorher": 0.0697,
+    "kalibriert": 0.0731,
+    "jePhase": 0.0697,
+    "app": 0.0731
+   }
+  ]
+ },
+ "dame": {
+  "game": "dame",
+  "partien": 400,
+  "stellungen": 27464,
+  "exaktAnteil": 0,
+  "kAlt": 0.55,
+  "kNeu": 1.1081,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.4774,
+    "n": 9090
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 1.0696,
+    "n": 8942
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 1.5381,
+    "n": 8794
+   }
+  ],
+  "brier": {
+   "konstant50": 0.1945,
+   "vorher": 0.15,
+   "nurExakt": 0.15,
+   "kalibriert": 0.1441,
+   "jePhase": 0.1399,
+   "app": 0.1441
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 9494,
+    "vorher": 0.1941,
+    "kalibriert": 0.2019,
+    "jePhase": 0.1936,
+    "app": 0.2018
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 9378,
+    "vorher": 0.1701,
+    "kalibriert": 0.1687,
+    "jePhase": 0.1684,
+    "app": 0.1686
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 9230,
+    "vorher": 0.0843,
+    "kalibriert": 0.0596,
+    "jePhase": 0.0557,
+    "app": 0.0598
+   }
+  ]
+ },
+ "backgammon": {
+  "game": "backgammon",
+  "partien": 500,
+  "stellungen": 38126,
+  "exaktAnteil": 0,
+  "kAlt": 0.0714,
+  "kNeu": 0.0456,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0235,
+    "n": 13018
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.0305,
+    "n": 12630
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.1153,
+    "n": 12508
+   }
+  ],
+  "brier": {
+   "konstant50": 0.25,
+   "vorher": 0.2403,
+   "nurExakt": 0.2403,
+   "kalibriert": 0.229,
+   "jePhase": 0.221,
+   "app": 0.2291
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 12722,
+    "vorher": 0.292,
+    "kalibriert": 0.2719,
+    "jePhase": 0.2573,
+    "app": 0.2722
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 12532,
+    "vorher": 0.2752,
+    "kalibriert": 0.2584,
+    "jePhase": 0.2481,
+    "app": 0.2586
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 12390,
+    "vorher": 0.1519,
+    "kalibriert": 0.1552,
+    "jePhase": 0.1564,
+    "app": 0.155
+   }
+  ]
+ },
+ "halma": {
+  "game": "halma",
+  "partien": 500,
+  "stellungen": 39925,
+  "exaktAnteil": 0,
+  "kAlt": 0.1111,
+  "kNeu": 0.1562,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0774,
+    "n": 13638
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.1489,
+    "n": 13426
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.4142,
+    "n": 13264
+   }
+  ],
+  "brier": {
+   "konstant50": 0.25,
+   "vorher": 0.1401,
+   "nurExakt": 0.1401,
+   "kalibriert": 0.1346,
+   "jePhase": 0.129,
+   "app": 0.1346
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 13338,
+    "vorher": 0.2261,
+    "kalibriert": 0.2299,
+    "jePhase": 0.2264,
+    "app": 0.2299
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 13160,
+    "vorher": 0.1129,
+    "kalibriert": 0.1056,
+    "jePhase": 0.1062,
+    "app": 0.1056
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 13024,
+    "vorher": 0.0794,
+    "kalibriert": 0.0664,
+    "jePhase": 0.0522,
+    "app": 0.0664
+   }
+  ]
+ },
+ "schnapsen": {
+  "game": "schnapsen",
+  "partien": 150,
+  "stellungen": 33858,
+  "exaktAnteil": 0,
+  "kAlt": 0.55,
+  "kNeu": 0.2053,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0548,
+    "n": 11938
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.1721,
+    "n": 11892
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.3479,
+    "n": 11842
+   }
+  ],
+  "brier": {
+   "konstant50": 0.25,
+   "vorher": 0.1493,
+   "nurExakt": 0.1493,
+   "kalibriert": 0.1532,
+   "jePhase": 0.1527,
+   "app": 0.1493
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 10740,
+    "vorher": 0.2414,
+    "kalibriert": 0.2309,
+    "jePhase": 0.2411,
+    "app": 0.2414
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 10674,
+    "vorher": 0.1481,
+    "kalibriert": 0.1494,
+    "jePhase": 0.1547,
+    "app": 0.1481
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 10630,
+    "vorher": 0.0575,
+    "kalibriert": 0.0786,
+    "jePhase": 0.0612,
+    "app": 0.0575
+   }
+  ]
+ },
+ "ludo": {
+  "game": "ludo",
+  "partien": 500,
+  "stellungen": 154813,
+  "exaktAnteil": 0,
+  "kAlt": 0.0714,
+  "kNeu": 0.019,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0067,
+    "n": 52158
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.0142,
+    "n": 49118
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.0329,
+    "n": 48058
+   }
+  ],
+  "brier": {
+   "konstant50": 0.25,
+   "vorher": 0.2469,
+   "nurExakt": 0.2469,
+   "kalibriert": 0.2165,
+   "jePhase": 0.2125,
+   "app": 0.2165
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 51352,
+    "vorher": 0.28,
+    "kalibriert": 0.2484,
+    "jePhase": 0.2469,
+    "app": 0.2484
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 51236,
+    "vorher": 0.2858,
+    "kalibriert": 0.2296,
+    "jePhase": 0.2271,
+    "app": 0.2297
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 51044,
+    "vorher": 0.1745,
+    "kalibriert": 0.1712,
+    "jePhase": 0.1632,
+    "app": 0.1712
+   }
+  ]
+ },
+ "schiffe": {
+  "game": "schiffe",
+  "partien": 500,
+  "stellungen": 39249,
+  "exaktAnteil": 0,
+  "kAlt": 0.2857,
+  "kNeu": 0.3275,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.1823,
+    "n": 13312
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.2597,
+    "n": 13134
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.5888,
+    "n": 12978
+   }
+  ],
+  "brier": {
+   "konstant50": 0.25,
+   "vorher": 0.2174,
+   "nurExakt": 0.2174,
+   "kalibriert": 0.2175,
+   "jePhase": 0.2126,
+   "app": 0.2174
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 13194,
+    "vorher": 0.2502,
+    "kalibriert": 0.2522,
+    "jePhase": 0.2468,
+    "app": 0.2502
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 13018,
+    "vorher": 0.2216,
+    "kalibriert": 0.2232,
+    "jePhase": 0.2211,
+    "app": 0.2216
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 12862,
+    "vorher": 0.1796,
+    "kalibriert": 0.176,
+    "jePhase": 0.1689,
+    "app": 0.1796
+   }
+  ]
+ },
+ "paare": {
+  "game": "paare",
+  "partien": 500,
+  "stellungen": 21638,
+  "exaktAnteil": 0,
+  "kAlt": 0.6667,
+  "kNeu": 0.396,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.411,
+    "n": 7516
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.3202,
+    "n": 7176
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.4592,
+    "n": 7108
+   }
+  ],
+  "brier": {
+   "konstant50": 0.2273,
+   "vorher": 0.1984,
+   "nurExakt": 0.1984,
+   "kalibriert": 0.1897,
+   "jePhase": 0.1891,
+   "app": 0.1897
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 7400,
+    "vorher": 0.228,
+    "kalibriert": 0.2246,
+    "jePhase": 0.2247,
+    "app": 0.2246
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 7074,
+    "vorher": 0.2254,
+    "kalibriert": 0.2093,
+    "jePhase": 0.2071,
+    "app": 0.2095
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 7002,
+    "vorher": 0.1398,
+    "kalibriert": 0.133,
+    "jePhase": 0.1333,
+    "app": 0.1329
+   }
+  ]
+ },
+ "wuerfel": {
+  "game": "wuerfel",
+  "partien": 500,
+  "stellungen": 50085,
+  "exaktAnteil": 0,
+  "kAlt": 0.0455,
+  "kNeu": 0.0431,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0448,
+    "n": 16812
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.0389,
+    "n": 16280
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.0463,
+    "n": 15230
+   }
+  ],
+  "brier": {
+   "konstant50": 0.248,
+   "vorher": 0.183,
+   "nurExakt": 0.183,
+   "kalibriert": 0.183,
+   "jePhase": 0.1829,
+   "app": 0.183
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 16746,
+    "vorher": 0.2346,
+    "kalibriert": 0.2344,
+    "jePhase": 0.2345,
+    "app": 0.2346
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 16604,
+    "vorher": 0.1905,
+    "kalibriert": 0.1904,
+    "jePhase": 0.1906,
+    "app": 0.1905
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 16412,
+    "vorher": 0.1226,
+    "kalibriert": 0.1231,
+    "jePhase": 0.1225,
+    "app": 0.1226
+   }
+  ]
+ },
+ "maumau": {
+  "game": "maumau",
+  "partien": 500,
+  "stellungen": 10582,
+  "exaktAnteil": 0,
+  "kAlt": 0.625,
+  "kNeu": 0.2023,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0003,
+    "n": 3616
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.1367,
+    "n": 3460
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.7155,
+    "n": 3290
+   }
+  ],
+  "brier": {
+   "konstant50": 0.25,
+   "vorher": 0.2355,
+   "nurExakt": 0.2355,
+   "kalibriert": 0.2245,
+   "jePhase": 0.2116,
+   "app": 0.2246
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 3762,
+    "vorher": 0.2961,
+    "kalibriert": 0.2567,
+    "jePhase": 0.25,
+    "app": 0.2565
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 3598,
+    "vorher": 0.2551,
+    "kalibriert": 0.2303,
+    "jePhase": 0.2324,
+    "app": 0.2303
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 3438,
+    "vorher": 0.1489,
+    "kalibriert": 0.1833,
+    "jePhase": 0.1479,
+    "app": 0.1837
+   }
+  ]
+ },
+ "vier": {
+  "game": "vier",
+  "partien": 500,
+  "stellungen": 17956,
+  "exaktAnteil": 0.204,
+  "kAlt": 0.125,
+  "kNeu": 0.0519,
+  "kPhase": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "k": 0.0003,
+    "n": 6208
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "k": 0.076,
+    "n": 6038
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "k": 0.0483,
+    "n": 2356
+   }
+  ],
+  "brier": {
+   "konstant50": 0.231,
+   "vorher": 0.1742,
+   "nurExakt": 0.1742,
+   "kalibriert": 0.172,
+   "jePhase": 0.1706,
+   "app": 0.1742
+  },
+  "jePhaseBrier": [
+   {
+    "von": 0,
+    "bis": 0.333,
+    "n": 6082,
+    "vorher": 0.2387,
+    "kalibriert": 0.2328,
+    "jePhase": 0.2316,
+    "app": 0.2387
+   },
+   {
+    "von": 0.333,
+    "bis": 0.667,
+    "n": 5888,
+    "vorher": 0.2123,
+    "kalibriert": 0.215,
+    "jePhase": 0.2122,
+    "app": 0.2123
+   },
+   {
+    "von": 0.667,
+    "bis": 1.01,
+    "n": 5752,
+    "vorher": 0.0669,
+    "kalibriert": 0.0635,
+    "jePhase": 0.0636,
+    "app": 0.0669
+   }
+  ]
+ }
+}

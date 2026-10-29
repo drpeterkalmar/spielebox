@@ -15,15 +15,20 @@
 //     over: null | { winner: 0|1|null, reason, score: [schwarz, weiß] } }
 // Züge: { i } (Feld 0–63, dreht mindestens einen Stein um) oder { pass: true } (nur, wenn kein Feld geht).
 // Ergebnis ohne `points`: der Tisch würde `points` als Partiepunkte zählen; der Steinstand steht in score/reason.
-// evaluate: Einheit „Steine“ = geschätzte End-Differenz (leere Felder zählen für den Sieger wie im Turnier),
-//   am Ende echt, ab 8 leeren Feldern exakt gelöst, sonst Steine + Mobilität/Ecken/Stabilität, etwa −64…+64.
+// evaluate: geschätzte End-Differenz in Steinen (leere Felder zählen für den Sieger wie im Turnier), etwa −64…+64:
+//   am Ende echt, ab SOLVE_EMPTIES leeren Feldern exakt gelöst (evaluateInfo: exact = true), bis WLD_EMPTIES wenn möglich
+//   Sieg/Niederlage bewiesen (exact + wld, ohne Steinzahl), sonst eine Schätzung aus
+//   Steinen, Mobilität, Ecken, Stabilität – das ist ein „Vorteil“, kein Steinstand.
 
 export const id = 'reversi';
 export const title = 'Reversi';
 export const PLAYERS = ['Schwarz', 'Weiß'];
 export const BLACK = 0, WHITE = 1;
 
-const SOLVE_EMPTIES = 8;    // evaluate löst ab so wenigen leeren Feldern exakt (wenige ms; bei 10 schon ~100 ms)
+// evaluate löst ab so wenigen leeren Feldern exakt, solange das Knotenbudget reicht (Messung: N11_BERICHT.md)
+export const SOLVE_EMPTIES = 12;
+export const WLD_EMPTIES = 18;       // darüber hinaus bis hier: nur Sieg/Remis/Niederlage beweisen, wenn das Budget reicht
+export const SOLVE_NODES = 150000;   // ≈ 50 ms am Mac (M1), ≈ 200 ms auf einem Mittelklasse-Handy
 
 export function normalizeOptions() {
   return {};
@@ -203,25 +208,80 @@ export function _heur(ph, pl, oh, ol) {
   return 64 * Math.tanh(v / 64);
 }
 
-// exakte End-Differenz bei perfektem Spiel (für wenige leere Felder), P am Zug
-function solve(ph, pl, oh, ol, alpha, beta, passed) {
+// ---------- Exakter Endspiel-Löser (n11) ----------
+// End-Differenz bei perfektem Spiel beider Seiten, P am Zug. Zugsortierung: Ecken zuerst, sonst „Fastest First“
+// (Züge, nach denen der Gegner am wenigsten Antworten hat); ab 5 leeren Feldern ohne Sortierung (lohnt sich nicht mehr).
+// Knotenbudget statt Uhr: dieselbe Stellung gibt auf jedem Gerät dasselbe Ergebnis (exakt oder „zu teuer“).
+const SORT_MIN = 6;
+const SQS = Array.from({ length: 70 }, () => new Int8Array(34));
+const KEYS = Array.from({ length: 70 }, () => new Int16Array(34));
+const CORNER_SQ = new Set([0, 7, 56, 63]);
+const BUDGET = {};          // geworfen, wenn das Knotenbudget erschöpft ist
+let nodes = 0, limit = Infinity;
+
+function solveFF(ph, pl, oh, ol, alpha, beta, passed, ply) {
+  if (++nodes > limit) throw BUDGET;
   _moves(ph, pl, oh, ol);
-  const mh = _M.h, ml = _M.l;
+  let mh = _M.h, ml = _M.l;
   if (!(mh | ml)) {
     if (passed) return _final(ph, pl, oh, ol);
-    return -solve(oh, ol, ph, pl, -beta, -alpha, true);
+    return -solveFF(oh, ol, ph, pl, -beta, -alpha, true, ply + 1);
   }
-  let best = -Infinity;
-  for (const sq of _list(mh, ml)) {
-    _flips(ph, pl, oh, ol, sq);
+  const empty = 64 - _pop(ph) - _pop(pl) - _pop(oh) - _pop(ol);
+  const sq = SQS[ply], key = KEYS[ply];
+  let n = 0;
+  while (ml) { const b = ml & -ml; sq[n++] = 31 - Math.clz32(b); ml ^= b; }
+  while (mh) { const b = mh & -mh; sq[n++] = 63 - Math.clz32(b); mh ^= b; }
+  if (empty >= SORT_MIN && n > 1) {
+    for (let k = 0; k < n; k++) {
+      const s = sq[k];
+      _flips(ph, pl, oh, ol, s);
+      _moves(oh & ~_F.h, ol & ~_F.l, ph | _F.h | (s >= 32 ? 1 << (s - 32) : 0), pl | _F.l | (s < 32 ? 1 << s : 0));
+      key[k] = (_pop(_M.h) + _pop(_M.l)) * 4 - (CORNER_SQ.has(s) ? 16 : 0);
+    }
+    for (let a = 1; a < n; a++) {               // Einfügesortierung aufsteigend
+      const s = sq[a], v = key[a];
+      let b = a - 1;
+      while (b >= 0 && key[b] > v) { sq[b + 1] = sq[b]; key[b + 1] = key[b]; b--; }
+      sq[b + 1] = s;
+      key[b + 1] = v;
+    }
+  }
+  let best = -65;
+  for (let k = 0; k < n; k++) {
+    const s = sq[k];
+    _flips(ph, pl, oh, ol, s);
     const fh = _F.h, fl = _F.l;
-    const nph = ph | fh | (sq >= 32 ? 1 << (sq - 32) : 0), npl = pl | fl | (sq < 32 ? 1 << sq : 0);
-    const v = -solve(oh & ~fh, ol & ~fl, nph, npl, -beta, -alpha, false);
-    if (v > best) best = v;
-    if (v > alpha) alpha = v;
-    if (alpha >= beta) break;
+    const v = -solveFF(oh & ~fh, ol & ~fl, ph | fh | (s >= 32 ? 1 << (s - 32) : 0), pl | fl | (s < 32 ? 1 << s : 0),
+      -beta, -alpha, false, ply + 1);
+    if (v > best) {
+      best = v;
+      if (v > alpha) {
+        alpha = v;
+        if (alpha >= beta) break;
+      }
+    }
   }
   return best;
+}
+
+// exakter Wert aus Sicht des Spielers am Zug, oder null, wenn das Knotenbudget nicht reicht; nodes = verbrauchte Knoten
+export const SOLVE_STAT = { nodes: 0 };
+// wld = true: nur Sieg/Remis/Niederlage (Nullfenster, viel schneller) → 1 / 0 / −1 aus Sicht des Spielers am Zug
+export function solveExact(state, maxNodes = SOLVE_NODES, wld = false) {
+  const [ph, pl, oh, ol] = sideBits(state);
+  nodes = 0;
+  limit = maxNodes;
+  try {
+    if (wld) return Math.sign(solveFF(ph, pl, oh, ol, -1, 1, false, 0));
+    return solveFF(ph, pl, oh, ol, -65, 65, false, 0);
+  } catch (e) {
+    if (e !== BUDGET) throw e;
+    return null;
+  } finally {
+    SOLVE_STAT.nodes = nodes;
+    limit = Infinity;
+  }
 }
 
 // ---------- Zustand ----------
@@ -379,18 +439,44 @@ export function positionKey(state) {
   return `${s}|${state.turn}`;
 }
 
-// geschätzte End-Differenz in Steinen aus Sicht von seat (siehe Kopfkommentar)
-export function evaluate(state, seat) {
-  let v;
+// leere Felder einer Stellung
+export function empties(state) {
+  let e = 0;
+  for (const v of state.board) if (v === null) e++;
+  return e;
+}
+
+// geschätzte bzw. exakte End-Differenz aus Sicht von seat mit Kennzeichen exact (siehe Kopfkommentar).
+// opts.solve = so viele leere Felder werden höchstens exakt gelöst (Standard SOLVE_EMPTIES, Link ?solve=N),
+// opts.nodes = Knotenbudget; reicht es nicht, bleibt es bei der Schätzung (exact: false).
+// Zwischen SOLVE_EMPTIES und WLD_EMPTIES (bzw. opts.solve + 6) wird nur bewiesen, wer bei bestem Spiel gewinnt:
+// dann { x: +1 | 0 | −1, exact: true, wld: true } – die genaue Steinzahl ist dort nicht bekannt.
+export function evaluateInfo(state, seat, opts = {}) {
+  let v, exact = true, wld = false;
+  const sg = seat === 1 ? -1 : 1;
   if (state.over) {
     const [b, w] = counts(state), d = b - w, e = 64 - b - w;
     v = d > 0 ? d + e : d < 0 ? d - e : 0;
   } else {
     const [bh, bl, wh, wl] = _bits(state.board);
     const empty = 64 - _pop(bh) - _pop(bl) - _pop(wh) - _pop(wl);
-    if (empty <= SOLVE_EMPTIES) {
-      v = state.turn === 0 ? solve(bh, bl, wh, wl, -65, 65, false) : -solve(wh, wl, bh, bl, -65, 65, false);
-    } else v = Math.round(_heur(bh, bl, wh, wl) * 10) / 10;
+    const own = Number.isInteger(opts.solve) && opts.solve >= 0;
+    const lim = own ? Math.min(opts.solve, 20) : SOLVE_EMPTIES, wlim = own ? (opts.solve ? Math.min(opts.solve + 6, 24) : 0) : WLD_EMPTIES;
+    const budget = opts.nodes > 0 ? opts.nodes : SOLVE_NODES;
+    let r = null;
+    if (empty <= lim) r = solveExact(state, budget);
+    else if (empty <= wlim) { r = solveExact(state, budget, true); wld = r !== null; }
+    if (r !== null) v = state.turn === 0 ? r : -r;
+    else {
+      exact = false;
+      v = Math.round(_heur(bh, bl, wh, wl) * 10) / 10;
+    }
   }
-  return (seat === 1 ? -v : v) + 0;
+  const out = { x: sg * v + 0, exact };
+  if (wld) out.wld = true;
+  return out;
+}
+
+export function evaluate(state, seat, opts) {
+  return evaluateInfo(state, seat, opts).x;
 }

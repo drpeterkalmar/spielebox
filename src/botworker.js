@@ -4,9 +4,9 @@ import { evalPosition } from './evalpos.js';
 
 // Bot eines Spiels wird erst beim ersten Zug dieses Spiels geladen (import())
 self.onmessage = async (e) => {
-  const { id, game, gs, level, evalSeat, fehler } = e.data;
+  const { id, game, gs, level, evalSeat, evalOpts, fehler } = e.data;
   try {
-    if (evalSeat !== undefined) { self.postMessage({ id, move: evalPosition(game, gs, evalSeat) }); return; }
+    if (evalSeat !== undefined) { self.postMessage({ id, move: evalPosition(game, gs, evalSeat, evalOpts || {}) }); return; }
     const move = (await loadBot(game))(gs, { level, timeMs: TIME[level] || 400, fehler });
     self.postMessage({ id, move });
   } catch (err) {

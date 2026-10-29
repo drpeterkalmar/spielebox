@@ -1,0 +1,37 @@
+{
+ "root": "/Users/wohnzimmer/dev/.wt/spielebox-spielebox-n11-tipp",
+ "spiel": "stufe2",
+ "partien": 300,
+ "sprung9zu8": {
+  "n": 299,
+  "median": 0,
+  "p90": 0,
+  "anteilOhneSprung25": 0.936,
+  "echteWechsel": 19,
+  "anteilOhneAnzeigeSprung25": 1,
+  "anteilFalscheSeite": 0
+ },
+ "sprung13zu12": {
+  "n": 299,
+  "median": 0,
+  "p90": 49,
+  "anteilOhneSprung25": 0.896,
+  "echteWechsel": 30,
+  "anteilOhneAnzeigeSprung25": 0.996,
+  "anteilFalscheSeite": 0.004
+ },
+ "sprungSchaetzungZuBewiesen": {
+  "n": 299,
+  "median": 31.2,
+  "p90": 74.3,
+  "anteilOhneSprung25": 0.455,
+  "echteWechsel": 53,
+  "anteilOhneAnzeigeSprung25": 0.508,
+  "anteilFalscheSeite": 0.195
+ },
+ "exaktGewonnen": {
+  "n": 2647,
+  "anteilMind97": 1,
+  "median": 0.99
+ }
+}

@@ -310,9 +310,11 @@ function heuristic(cols) {
 }
 
 // Zahl aus Sicht von seat in „Punkten“ (+ = gut für seat); gewonnen ±99, Remis 0
-export function evaluate(state, seat) {
+// n11: mit Kennzeichen exact – Ende der Partie oder bewiesener Gewinn (±99), sonst Schätzung;
+// opts.beweis === false: ohne Gewinnbeweis (nur Stellungsbewertung, z. B. für den „gierigen“ Messspieler)
+export function evaluateInfo(state, seat, opts = {}) {
   const sign = seat === 1 ? -1 : 1;
-  let red;
+  let red, exact = true;
   if (state.over) {
     const w = state.over.winner;
     red = w === 0 ? 99 : w === 1 ? -99 : 0;
@@ -322,17 +324,22 @@ export function evaluate(state, seat) {
     const cl = mover === 0 ? bits.p0l : bits.p1l, ch = mover === 0 ? bits.p0h : bits.p1h;
     // Beweis auf dem Brett und seinem Spiegelbild (beide korrekt) → Ergebnis spiegelsymmetrisch
     proofNodes = 0;
-    let p = prove(cl, ch, bits.ml, bits.mh, bits.h, bits.n, PROOF_DEPTH);
-    if (p === 0) {
+    let p = opts.beweis === false ? 0 : prove(cl, ch, bits.ml, bits.mh, bits.h, bits.n, PROOF_DEPTH);
+    if (p === 0 && opts.beweis !== false) {
       const m = toBits({ cols: state.cols.slice().reverse() });
       proofNodes = 0;
       p = prove(mover === 0 ? m.p0l : m.p1l, mover === 0 ? m.p0h : m.p1h, m.ml, m.mh, m.h, m.n, PROOF_DEPTH);
     }
     if (p !== 0) red = (mover === 0 ? p : -p) * 99;
     else {
+      exact = false;
       const raw = heuristic(state.cols);
       red = Math.round(30 * Math.tanh(raw / 30) * 10) / 10;
     }
   }
-  return sign * red + 0;   // + 0: keine −0
+  return { x: sign * red + 0, exact };   // + 0: keine −0
+}
+
+export function evaluate(state, seat, opts) {
+  return evaluateInfo(state, seat, opts).x;
 }

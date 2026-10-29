@@ -13,7 +13,7 @@ import { displayWord, formatWords } from '../words.js';
 import { helpNet } from './texts.js';
 import { gameUi, prepareGame } from './gameui.js';
 import { evaluateBoard } from '../botclient.js';
-import { EVAL } from '../evalpos.js';
+import { EVAL, evalText } from '../evalpos.js';
 import * as store from '../store.js';
 import { onDeko } from './deko.js';
 import { clear as clearFx } from './fx.js';
@@ -778,12 +778,12 @@ export function showTableScreen(root, { session, words = null, onLeave, onAnothe
     const p = Math.max(0, Math.min(1, evalRes.p));
     evalBar.firstChild.style.transform = `scaleY(${p.toFixed(3)})`;   // n9: nur Compositor (statt height)
     if (cfg.label) { evalBtn.textContent = cfg.label(evalRes); evalBtn.title = cfg.title || ''; return; }
-    const x = evalRes.x;
-    const ax = Math.abs(x).toFixed(cfg.digits), zero = Number(ax) === 0;   // −0,3 → „±0“, nicht „−0“
-    const num = Math.abs(x) >= 99 ? (cfg.win ? (x > 0 ? cfg.win[0] : cfg.win[1]) : x > 0 ? 'Matt in Sicht' : 'Matt droht') : `${zero ? '±' : x > 0 ? '+' : '−'}${ax.replace('.', ',')} ${cfg.unit}`;
-    const pct = `${Math.round(p * 100)} % Gewinnchance`;
-    evalBtn.textContent = `Wer gewinnt? ${store.settings().evalMode === 'pct' ? pct : num}`;
-    evalBtn.title = 'Antippen: Zahl ↔ Prozent';
+    // n11: bewiesene Ergebnisse ohne Prozentzahl („Sieg sicher bei bestem Spiel (+10)“), Schätzungen mit Einheit bzw. „Vorteil“
+    // bewiesen: der Satz steht für sich (kürzer, passt am Handy in eine Zeile)
+    const et = evalText(evalRes.game, evalRes, store.settings().evalMode === 'pct' ? 'pct' : 'num');
+    evalBtn.textContent = evalRes.exact ? et : `Wer gewinnt? ${et}`;
+    evalBtn.dataset.exact = evalRes.exact ? '1' : '';
+    evalBtn.title = evalRes.exact ? 'Bewiesen: so geht die Partie aus, wenn beide ab jetzt fehlerfrei spielen' : `${cfg.title ? cfg.title + ' · ' : ''}Antippen: Zahl ↔ Prozent`;
   }
 
   // Fair-Play-Anzeige: eigenes Gerät hat Commit, Kette und Mischung/Würfe nachgeprüft

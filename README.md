@@ -9,7 +9,9 @@ Handy zuerst (Hoch- und Querformat), als App installierbar (PWA), offline gegen 
 · Texas Hold'em (2–8, nur Spielchips).
 Dazu der **Schach-Trainer** (allein üben): Eröffnungen, Taktik-Aufgaben, Endspiele.
 Jedes Spiel online über die drei Wörter, gegen den Computer (3 Stufen) oder an einem Gerät. Freie Plätze an Mehr-Personen-Tischen
-füllt der Computer. Unter dem Brett steht auf Wunsch „Wer gewinnt?“ (Zahl in der Einheit des Spiels ↔ Gewinnchance in %).
+füllt der Computer. Unter dem Brett steht auf Wunsch „Wer gewinnt?“ (Zahl in der Einheit des Spiels bzw. „Vorteil“ ↔
+Gewinnchance in %, aus Selbstspiel-Partien kalibriert); ist das Ergebnis bewiesen, steht dort „Sieg sicher bei bestem
+Spiel (+N)“, „Niederlage droht“ oder „Remis bei bestem Spiel“ (Reversi: ab 12 leeren Feldern exakt, meist ab 16 bewiesen).
 
 **Gemütlich für Kinder:** Einstellungen → *Computer-Tempo* gemütlich (Standard, ~1,5–2 s Denkzeit), normal (~0,9 s) oder
 flott (0,45 s). Züge des Computers gleiten sichtbar, Sprungketten, Würfelzüge und die Blackjack-Bank laufen Schritt für
@@ -256,6 +258,11 @@ Vanilla-ES-Module ohne Build; esbuild nur einmalig für `lib/trystero.js` (`npm 
 - Debug-API im Browser: `window.__box` (Zustand, legale Züge, Züge, Tisch öffnen/beitreten).
 
 ## Änderungen
+- **n11 (29.10.2026) – ehrliches „Wer gewinnt?“:** Kennzeichen „exakt“ für alle Spiele (bewiesen = ohne Prozentzahl),
+  schneller Reversi-Endspiel-Löser (12 leere Felder genau, bis 18 „wer gewinnt“, Knotenbudget ≈ 200 ms am Handy,
+  `?solve=N`), Gewinnchance je Spiel per Brier-Score kalibriert, „Vorteil“ statt falscher Einheit (A, 0.11.0).
+  Messungen: `N11_BERICHT.md`; Werkzeuge `tools/n11/` (`rv_solve_bench.mjs`, `kalibrieren.mjs`, `kalib_fit.mjs`,
+  `rv_gate.mjs`), Tests `tests/node/n11_eval.test.mjs`, `python3 tests/smoke_n11.py eval`.
 - **n10 (14.10.2026) – Feinschliff nach Vorlagen:** Klänge in allen 15 Spielen, Vibration, Brett-Spielzeug (E1);
   Ziehen von Karten und Figuren, Eingabe-Puffer (E2); Revanche als Angebot, Reaktionen, Computer-Vertretung,
   Bedenkzeit (E3); Würfel-Auslauf, Auszeichnungen, Schnapsen-Computer mit Gedächtnis und exakter Endphase, menschliche

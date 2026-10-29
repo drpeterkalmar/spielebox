@@ -8,7 +8,7 @@ import { createBoard } from '../games/schach/view.js';
 import * as S from '../games/schach/engine.js';
 import * as store from '../store.js';
 import { chooseBotMove, evaluateBoard } from '../botclient.js';
-import { EVAL } from '../evalpos.js';
+import { evalText } from '../evalpos.js';
 import { params as tempoParams, levelFrom, OWN } from '../tempo.js';
 import { LINES, lineMoves, lineName, lineById, familyOf, byFamily, checkMove } from './opening.js';
 import { MOTIFS, PUZZLES } from './data/puzzles.js';
@@ -298,10 +298,9 @@ export function showTrainer(root, nav) {
       if (!evalRes) { evalBtn.textContent = 'Wer gewinnt? …'; return; }
       evalBar.firstChild.style.transform = `scaleY(${Math.max(0, Math.min(1, evalRes.p)).toFixed(3)})`;   // n9: nur Compositor
       if (evalRes.text) { evalBtn.textContent = `Wer gewinnt? ${evalRes.text}`; return; }
-      const cfg = EVAL.schach, x = evalRes.x;
-      const ax = Math.abs(x).toFixed(cfg.digits), zero = Number(ax) === 0;
-      const num = Math.abs(x) >= 99 ? (x > 0 ? 'Matt in Sicht' : 'Matt droht') : `${zero ? '±' : x > 0 ? '+' : '−'}${ax.replace('.', ',')} ${cfg.unit}`;
-      evalBtn.textContent = `Wer gewinnt? ${store.settings().evalMode === 'pct' ? `${Math.round(evalRes.p * 100)} % Gewinnchance` : num}`;
+      // n11: dieselbe Wortwahl wie am Tisch (Matt gefunden = bewiesen, ohne Prozentzahl)
+      const et = evalText('schach', evalRes, store.settings().evalMode === 'pct' ? 'pct' : 'num');
+      evalBtn.textContent = evalRes.exact ? et : `Wer gewinnt? ${et}`;
     }
     function refreshEval() {
       if (!evalOn() || !cur || !evalSrc) { drawEval(); return; }

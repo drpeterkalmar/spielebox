@@ -92,10 +92,12 @@ export async function quickMove(game, gs, level = 1) {
 // Einschätzung „Wer gewinnt?“ (im Worker, sonst direkt). Höchstens eine Bewertung in Arbeit; kommt währenddessen
 // eine neue, wartet nur die neueste – ältere wartende werden verworfen (Promise abgelehnt), damit sich vor dem
 // nächsten Computer-Zug keine veralteten Bewertungen stapeln.
+// n11: ?solve=N – Reversi: höchstens so viele leere Felder exakt lösen (Versuch/Messung; Standard in der Engine)
+const evalOpts = (() => { try { const v = parseInt(new URLSearchParams(globalThis.location?.search || '').get('solve'), 10); return v >= 0 && v <= 20 ? { solve: v } : {}; } catch { return {}; } })();
 let evalBusy = false;
 let evalNext = null;
 export function evaluateBoard(game, gs, seat) {
-  if (!getWorker()) return Promise.resolve(evalPosition(game, gs, seat));
+  if (!getWorker()) return Promise.resolve(evalPosition(game, gs, seat, evalOpts));
   return new Promise((resolve, reject) => {
     if (evalNext) evalNext.reject(new Error('veraltet'));
     evalNext = { game, gs, seat, resolve, reject };
@@ -108,7 +110,7 @@ function pumpEval() {
   const job = evalNext;
   evalNext = null;
   evalBusy = true;
-  request({ game: job.game, gs: job.gs, evalSeat: job.seat }, () => evalPosition(job.game, job.gs, job.seat))
+  request({ game: job.game, gs: job.gs, evalSeat: job.seat, evalOpts }, () => evalPosition(job.game, job.gs, job.seat, evalOpts))
     .then(job.resolve, job.reject)
     .finally(() => { evalBusy = false; pumpEval(); });
 }

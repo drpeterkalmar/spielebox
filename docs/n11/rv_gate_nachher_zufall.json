@@ -1,0 +1,37 @@
+{
+ "root": "/Users/wohnzimmer/dev/.wt/spielebox-spielebox-n11-tipp",
+ "spiel": "zufall",
+ "partien": 300,
+ "sprung9zu8": {
+  "n": 300,
+  "median": 0,
+  "p90": 98,
+  "anteilOhneSprung25": 0.75,
+  "echteWechsel": 75,
+  "anteilOhneAnzeigeSprung25": 1,
+  "anteilFalscheSeite": 0
+ },
+ "sprung13zu12": {
+  "n": 300,
+  "median": 0,
+  "p90": 98,
+  "anteilOhneSprung25": 0.747,
+  "echteWechsel": 71,
+  "anteilOhneAnzeigeSprung25": 0.974,
+  "anteilFalscheSeite": 0.017
+ },
+ "sprungSchaetzungZuBewiesen": {
+  "n": 300,
+  "median": 9.3,
+  "p90": 82,
+  "anteilOhneSprung25": 0.627,
+  "echteWechsel": 80,
+  "anteilOhneAnzeigeSprung25": 0.736,
+  "anteilFalscheSeite": 0.123
+ },
+ "exaktGewonnen": {
+  "n": 2468,
+  "anteilMind97": 1,
+  "median": 0.99
+ }
+}
